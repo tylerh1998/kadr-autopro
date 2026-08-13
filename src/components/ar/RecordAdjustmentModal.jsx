@@ -281,13 +281,13 @@ export default function RecordAdjustmentModal({ open, onClose, customer, onRecor
 
           <div className="space-y-2">
             <Label>GL Account</Label>
-            <Select value={glAccount} onValueChange={setGlAccount}>
+            <Select value={String(glAccount || '')} onValueChange={setGlAccount}>
               <SelectTrigger>
                 <SelectValue placeholder="Select GL Account..." />
               </SelectTrigger>
               <SelectContent>
                 {glAccounts.map(account => (
-                  <SelectItem key={account.id} value={account.account_number}>
+                  <SelectItem key={account.id} value={String(account.account_number)}>
                     {account.account_number} - {account.account_name}
                   </SelectItem>
                 ))}

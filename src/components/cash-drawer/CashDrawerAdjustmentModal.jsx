@@ -246,7 +246,7 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
             <div className="space-y-2">
               <Label htmlFor="glAccount">GL Account *</Label>
               <Select
-                value={formData.glAccount}
+                value={String(formData.glAccount || '')}
                 onValueChange={(value) => setFormData(prev => ({...prev, glAccount: value}))}
               >
                 <SelectTrigger>
@@ -254,7 +254,7 @@ export default function CashDrawerAdjustmentModal({ open, onClose, onSubmit, adj
                 </SelectTrigger>
                 <SelectContent>
                   {glAccounts.map(account => (
-                    <SelectItem key={account.id} value={account.account_number}>
+                    <SelectItem key={account.id} value={String(account.account_number)}>
                       {account.account_number} - {account.account_name}
                     </SelectItem>
                   ))}

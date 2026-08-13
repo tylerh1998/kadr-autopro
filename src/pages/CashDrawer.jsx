@@ -859,7 +859,7 @@ export default function CashDrawerPage() {
               <div className="flex flex-col items-end gap-1">
                 <Button
                   onClick={() => setShowDepositModal(true)}
-                  className="bg-green-600 hover:bg-green-700 h-14 text-lg px-8 shadow-md transition-all hover:scale-105"
+                  className="bg-green-600 hover:bg-green-700 text-white disabled:text-white h-14 text-lg px-8 shadow-md transition-all hover:scale-105"
                   disabled={!depositBatchStatus.valid}
                 >
                   <Upload className="w-6 h-6 mr-2" />

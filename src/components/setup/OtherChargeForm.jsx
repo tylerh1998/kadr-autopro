@@ -121,7 +121,7 @@ export default function OtherChargeForm({ open, onClose, onSubmit, charge, glAcc
               <div className="space-y-2">
                 <Label htmlFor="gl_account">GL Account</Label>
                 <Select
-                  value={formData.gl_account}
+                  value={String(formData.gl_account || '')}
                   onValueChange={(value) => handleChange('gl_account', value)}
                   required
                 >
@@ -130,7 +130,7 @@ export default function OtherChargeForm({ open, onClose, onSubmit, charge, glAcc
                   </SelectTrigger>
                   <SelectContent>
                     {glAccounts.map((acc) => (
-                      <SelectItem key={acc.id} value={acc.account_number}>
+                      <SelectItem key={acc.id} value={String(acc.account_number)}>
                         {acc.account_number} - {acc.account_name}
                       </SelectItem>
                     ))}

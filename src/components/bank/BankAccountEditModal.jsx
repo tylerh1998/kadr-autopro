@@ -137,13 +137,13 @@ export default function BankAccountEditModal({ open, onClose, bankAccount, onSub
             </div>
             <div className="space-y-2">
               <Label htmlFor="gl_account">GL Account</Label>
-              <Select value={formData.gl_account} onValueChange={(value) => handleSelectChange('gl_account', value)}>
+              <Select value={String(formData.gl_account || '')} onValueChange={(value) => handleSelectChange('gl_account', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a GL account..." />
                 </SelectTrigger>
                 <SelectContent>
                   {accounts.map(account => (
-                    <SelectItem key={account.id} value={account.account_number}>
+                    <SelectItem key={account.id} value={String(account.account_number)}>
                       {account.account_number} - {account.account_name}
                     </SelectItem>
                   ))}

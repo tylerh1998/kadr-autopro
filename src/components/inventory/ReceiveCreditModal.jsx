@@ -543,13 +543,13 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="gl-account" className="dark:text-slate-300">GL Account *</Label>
-                      <Select value={glAccount} onValueChange={setGlAccount}>
+                      <Select value={String(glAccount || '')} onValueChange={setGlAccount}>
                         <SelectTrigger className={(adj !== 0 && !glAccount ? 'border-red-300' : '') + " dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"}>
                           <SelectValue placeholder="Select account" />
                         </SelectTrigger>
                         <SelectContent className="dark:bg-slate-950 dark:border-slate-800">
-                          {accounts.filter(account => !account.controlled || account.account_number === '5004').map(account => (
-                            <SelectItem key={account.id} value={account.account_number} className="dark:text-slate-300 dark:focus:bg-slate-800">
+                          {accounts.filter(account => !account.controlled || String(account.account_number) === '5004').map(account => (
+                            <SelectItem key={account.id} value={String(account.account_number)} className="dark:text-slate-300 dark:focus:bg-slate-800">
                               {account.account_number} - {account.account_name}
                             </SelectItem>
                           ))}

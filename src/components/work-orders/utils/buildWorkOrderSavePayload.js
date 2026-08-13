@@ -112,7 +112,7 @@ export const prepareWorkOrderSavePayload = ({
     shop_supply_total: shopSupplyTotal,
     tax_amount: taxAmount,
     total_amount: totalAmount,
-    line_items: JSON.stringify(lineItemsToSave),
+    line_items: lineItemsToSave,
   };
 
   if (workOrder?.stage === 'work_order' && !workOrder?.converted && invoiceConversionPhase > 0 && invoiceConversionPhase < 4) {

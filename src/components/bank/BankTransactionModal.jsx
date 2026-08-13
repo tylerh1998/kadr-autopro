@@ -342,7 +342,7 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
               <div className="space-y-2">
                 <Label htmlFor="gl_account">GL Account *</Label>
                 <Select
-                  value={formData.gl_account}
+                  value={String(formData.gl_account || '')}
                   onValueChange={(value) => handleChange('gl_account', value)}
                   required
                 >
@@ -351,7 +351,7 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
                   </SelectTrigger>
                   <SelectContent>
                     {chartOfAccounts.filter(account => !account.controlled).map((account) => (
-                      <SelectItem key={account.id} value={account.account_number}>
+                      <SelectItem key={account.id} value={String(account.account_number)}>
                         {account.account_number} - {account.account_name}
                       </SelectItem>
                     ))}
