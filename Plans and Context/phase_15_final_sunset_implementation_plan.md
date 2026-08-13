@@ -12,15 +12,22 @@
 
 ---
 
-## 0) Open Questions — please answer before I proceed
+## 0) Open Questions — RESOLVED 2026-08-14
 
-Research below is thorough, but three things depend on information or access I don't have. **Sub-phase 15C (the actual deletions) is gated on these being resolved — 15A/15B don't need them to start.**
+All three original questions, plus two new findings surfaced by a second, repo-wide (not just `src/`) search requested before execution:
 
-1. **Is anything on base44's own platform still actively invoking base44-hosted functions right now** (a cron/schedule configured there, or an external caller)? I have no tool access to base44's dashboard. Two functions there have no native replacement gap left: `sendAppointmentReminders`/`sendTextReminders` were fully replaced by native `pg_cron`-scheduled functions this week (confirmed live 2026-08-14). `resendWebhook` still receives live traffic from Resend's delivery-status callbacks — a native replacement (`autopro-resendWebhook`) is deployed and idle, but **Resend's dashboard still points at the base44 URL** (flagged when that work landed, still pending). Everything else in the local `base44/functions/` tree (~130 directories) appears to be long-superseded leftovers with no live frontend caller (confirmed below), but I can't independently verify nothing on base44's own side is still scheduled/triggered against them without your access to that dashboard.
-2. **What is `Google-Contacts-Sync` actually hosted on?** The `sync_customer_to_google` production trigger calls it, and it's "live in production" per earlier findings — but there's no source for it anywhere in this repo, neither `supabase/functions/` nor `base44/functions/`. If it's base44-hosted, it's a real dependency this phase would need to account for (not delete out from under). If it's a standalone Supabase function created outside this repo's tracked history, it's unrelated to base44 sunset entirely. I can't tell from the repo alone.
-3. **Do you want `base44-proxy` and the `base44/` tree hard-deleted (relying on git history to recover if ever needed), or archived somewhere first?** Every other deprecation in this project (Kanban board, PartsTech, LANKAR bulk import, `AddLegacyInvoiceModal.jsx`, etc.) was hard-deleted outright, not moved to an `Archive/`-style folder — I'd follow that same precedent unless you want it handled differently for this specific tree given its size (~130 function directories).
+1. **Base44 platform status:** No direct tool access to check base44's own dashboard. **A full repo-wide `base44` grep (not scoped to `src/`) was run as a direct check** and found 2 genuinely live, previously-undiscovered dependencies inside `supabase/functions/` (native Edge Functions, not the local `base44/` mirror) — see the two new findings below. Beyond those two, nothing else in the live app (frontend or native Edge Functions) calls out to base44's platform. **Decision:** both new findings folded into this phase's scope (below), closing them is now part of Phase 15 rather than left as an unknown.
+2. **`Google-Contacts-Sync`:** **User-confirmed** — it's an existing native Supabase Edge Function, not base44-hosted. No action needed; it was never actually in scope.
+3. **Hard delete vs. archive `base44-proxy`/`base44/` tree:** **User-confirmed — hard delete**, matching this project's established precedent for every other deprecation. **Followed by a full round of general application regression testing after 15C**, before considering the phase closed (added to the plan below).
 
-Everything else below — the actual file-by-file scope, what's real vs. a false positive, the deletion list, the verification plan — is fully researched and doesn't need your input to draft. I just can't respons­ibly schedule the irreversible-on-base44's-side parts (disabling/removing anything on their platform, or confirming zero external traffic to `resendWebhook`'s old URL) without you.
+**Two new findings from the repo-wide search, both resolved:**
+
+- **`supabase/functions/autopro-mergeVehicles/index.ts`** imports `npm:@base44/sdk@0.8.24` directly (a Deno-side import — separate from and unaffected by removing `@base44/sdk` from the frontend's `package.json`) and calls `base44.entities.Appointment.filter()`/`.update()` during a vehicle merge to reassign appointments. Wrapped in a non-fatal try/catch that — per its own comment — **already always fails today**, since a server-side Edge Function invoked via `supabase.functions.invoke()` has no way to supply Base44 SDK auth headers. This is the same item already sitting on `Pre_go-live_plan.md` as **P10**. **Decision: fold into Phase 15** — rewire to a direct `supabase.from('Appointment')` update (15B, below). `Pre_go-live_plan.md`'s P10 will be marked resolved-via-Phase-15 rather than tracked twice.
+- **`supabase/functions/autopro-processQOHAdjustment/index.ts`** — when a QOH adjustment is flagged `system_issue: true`, it emails `tyler@kensauto.ca` directly via a live `fetch()` to `https://api.base44.app/functions/v1/sendEmailViaSMTP` using `BASE44_ACCESS_TOKEN`. **This is a real owner-notification path** (staff flagging a system-caused inventory discrepancy), not a decorative feature — initially mis-described during scoping and re-confirmed once the actual behavior was clear. **Decision: rewire to the native shared module** (`_shared/resend.ts`'s `sendViaResend`, already proven in Phase 6) rather than strip it — same recipient, same content, just off base44 (15B, below).
+
+`autopro-suggestInventoryCategory` (the file originally, incorrectly, described as having this fallback) was re-checked and confirmed to have **zero** base44 references — no change needed there.
+
+Everything else the repo-wide search surfaced was either: the local `base44/functions/` tree itself (expected — in scope for deletion), this project's own planning docs (expected, historical), `package.json`/`package-lock.json`/`.gitignore` (expected, in scope for cleanup), comments in native functions referencing base44 only as historical context (`autopro-resendWebhook`, `autopro-sendTextReminders`, `autopro-sendAppointmentReminders`, `autopro-processCustomerARAccounting`, `autopro-getRealTimeInventoryOnOrder` — all comments only, no functional dependency), or `index.html`'s `<title>Base44 APP</title>` (cosmetic, browser tab title only — added to 15B's scope as a trivial fix, proposed new title "AutoPRO" unless you'd prefer different wording).
 
 ---
 
@@ -45,7 +52,7 @@ Everything else below — the actual file-by-file scope, what's real vs. a false
 
 - **Always confirm entity/dependency status directly against the database or source, never trust a classification table at face value** — Phase 14's own research caught a real rename this way; this plan's own research below did the same (found the "8 files reference base44" grep result was 50% false positives once each was actually read, not just pattern-matched).
 - **A committed source fix and a deployed function are two separate steps** — don't assume `base44-proxy`'s local source being deleted means anything about whether it's still live/reachable on Supabase until the deploy/delete action is actually taken and confirmed via `get_edge_function`.
-- **This repo has two live Supabase projects** (`hbcrwkmgsazqrvsrmxyr` = production, `sitihbdnuxifwibontcm` = dev) that don't always match — a fix or deletion confirmed on one doesn't imply the same state on the other. `base44-proxy` needs to be independently confirmed unused and removed on **both**.
+- **This repo has two live Supabase native branches** (`hbcrwkmgsazqrvsrmxyr` = production, `sitihbdnuxifwibontcm` = dev) that don't always match — a fix or deletion confirmed on one doesn't imply the same state on the other. `base44-proxy` needs to be independently confirmed unused and removed on **both**.
 - **`VITE_BASE44_BACKEND_URL`/`VITE_BASE44_PROXY_URL` are hardcoded to production** regardless of which Supabase branch the frontend points at — this was the original reason "never write-test an unmigrated feature outside production" was a standing rule all through this project. Directly relevant here: it confirms `base44-proxy` on **production** (`hbcrwkmgsazqrvsrmxyr`) is the one that ever mattered for real traffic; the dev-branch copy (if one exists) was never live-load-bearing.
 - **The reminder-functions saga (this week) is the freshest cautionary tale**: an unscoped, production-routed base44 function nearly got triggered live against real customer data before its risk was fully understood. Apply the same care here — confirm before removing, don't assume "looks unused" is the same as "confirmed unused."
 - **This project's established precedent for deprecated code is hard deletion, not archival** (Kanban board, PartsTech cluster, LANKAR bulk import, several legacy AR modals) — proposed as the default for Q3 above unless you want this specific case handled differently.
@@ -58,10 +65,11 @@ Everything else below — the actual file-by-file scope, what's real vs. a false
 
 | Sub-phase | Status | Overview |
 |---|---|---|
-| 15A | Pending | Audit & verification — confirm the true blast radius before touching anything; resolve what's checkable without external access; surface what needs your input (Section 0) |
-| 15B | Pending | Frontend dependency removal — delete the SDK wrapper files, dead imports, `package.json`/`vite.config.js` cleanup; build-verify |
-| 15C | Pending, gated on Section 0 answers | Backend/infra removal — delete `base44-proxy` (dev + prod), remove/archive the local `base44/` source tree |
-| 15D | Pending | Final verification & rollup — full-repo grep, build/smoke-test, roll learnings into `master_context.md`/`master_blueprint.md` |
+| 15A | Done (research) — Section 0 fully resolved | Audit & verification — confirmed the true blast radius, including a repo-wide (not just `src/`) second pass that surfaced 2 real live dependencies inside `supabase/functions/` |
+| 15B | Pending | Frontend dependency removal + 2 function rewires (`autopro-mergeVehicles`, `autopro-processQOHAdjustment`) — delete the SDK wrapper files, dead imports, `package.json`/`vite.config.js` cleanup, `index.html` title; build-verify |
+| 15C | Pending | Backend/infra removal — delete `base44-proxy` (dev + prod), hard-delete the local `base44/` source tree |
+| 15D | Pending | Full application regression pass (per user instruction) — broad spot-check across every major module, specifically because 15C is the point of no return |
+| Final | Pending | Full-repo grep, build/smoke-test, roll learnings into `master_context.md`/`master_blueprint.md` |
 
 ---
 
@@ -136,7 +144,7 @@ Target files and exact changes:
      import react from '@vitejs/plugin-react'
      import { defineConfig } from 'vite'
      import basicSsl from '@vitejs/plugin-basic-ssl'
-
+   
      export default defineConfig({
        server: {
          host: true,
@@ -166,14 +174,90 @@ Target files and exact changes:
 
 6. **`WorkOrderHeaderInfo.jsx`, `WorkOrderViewHeaderInfo.jsx`, `WorkOrderHistoryModal.jsx`, `Layout.jsx`** — **no changes.** Confirmed false positives in 15A; touching these would regress historical audit-name display and an unrelated external nav link.
 
+7. **`index.html`** — cosmetic, browser tab title only:
+   ```diff
+   - <title>Base44 APP</title>
+   + <title>AutoPRO</title>
+   ```
+
+8. **`supabase/functions/autopro-mergeVehicles/index.ts`** — remove the `@base44/sdk` import and the whole non-fatal try/catch, replace with a direct `Appointment` update matching the pattern already used two lines above for `WorkOrder`:
+   ```diff
+     import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+     import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+   - import { createClientFromRequest } from "npm:@base44/sdk@0.8.24";
+   ```
+   ```diff
+     const { data: workOrdersData, error: workOrdersError } = await supabase
+       .from('WorkOrder').update({ vehicle_id: masterId, updated_at: now }).eq('vehicle_id', duplicateId).select('id');
+     if (workOrdersError) throw workOrdersError;
+   
+   - let appointments = [];
+   - try {
+   -   const base44 = createClientFromRequest(req);
+   -   appointments = await base44.entities.Appointment.filter({ vehicle_id: duplicateId }, undefined, 1000);
+   -   if (appointments.length > 0) {
+   -     await Promise.all(appointments.map(app => base44.entities.Appointment.update(app.id, { vehicle_id: masterId })));
+   -   }
+   - } catch (apptError) {
+   -   console.error('Appointment reassignment failed (non-fatal, Appointment still base44-hosted; expected when called via supabase.functions.invoke, which cannot supply Base44 SDK headers):', apptError);
+   - }
+   + const { data: appointmentsData, error: appointmentsError } = await supabase
+   +   .from('Appointment').update({ vehicle_id: masterId }).eq('vehicle_id', duplicateId).select('id');
+   + if (appointmentsError) throw appointmentsError;
+   + const appointments = appointmentsData || [];
+   ```
+   Response shape (`mergedCount: { workOrders, appointments }`) is unchanged — `appointments.length` still resolves the same way, now from a real update instead of an always-empty array (since the old base44 call always failed). This is a genuine behavior improvement, not just a dependency swap: vehicle merges will now actually carry appointments over, which they silently never did before.
+
+9. **`supabase/functions/autopro-processQOHAdjustment/index.ts`** — swap the direct base44 API call for the shared native module, same pattern as every Phase 6 retrofit:
+   ```diff
+     import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+     import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+   + import { sendViaResend } from "../_shared/resend.ts";
+   ```
+   ```diff
+   -     const base44AccessToken = Deno.env.get("BASE44_ACCESS_TOKEN");
+   -     if (base44AccessToken) {
+   -       await fetch("https://api.base44.app/functions/v1/sendEmailViaSMTP", {
+   -         method: "POST",
+   -         headers: {
+   -           "Content-Type": "application/json",
+   -           "Authorization": `Bearer ${base44AccessToken}`,
+   -           "X-App-Id": "68b90236f4d7e6ac0de4a262"
+   -         },
+   -         body: JSON.stringify({
+   -           to: 'tyler@kensauto.ca',
+   -           subject: 'QOH Adjustment - System Issue',
+   -           body: emailBody,
+   -           from_name: "Ken's Auto & Diesel Repair"
+   -         })
+   -       }).catch(err => console.error("Failed to send email via SMTP:", err));
+   -     }
+   +     const resendApiKey = Deno.env.get("RESEND_API_KEY");
+   +     const fromEmail = Deno.env.get("SES_FROM_EMAIL") || "noreply@kensauto.ca";
+   +     if (resendApiKey) {
+   +       await sendViaResend(
+   +         resendApiKey,
+   +         `Ken's Auto & Diesel Repair <${fromEmail}>`,
+   +         ['tyler@kensauto.ca'],
+   +         'QOH Adjustment - System Issue',
+   +         emailBody
+   +       ).catch(err => console.error("Failed to send email:", err));
+   +     }
+   ```
+   Same recipient, same subject, same HTML body, same fire-and-forget non-blocking behavior (a failed notification doesn't fail the QOH adjustment itself) — only the transport changes.
+
 **Task List:**
 - [ ] Delete `src/api/base44Client.js`, `src/api/entities.js`, `src/api/integrations.js`, `src/lib/app-params.js`
 - [ ] Remove the 2 dead `@/entities/*` imports from `src/pages/WorkOrders.jsx`
 - [ ] Remove `@base44/sdk`/`@base44/vite-plugin` from `package.json`, run `npm install`
 - [ ] Remove the `base44` plugin and `/api` proxy block from `vite.config.js`
+- [ ] Update `index.html`'s `<title>` from "Base44 APP" to "AutoPRO"
+- [ ] Rewire `autopro-mergeVehicles/index.ts`'s Appointment reassignment to native `supabase.from('Appointment')`, deploy to dev, confirm via `get_edge_function`
+- [ ] Rewire `autopro-processQOHAdjustment/index.ts`'s system-issue email to `_shared/resend.ts`, deploy to dev, confirm via `get_edge_function`
 - [ ] `npm run build` — confirm clean
 - [ ] `npx eslint` — confirm no new errors (pre-existing unrelated warnings are fine, same standard used throughout this project)
 - [ ] Grep `src/` for `base44` again — confirm only the 3 intentionally-preserved false positives remain
+- [ ] Grep `supabase/functions/` (excluding comments) for `base44` again — confirm zero functional hits remain
 
 **Verification Plan:**
 - [ ] `npm run build` completes with no errors referencing `@base44/sdk`, `@base44/vite-plugin`, or the deleted files
@@ -181,6 +265,8 @@ Target files and exact changes:
 - [ ] Smoke-test in the browser: load `/WorkOrders`, confirm the page renders with no console errors related to the removed imports
 - [ ] Smoke-test `/Setup`, `/Admin`, and 2–3 other representative pages to catch any indirectly-affected import chain not caught by grep
 - [ ] Confirm no regression in the "System" display for historical audit entries (the two preserved `@no-reply.base44.com` checks) — e.g. view a WO history/header with an old system-generated entry, confirm it still shows "System" not a raw email
+- [ ] Merge two disposable test vehicles with at least one appointment on the duplicate — confirm the appointment's `vehicle_id` actually reassigns to the master now (previously silently never happened)
+- [ ] Trigger a QOH adjustment with `system_issue: true` on disposable test data — confirm the notification email lands via the native path (real send, to `tyler@kensauto.ca` only — same COMMS RULE as always)
 
 **Verification Checklist:**
 - [ ] `npm run build` clean
@@ -190,33 +276,34 @@ Target files and exact changes:
 - [ ] `/Setup` loads, no console errors
 - [ ] `/Admin` loads, no console errors
 - [ ] A WO header/history view with an old base44-system audit entry still shows "System"
+- [ ] Vehicle merge with a real appointment on the duplicate correctly reassigns it
+- [ ] QOH system-issue notification email lands via the native send path
 - [ ] Repo-wide `src/` grep for `base44` shows only the 3 preserved false positives
+- [ ] Repo-wide `supabase/functions/` grep for `base44` shows zero functional hits (comments only, if any)
 
 ---
 
 ### 15C — Backend/Infra Removal
 
-**Gated on Section 0 answers — do not execute until Q1–Q3 are resolved.**
+**Section 0 fully resolved 2026-08-14 — cleared to execute once 15A/15B are done and deployed.**
 
 **Detailed Execution Plan:**
 
 1. **Delete `base44-proxy` Edge Function** from both projects:
    - Dev (`sitihbdnuxifwibontcm`)
    - Production (`hbcrwkmgsazqrvsrmxyr`) — the one that ever mattered for real traffic, per `VITE_BASE44_PROXY_URL` being hardcoded to production
-   - Only after 15B's frontend changes are deployed and confirmed live (so there's no window where a still-deployed frontend tries to call an already-deleted function)
+   - Only after 15B's frontend changes and the two rewired functions are deployed and confirmed live (so there's no window where a still-deployed frontend or function tries to call an already-deleted dependency)
 
-2. **Remove/archive the local `base44/functions/` source tree** (~130 directories) — per your Q3 answer, either:
-   - Hard delete (default recommendation, matching this project's established precedent), or
-   - Move to an `Archive/`-equivalent location if you'd rather keep a local copy outside the active tree
+2. **Hard-delete the local `base44/functions/` source tree** (~130 directories) — confirmed, matching this project's established precedent for every other deprecation. Relies on git history for recovery if ever needed, same as Kanban/PartsTech/LANKAR bulk import before it.
 
-3. **Depending on Q1's answer:** if anything on base44's own platform needs explicit deactivation there (not just deleting this repo's local mirror of its source), that action happens on your side — this plan can't perform it, but will note exactly what (if anything) 15A's audit found needs it.
+3. **Mark `Pre_go-live_plan.md`'s P10 resolved-via-Phase-15** rather than left open — it's the same item as this sub-phase's `autopro-mergeVehicles` fix (15B).
 
 **Task List:**
 - [ ] Confirm 15B is deployed and live before proceeding
 - [ ] Delete `base44-proxy` from dev, confirm via `get_edge_function` (expect a "not found"/removed result)
 - [ ] Delete `base44-proxy` from production, confirm via `get_edge_function`
-- [ ] Remove (or archive, per Q3) the local `base44/functions/` tree
-- [ ] If Section 0 surfaced any base44-platform-side action item, hand it to the user explicitly rather than assuming it's handled
+- [ ] Hard-delete the local `base44/functions/` tree
+- [ ] Update `Pre_go-live_plan.md`'s P10 entry to point at this phase's resolution
 
 **Verification Plan:**
 - [ ] `get_edge_function` on both projects confirms `base44-proxy` no longer exists
@@ -225,12 +312,33 @@ Target files and exact changes:
 
 ---
 
-### Final Verification Plan (all of 15A–15C together)
+### 15D — Full Application Regression Pass (per user instruction, after 15C)
+
+Not a base44-specific check — a general "does everything still work" pass across the app, run specifically because 15C is the point of no return (base44-proxy and the local base44/ tree are both gone, nothing to fall back on if something unexpected broke). Scope: broad, not exhaustive — spot-check each major module rather than re-running all ~85 items from `blueprint_verification_plan.md` again.
+
+**Task List:**
+- [ ] WIP/Work Orders: create, add a line item, convert Estimate→WO→Invoice
+- [ ] Inventory: search, add a part, adjust QOH (confirms 15B's rewired notification path under real usage, not just the disposable-data test)
+- [ ] Customers/Vehicles: search, merge two disposable records (confirms 15B's rewired Appointment-reassignment path under real usage)
+- [ ] Accounting: GL Journal loads, Balance Sheet loads
+- [ ] Suppliers/AP: search, open a supplier
+- [ ] Appointments: `/Schedule` loads, create/edit round trip
+- [ ] Reports: open 2–3 representative reports
+- [ ] Setup/Admin: both load cleanly
+
+**Verification Plan:**
+- [ ] All of the above complete with no console errors and no unexpected behavior
+- [ ] Any regression found gets logged in Section 4 below and fixed before considering Phase 15 closed — do not silently note and move on
+
+---
+
+### Final Verification Plan (all of 15A–15D together)
 
 - [ ] Full-repo `base44` grep (not scoped to `src/`) returns zero hits except: the 2 `@no-reply.base44.com` audit-string checks, the `Layout.jsx` external link, and this project's own planning/history docs (`master_blueprint.md`, `Pre_go-live_plan.md`, etc. — those are expected to mention base44 historically and are not code)
 - [ ] `npm run build` clean with `@base44/sdk`/`@base44/vite-plugin` fully absent from `package.json`
 - [ ] Full smoke-test pass: log in, load every top-level nav page once, confirm no console errors
 - [ ] `base44-proxy` confirmed deleted on both Supabase projects
+- [ ] 15D's full regression pass green with no unresolved findings
 - [ ] `master_blueprint.md`'s Phase 15 row flipped from `[Pending]` to `[Tested]`/complete, with a short results summary matching every other completed phase's row format
 
 ### Handoff Context to Next Phase

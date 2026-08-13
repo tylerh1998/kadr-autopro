@@ -63,6 +63,12 @@ None of these share a name with anything currently live on `main` — confirmed 
 - [ ] `autopro-getNotesBoardData`
 - [ ] `autopro-getSupplierReconcileInvoices`
 - [ ] `autopro-processSupplierStatementOCR`
+- [ ] `autopro-sendStatementEmail`
+- [ ] `autopro-sendBatchWorkOrderEmails`
+- [ ] `autopro-report-issue`
+- [ ] `workpro-report-issue`
+- [x] `autopro-resendWebhook` — new function, native port of base44's inbound Resend delivery-callback webhook; deploying it alone does nothing until Resend's dashboard webhook URL is also manually repointed at it (no available tooling for that step — see `master_context.md` §3)
+- [x] `autopro-sendAppointmentReminders` / `autopro-sendTextReminders` — dev-only, `pg_cron`-scheduled, no frontend caller. Deploying the functions to production accomplishes nothing without also scheduling their `pg_cron` jobs there; full production port was explicitly deferred to a separate follow-up plan, not scoped here. Full history: `Plans and Context/Archive/Appointment_Reminders_implementation_plan.md`
 - [ ] Payroll's production frontend push + production Edge Function deploy — Phase 11's own doc noted these as "the user's own action," never confirmed done. **Before assuming this list above is complete: directly compare the full function list on dev (`sitihbdnuxifwibontcm`) vs. production (`hbcrwkmgsazqrvsrmxyr`) rather than relying on any single phase doc's memory of what it deployed** — this list was compiled from scattered per-phase notes, not a live diff.
 
 ---

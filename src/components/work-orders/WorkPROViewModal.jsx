@@ -57,9 +57,13 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
 
       // Fetch approvals (using cp_id)
       if (workOrder.cp_id) {
-        const { Approvals } = await import('@/entities/Approvals');
-        const approvalsData = await Approvals.filter({ cp_id: workOrder.cp_id }, '-created_date');
-        setApprovals(approvalsData);
+        const { data: approvalsData, error: approvalsError } = await supabase
+          .from('Approvals')
+          .select('*')
+          .eq('cp_id', workOrder.cp_id)
+          .order('created_date', { ascending: false });
+        if (approvalsError) throw approvalsError;
+        setApprovals(approvalsData || []);
       }
     } catch (error) {
       console.error('Error fetching WorkPRO data:', error);

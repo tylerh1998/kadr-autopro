@@ -10,7 +10,7 @@ select cron.schedule(
   '0 15 * * 1-5',
   $$
   select net.http_post(
-    url := 'https://sitihbdnuxifwibontcm.supabase.co/functions/v1/autopro-sendAppointmentReminders',
+    url := 'https://hbcrwkmgsazqrvsrmxyr.supabase.co/functions/v1/autopro-sendAppointmentReminders',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
       'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'autopro_cron_secret')
@@ -25,7 +25,7 @@ select cron.schedule(
   '0 15 * * 1-5',
   $$
   select net.http_post(
-    url := 'https://sitihbdnuxifwibontcm.supabase.co/functions/v1/autopro-sendTextReminders',
+    url := 'https://hbcrwkmgsazqrvsrmxyr.supabase.co/functions/v1/autopro-sendTextReminders',
     headers := jsonb_build_object(
       'Content-Type', 'application/json',
       'x-cron-secret', (select decrypted_secret from vault.decrypted_secrets where name = 'autopro_cron_secret')

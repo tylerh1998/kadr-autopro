@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { sendViaResend } from "../_shared/resend.ts";
 
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -126,22 +127,16 @@ serve(async (req) => {
         <p><strong>Notes:</strong> ${notes || ''}</p>
       `;
 
-      const base44AccessToken = Deno.env.get("BASE44_ACCESS_TOKEN");
-      if (base44AccessToken) {
-        await fetch("https://api.base44.app/functions/v1/sendEmailViaSMTP", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${base44AccessToken}`,
-            "X-App-Id": "68b90236f4d7e6ac0de4a262"
-          },
-          body: JSON.stringify({
-            to: 'tyler@kensauto.ca',
-            subject: 'QOH Adjustment - System Issue',
-            body: emailBody,
-            from_name: "Ken's Auto & Diesel Repair"
-          })
-        }).catch(err => console.error("Failed to send email via SMTP:", err));
+      const resendApiKey = Deno.env.get("RESEND_API_KEY");
+      const fromEmail = Deno.env.get("SES_FROM_EMAIL") || "noreply@kensauto.ca";
+      if (resendApiKey) {
+        await sendViaResend(
+          resendApiKey,
+          `Ken's Auto & Diesel Repair <${fromEmail}>`,
+          ['tyler@kensauto.ca'],
+          'QOH Adjustment - System Issue',
+          emailBody
+        ).catch(err => console.error("Failed to send email:", err));
       }
     }
 

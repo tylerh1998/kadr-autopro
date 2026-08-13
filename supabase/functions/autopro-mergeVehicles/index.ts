@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { createClientFromRequest } from "npm:@base44/sdk@0.8.24";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -62,16 +61,10 @@ serve(async (req) => {
       .from('WorkOrder').update({ vehicle_id: masterId, updated_at: now }).eq('vehicle_id', duplicateId).select('id');
     if (workOrdersError) throw workOrdersError;
 
-    let appointments = [];
-    try {
-      const base44 = createClientFromRequest(req);
-      appointments = await base44.entities.Appointment.filter({ vehicle_id: duplicateId }, undefined, 1000);
-      if (appointments.length > 0) {
-        await Promise.all(appointments.map(app => base44.entities.Appointment.update(app.id, { vehicle_id: masterId })));
-      }
-    } catch (apptError) {
-      console.error('Appointment reassignment failed (non-fatal, Appointment still base44-hosted; expected when called via supabase.functions.invoke, which cannot supply Base44 SDK headers):', apptError);
-    }
+    const { data: appointmentsData, error: appointmentsError } = await supabase
+      .from('Appointment').update({ vehicle_id: masterId }).eq('vehicle_id', duplicateId).select('id');
+    if (appointmentsError) throw appointmentsError;
+    const appointments = appointmentsData || [];
 
     const masterInfo = `${masterVehicle.year || ''} ${masterVehicle.make || ''} ${masterVehicle.model || ''}`;
     const auditNote = `merged into ${masterInfo.trim()} - ${masterId} for audit trail creation`;

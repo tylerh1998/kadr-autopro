@@ -2,6 +2,8 @@
 
 **Status:** All 5 active-scope phases executed and verified 2026-08-10/11. Both functions are live on dev, both `pg_cron` jobs are scheduled and `active` (weekdays, 8:00 AM MST). **Only remaining item: let one real unattended weekday firing happen and confirm it worked with nobody touching anything** — the actual proof this is "automatic," not something that needed a manual trigger. Everything else is done. Phase 6 (retrofit existing functions + port `resendWebhook`) remains explicitly deferred, not started.
 
+**2026-08-13 - User verified unattended cron firing successful for both Email and SMS**
+
 **Resolved mid-session:** the first attempt at setting `AUTOPRO_CRON_SECRET` picked up 99 characters instead of the intended 64 (extra whitespace/newline, never fully diagnosed which) — caught via a temporary debug-only function that reported length/match without exposing the actual value, fixed by re-setting it, confirmed via the same debug check, then the real function was redeployed.
 **Parent:** `master_blueprint.md` (Base44 Deprecation initiative). `sendAppointmentReminders`/`sendTextReminders` are the last two functions still fully hosted on Base44's own platform (`base44/functions/sendAppointmentReminders/entry.ts`, `base44/functions/sendTextReminders/entry.ts`) with no native equivalent — confirmed via `Glob`/`Grep`, zero `autopro-*` matches for either. Porting them is a genuine precondition for Phase 15 (Final Sunset): that phase can't delete the `base44/` tree while these two still live there and are still relied on.
 **Supabase project refs:** dev branch `sitihbdnuxifwibontcm` — **the only project this plan touches.** Production `hbcrwkmgsazqrvsrmxyr` is explicitly out of scope, deferred to a future follow-up plan per your instruction.

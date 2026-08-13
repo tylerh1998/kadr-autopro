@@ -1,6 +1,6 @@
 # Pre-Go-Live Plan
 
-**Purpose:** Outstanding work surfaced by the blueprint archival pass (`master_blueprint.md`, `blueprint_verification_plan.md`, `phase_14_implementation_plan.md`, the Native Appointment Reminders `implementation_plan.md`) that needs to happen before or alongside go-live, but is **not** itself a go-live cutover step. `go_live_checklist.md` owns what actually needs to happen to go live (schema/data/Edge Function deploys, go-live-night sequencing, post-cutover verification, rollback). This document owns everything else that was left outstanding when the blueprint effort closed. No crossover between the two — an item lives in exactly one of them.
+**Purpose:** Outstanding work surfaced by the blueprint archival pass (`master_blueprint.md`, `blueprint_verification_plan.md`, `phase_14_implementation_plan.md`, the Native Appointment Reminders plan — now archived at `Plans and Context/Archive/Appointment_Reminders_implementation_plan.md`) that needs to happen before or alongside go-live, but is **not** itself a go-live cutover step. `go_live_checklist.md` owns what actually needs to happen to go live (schema/data/Edge Function deploys, go-live-night sequencing, post-cutover verification, rollback). This document owns everything else that was left outstanding when the blueprint effort closed. No crossover between the two — an item lives in exactly one of them.
 
 > **LIVE DOCUMENT.** Update in place as items close. Don't delete history — annotate and check off instead.
 
@@ -8,8 +8,8 @@
 
 ## Action Plan
 
-1. **Finish phases from the Reminders plan** (`implementation_plan.md` — Native Appointment Reminders)
-2. **Finish Phase 15** (Final Sunset — base44/`@base44` removal)
+1. **Finish phases from the Reminders plan** (`Archive/Appointment_Reminders_implementation_plan.md` — Native Appointment Reminders) - **Completed and verified - 2026-08-12**
+2. **Finish Phase 15** (Final Sunset — base44/`@base44` removal) - **in progress**
 3. **This document** — the outstanding pre-go-live items below
 4. **Final checks**
 5. **Go-live list Section 2** (`go_live_checklist.md`)
@@ -17,7 +17,7 @@
 
 ---
 
-## Step 1 — Reminders Plan (`implementation_plan.md`)
+## Step 1 — Reminders Plan (`Archive/Appointment_Reminders_implementation_plan.md`)
 
 Status per that document: Phases 1–4 executed and verified 2026-08-10/11. Phase 5 (scheduling + end-to-end verification) — the real unattended weekday `pg_cron` firing — is now confirmed live (2026-08-14, both email and SMS landed with nobody triggering anything). Remaining:
 
@@ -68,6 +68,8 @@ Each item below was originally logged in `blueprint_verification_plan.md` Sectio
 ## Step 4 — Final Checks
 
 *(To be scoped once Steps 1–3 close.)*
+
+User -> I think we should do a review of the codebase looking for anything of note. Then the User will do full system-wide checks and testing. We've already done live testing through the AI Agent, this will be the final shindig for testing before moving to go-live. Once this test is passed we will move to go-live list.
 
 ---
 
