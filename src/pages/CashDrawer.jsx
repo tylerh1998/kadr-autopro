@@ -866,7 +866,7 @@ export default function CashDrawerPage() {
                   Make Deposit (${getTotalForDeposit().toFixed(2)})
                 </Button>
                 {!depositBatchStatus.valid && getTotalForDeposit() > 0 && (
-                  <p className="text-xs text-red-600 dark:text-red-400 max-w-xs text-right">
+                  <p className="text-xs font-medium text-red-800 dark:text-red-300 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md px-2 py-1 max-w-xs text-right">
                     {depositBatchStatus.message}
                   </p>
                 )}
