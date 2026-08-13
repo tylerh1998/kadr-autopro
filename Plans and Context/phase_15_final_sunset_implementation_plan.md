@@ -66,8 +66,8 @@ Everything else the repo-wide search surfaced was either: the local `base44/func
 | Sub-phase | Status | Overview |
 |---|---|---|
 | 15A | Done (research) — Section 0 fully resolved | Audit & verification — confirmed the true blast radius, including a repo-wide (not just `src/`) second pass that surfaced 2 real live dependencies inside `supabase/functions/` |
-| 15B | Pending | Frontend dependency removal + 2 function rewires (`autopro-mergeVehicles`, `autopro-processQOHAdjustment`) — delete the SDK wrapper files, dead imports, `package.json`/`vite.config.js` cleanup, `index.html` title; build-verify |
-| 15C | Pending | Backend/infra removal — delete `base44-proxy` (dev + prod), hard-delete the local `base44/` source tree |
+| 15B | **[Tested]** — verified 2026-08-13 (QOH notification email delivery confirmed) | Frontend dependency removal + 2 function rewires (`autopro-mergeVehicles`, `autopro-processQOHAdjustment`) — delete the SDK wrapper files, dead imports, `package.json`/`vite.config.js` cleanup, `index.html` title; build-verify |
+| 15C | In progress — blocked on manual Edge Function deletion (see below) | Backend/infra removal — delete `base44-proxy` (dev + prod), hard-delete the local `base44/` source tree |
 | 15D | Pending | Full application regression pass (per user instruction) — broad spot-check across every major module, specifically because 15C is the point of no return |
 | Final | Pending | Full-repo grep, build/smoke-test, roll learnings into `master_context.md`/`master_blueprint.md` |
 
@@ -299,11 +299,15 @@ Target files and exact changes:
 3. **Mark `Pre_go-live_plan.md`'s P10 resolved-via-Phase-15** rather than left open — it's the same item as this sub-phase's `autopro-mergeVehicles` fix (15B).
 
 **Task List:**
-- [ ] Confirm 15B is deployed and live before proceeding
-- [ ] Delete `base44-proxy` from dev, confirm via `get_edge_function` (expect a "not found"/removed result)
-- [ ] Delete `base44-proxy` from production, confirm via `get_edge_function`
-- [ ] Hard-delete the local `base44/functions/` tree
-- [ ] Update `Pre_go-live_plan.md`'s P10 entry to point at this phase's resolution
+- [x] Confirm 15B is deployed and live before proceeding — re-confirmed 2026-08-13: `git status` shows `development` up to date with `origin/development`, no uncommitted code changes pending beyond this plan doc; 15B's live verification (mergeVehicles + QOH email) already independently confirmed in the 15B closeout.
+- [ ] Delete `base44-proxy` from dev, confirm via `get_edge_function` (expect a "not found"/removed result) — **blocked, see note below**
+- [ ] Delete `base44-proxy` from production, confirm via `get_edge_function` — **blocked, see note below**
+- [x] Hard-delete the local `base44/functions/` tree — done via `git rm -r base44/functions` (129 files staged for deletion), not yet committed (per standing rule: agent doesn't commit/push, user does via GitHub Desktop)
+- [x] Update `Pre_go-live_plan.md`'s P10 entry to point at this phase's resolution — done, marked resolved-via-15B with a cross-reference
+
+**Blocker found: no available tool can delete a Supabase Edge Function.** The connected Supabase MCP server exposes `deploy_edge_function` (create/update) but no delete/remove equivalent, and this session has no other route to the Supabase Management API. Per this project's own no-install-first preference, the correct unblock is a 2-click manual action in the Supabase Dashboard (Edge Functions → `base44-proxy` → Delete) on each project — **dev (`sitihbdnuxifwibontcm`) first, then production (`hbcrwkmgsazqrvsrmxyr`)** — no code, no CLI install required. Confirmed via `list_edge_functions` immediately before this note that `base44-proxy` is still `ACTIVE` on both: dev at version 19 (id `f1a7fd84-1150-4a7b-96c1-931148408d51`), production at version 44 (id `3e2411d5-c2e9-4856-8e52-120437259374`). Once deleted, this can be confirmed from either side (dashboard, or a future session's `get_edge_function` call returning not-found).
+
+**Unexpected finding, corroboration step (production `query_logs`, last ~10 hours, 2026-08-13):** contrary to 15A's "no code calls it" conclusion, `base44-proxy` **is** receiving live traffic on production right now — repeated `POST .../analytics/track/batch` and `GET .../entities/User/me` calls, roughly every 1–15 minutes from 05:19 through 15:31 today, every single one returning `401`. This is not a new/unknown dependency: the URL pattern (`analytics/track/batch`, `entities/User/me`) is the base44 SDK's own internal telemetry/session-check heartbeat — the same interceptor behavior `base44Client.js` (deleted in 15B) used to set up — and `src/main.jsx` confirms this app registers no service worker in production, so the calls can't be a background process surviving after a tab closes. The most likely explanation: one or more browser tabs that loaded the app **before** 15B's deploy landed have been left open/idle since, still running the old in-memory JS bundle, and its SDK heartbeat keeps firing on its own timer. **This does not block 15C**: every one of these calls already 401s today (confirmed both by this log pull and by the root-cause analysis in `master_context.md` §3 — the proxy's auth check fails against the wrong Supabase project regardless), so deleting the function changes the failure mode (401 → connection error/404) but not the outcome — nothing that currently works will stop working. Recommend the user close/refresh any long-lived AutoPRO browser tabs to quiet this noise, but it's a courtesy, not a precondition.
 
 **Verification Plan:**
 - [ ] `get_edge_function` on both projects confirms `base44-proxy` no longer exists
@@ -349,4 +353,119 @@ There is no Phase 16 — this is the last phase in `master_blueprint.md`. On com
 
 ## 4) Phase Results and Final Context
 
-*(Empty — filled in as each sub-phase executes.)*
+### 15B — Executed 2026-08-14
+
+**All planned deletions/edits done:**
+- Deleted `src/api/base44Client.js`, `src/api/entities.js`, `src/api/integrations.js`
+- Removed the 2 dead `@/entities/Customer`/`@/entities/Vehicle` imports from `src/pages/WorkOrders.jsx`
+- Removed `@base44/sdk`/`@base44/vite-plugin` from `package.json`; `npm install` cleanly removed 15 packages (the two plus transitive deps), no other package depended on either
+- Removed the `base44` plugin and `/api` dev-proxy block from `vite.config.js`
+- Updated `index.html`'s `<title>` from "Base44 APP" to "AutoPRO"
+- Rewired `autopro-mergeVehicles/index.ts`'s Appointment reassignment to native `supabase.from('Appointment')`; deployed to dev (v16, `ACTIVE`)
+- Rewired `autopro-processQOHAdjustment/index.ts`'s system-issue email to `_shared/resend.ts`; deployed to dev (v21, `ACTIVE`)
+- `npm run build`: clean (exit 0) after fixing 2 issues found only at build time — see below
+- `npx eslint` on the 2 files actually touched (`WorkOrders.jsx`, `WorkPROViewModal.jsx`): zero problems related to this phase's changes; the 412 repo-wide pre-existing warnings/errors are unrelated unused-import/unused-var noise, confirmed by file-scoped lint showing none of it touches anything this phase changed
+- Repo-wide grep confirms `src/` down to exactly the expected 5 files (4 confirmed false positives + `app-params.js`, now understood to be a genuine surviving dependency — see below), and `supabase/functions/` shows zero functional base44 calls outside `base44-proxy` itself (still present, scheduled for 15C)
+
+**Two real findings, only surfaced by the actual build — both are gaps in 15A's own research, not new base44 usage:**
+
+1. **`vite.config.js` had no explicit `@` → `src/` path alias.** `@base44/vite-plugin` was silently providing it project-wide (not just the documented `legacySDKImports` virtual-module behavior for `@/entities/*`/`@/functions/*`) — removing the plugin broke every `@/...` import in the entire app, confirmed by the very first build attempt failing on `src/main.jsx`'s unrelated `@/lib/logCollector` import. **Fixed**: added an explicit `resolve.alias` in `vite.config.js` matching `jsconfig.json`'s existing `"@/*": ["./src/*"]` mapping (that file only ever affected the editor/type-checker, never the actual Vite/Rollup bundler — a distinction 15A's research didn't catch). This is the single most consequential finding of this sub-phase: it means **every prior "confirmed zero real usage" claim in 15A that relied on `@/` imports resolving was still true, but the alias mechanism itself was never verified to survive plugin removal.**
+2. **`src/lib/app-params.js` has a real second consumer 15A's research missed.** 15A asserted "confirmed via grep, nothing else imports `appParams`" — that grep was never actually run; only `base44Client.js`'s own import of it was checked. The real consumer is `src/components/work-orders/DocumentEditor.jsx`, which uses `appParams.token` to gate a `postKeepAliveFunction` mechanism — a `fetch(..., {keepalive: true})` fire-and-forget call to `${window.location.origin}/functions/<name>` used for (a) saving unsaved WO changes and (b) releasing a WO lock when the tab closes/navigates away, both gated behind `if (!body || !appParams?.token) return false`. **`app-params.js` was restored** (`git checkout`) rather than left deleted, to unblock the build without unilaterally deciding the fate of a WO-locking safety mechanism I don't have full context on. **Genuinely unresolved, needs the user's input before this can be closed:** is `appParams.token` ever actually populated in the current native/Supabase-Auth app (it reads a base44-era `access_token` URL param / `base44_access_token` localStorage key — nothing in today's auth flow appears to set either), meaning this keepalive-save/lock-release mechanism may have been silently non-functional for a while, independent of anything this phase touched? And does `/functions/<name>` even resolve to anything in the current native/Vercel deployment, or is that also a base44-era routing convention that never got ported? This needs investigation before `app-params.js`/this mechanism can be either properly removed or properly fixed — not a base44-*presence* question anymore, a base44-*era-design* question.
+
+**One more finding, a dynamic import 15A's static-`from` grep pattern couldn't see:** `src/components/work-orders/WorkPROViewModal.jsx` had `const { Approvals } = await import('@/entities/Approvals'); await Approvals.filter({ cp_id }, '-created_date')` — the legacy base44-entity-SDK query pattern, against a table (`Approvals`) that's been fully native since Phase 13D. **Fixed**: replaced with a direct `supabase.from('Approvals').select('*').eq('cp_id', workOrder.cp_id).order('created_date', { ascending: false })`, matching the identical pattern already used in `CustomerApprovalSnapshotModal.jsx`. Confirmed via a broader dynamic-`import()` sweep that no other instances of this pattern remain.
+
+**Lesson for any future dependency-removal pass:** a static `grep -r "from '@/x'"` is not sufficient to find every real consumer of a module — dynamic `import()` calls and the possibility that a build-tool plugin provides load-bearing config beyond its documented purpose both need an actual build attempt, not just source-reading, to fully surface. 15A's research was thorough on *what calls base44 directly*; it was not sufficient on *what silently depends on infrastructure base44's own tooling happened to also provide*.
+
+### 15B Live Verification — 2026-08-14, at `test.kensauto.ca` (post commit/push)
+
+User committed and pushed 15B (`47833e50 "15B"`, confirmed matching `origin/development`), unblocking live testing per `master_context.md` §3.
+
+- [x] App loads at `test.kensauto.ca` — title correctly shows "AutoPRO" (confirms the `index.html` fix deployed), WIP list rendered with full real data, Supabase WebSocket connected, zero console errors
+- [x] `/Setup` loads clean, zero console errors
+- [x] `/Admin` loads clean, zero console errors
+- [x] "System" audit-display regression check — opened a real historical WO (`RO50012`, `created_by` = a real `@no-reply.base44.com` address) — header correctly shows "Created By: System", confirming `WorkOrderHeaderInfo.jsx`'s preserved string-check still works
+- [x] **`autopro-mergeVehicles` fix confirmed live**: created 2 disposable test vehicles + 1 appointment on the duplicate, invoked the deployed function directly with the logged-in session's real JWT — response: `mergedCount: {appointments: 1, workOrders: 0}`. Confirmed in Postgres: the appointment's `vehicle_id` actually reassigned to the master. **Before this fix, `appointments` would always have been 0** (the old base44 call silently failed every time — this is a genuine behavior fix, not just a dependency swap). Test data cleaned up.
+- [x] **`autopro-processQOHAdjustment` fix — response confirmed, email delivery now confirmed**: invoked directly against a real inventory item (`11579`) with `new_quantity_on_hand` set to its current value (zero-change, to avoid touching real GL/audit data unnecessarily) and `system_issue: true` — response: `200 {success: true, gl_posted: false, value_change: 0}`, no error. `query_logs` could not independently confirm the send (Supabase-side tool errors, not retried further per the tool's own guidance), but **the user has now directly confirmed the notification email landed** — this closes the one item left open after 15B's initial live verification.
+
+### 15B — Closeout — 2026-08-13
+
+**Sub-phase status: [Tested], 100% complete.** Both verification checklists (post-build and post-deploy live-verification) are now fully green — the last open item (QOH notification email delivery) is confirmed above.
+
+**What actually happened vs. what was planned — exact files touched:**
+
+*Deleted outright, as planned:*
+- `src/api/base44Client.js`, `src/api/entities.js`, `src/api/integrations.js`
+
+*Modified, as planned:*
+- `src/pages/WorkOrders.jsx` — removed the 2 dead `@/entities/Customer` / `@/entities/Vehicle` imports
+- `package.json` (+ regenerated `package-lock.json` via `npm install`, −15 packages: the 2 direct deps + transitive) — removed `@base44/sdk`, `@base44/vite-plugin`
+- `vite.config.js` — removed the `base44` plugin registration and the dev-only `/api` proxy block
+- `index.html` — `<title>` changed "Base44 APP" → "AutoPRO"
+- `supabase/functions/autopro-mergeVehicles/index.ts` — Appointment reassignment rewired to native `supabase.from('Appointment').update()`; response shape (`mergedCount: {workOrders, appointments}`) unchanged, deployed to dev (v16, `ACTIVE`)
+- `supabase/functions/autopro-processQOHAdjustment/index.ts` — system-issue notification rewired to `_shared/resend.ts`'s `sendViaResend`; same recipient/subject/body/fire-and-forget behavior, deployed to dev (v21, `ACTIVE`)
+
+*Modified, NOT planned (surfaced only during execution — see Deviations below):*
+- `vite.config.js` — also gained an explicit `resolve.alias` (`@` → `./src`), not in the original diff
+- `src/components/work-orders/WorkPROViewModal.jsx` — dynamic `import('@/entities/Approvals')` + `Approvals.filter()` rewired to `supabase.from('Approvals').select('*').eq('cp_id', workOrder.cp_id).order('created_date', {ascending: false})`, matching `CustomerApprovalSnapshotModal.jsx`'s existing pattern
+
+*Planned for deletion, restored instead:*
+- `src/lib/app-params.js` — plan called for outright deletion (single consumer assumed); execution found a real second consumer and restored the file (see Deviations)
+
+**No schema or API changes.** Both rewired Edge Functions keep their original response shapes and error-handling semantics — this was a transport swap (base44 → native Supabase / native Resend), not a contract change.
+
+**Deviations, unexpected edge cases, and fixes applied:**
+
+1. **Missing `@` path alias.** `@base44/vite-plugin` was silently providing the project-wide `@` → `src/` alias in addition to its documented `legacySDKImports` virtual-module behavior. Removing the plugin broke every `@/...` import app-wide — surfaced immediately by the first `npm run build` failing on `src/main.jsx`. **Fix:** added an explicit `resolve.alias` in `vite.config.js` matching `jsconfig.json`'s existing `"@/*": ["./src/*"]` mapping (that file only ever drove the editor/type-checker, never the actual bundler — 15A's research didn't catch this distinction).
+2. **`app-params.js` has a real second consumer 15A's research missed.** 15A's claim ("confirmed via grep, nothing else imports `appParams`") turns out to have only checked `base44Client.js`'s own import, not run an actual repo-wide grep. Real consumer: `src/components/work-orders/DocumentEditor.jsx`, which gates a `postKeepAliveFunction` (`fetch(..., {keepalive:true})` used for unsaved-WO-change saves and WO-lock release on tab close) behind `appParams?.token`. **Fix:** restored the file via `git checkout` rather than unilaterally deciding the fate of a WO-locking safety mechanism — see Out-of-scope below.
+3. **Dynamic `import()` invisible to static grep.** `WorkPROViewModal.jsx`'s `await import('@/entities/Approvals')` + `.filter()` call — the legacy base44-entity-SDK query pattern — against a table (`Approvals`) that's been fully native since Phase 13D. Found only via a manual dynamic-import sweep after the build succeeded but before live testing. **Fix:** direct `supabase.from('Approvals')` query, as above. Swept for other instances — none found.
+
+**Out-of-scope items deferred (explicitly NOT part of 15C/15D):**
+- **Whether `appParams.token` is ever actually populated in the current native/Supabase-Auth flow.** It reads a base44-era `access_token` URL param / `base44_access_token` localStorage key — nothing in today's auth flow appears to set either, which would mean `DocumentEditor.jsx`'s keepalive-save/lock-release mechanism may have been silently non-functional for a while, independent of anything this phase touched. **Not investigated, not resolved.**
+- **Whether `/functions/<name>` (the keepalive fetch target) resolves to anything in the current native/Vercel deployment**, or is itself a dead base44-era routing convention. **Not investigated, not resolved.**
+- These are base44-*era-design* questions, not base44-*presence* questions — `app-params.js` is confirmed to still be a real, in-use dependency and must **not** be touched by 15C's deletion scope. Recommend a separate, dedicated investigation after Phase 15 closes, not folded into 15C/15D.
+
+**Key assumptions — VERIFIED vs. ASSUMED:**
+
+*VERIFIED (direct evidence obtained):*
+- 15A's "8 files / 4 real, 4 false-positive" split — accurate, with the one correction that `app-params.js` needed restoration rather than deletion.
+- `autopro-mergeVehicles` fix — confirmed live: direct invocation + Postgres check showed the appointment's `vehicle_id` actually reassigned (previously always silently failed under base44).
+- `autopro-processQOHAdjustment` fix — confirmed live: response verified directly, and the notification email's actual delivery to `tyler@kensauto.ca` is now confirmed by the user (this closeout's trigger).
+- The two preserved `@no-reply.base44.com` audit-string checks — verified live against a real historical WO (`RO50012`): header correctly shows "Created By: System".
+- `npm run build` clean; `npm install` removed exactly the 2 direct deps + 13 transitive, confirming no other installed package depended on either.
+- App loads cleanly at `test.kensauto.ca` post-deploy: correct title, zero console errors, `/Setup` and `/Admin` both clean.
+
+*ASSUMED (carried forward as risk into 15C, not independently re-verified):*
+- No other dynamic-`import()` base44-entity patterns exist beyond the one found in `WorkPROViewModal.jsx` — based on one manual sweep after the fact, not an exhaustive/automated check.
+- Production Supabase branch (`hbcrwkmgsazqrvsrmxyr`) behaves identically to dev for `base44-proxy` deletion safety — based on the `VITE_BASE44_PROXY_URL`-hardcoded-to-production reasoning in Section 2, not independently re-confirmed at execution time.
+- `base44-proxy` has zero live production traffic — based on the "no code calls it" static finding; 15A's own task list included pulling production invocation logs as corroborating evidence, and that was never confirmed done or available.
+
+**Exact starting steps carried forward into 15C:**
+1. 15B is confirmed deployed and live (commit `47833e50` "15B", pushed, matching `origin/development`, live-verified at `test.kensauto.ca`) — 15C's own precondition ("confirm 15B is deployed and live before proceeding") is satisfied; re-confirm at 15C's execution start regardless, per this project's standing precedent of never trusting a prior session's classification at face value.
+2. Delete `base44-proxy` Edge Function from dev (`sitihbdnuxifwibontcm`) first, confirm via `get_edge_function`.
+3. Delete `base44-proxy` Edge Function from production (`hbcrwkmgsazqrvsrmxyr`), confirm via `get_edge_function`.
+4. Hard-delete the local `base44/functions/` source tree (~130 directories).
+5. Update `Pre_go-live_plan.md`'s P10 entry to point at Phase 15's resolution.
+6. **Do not touch `src/lib/app-params.js`** as part of 15C — confirmed a real, currently-used dependency (`DocumentEditor.jsx`), not base44-related dead code. Its fate is the separate, deferred question above — out of scope for 15C.
+
+**Not yet done:**
+- 15C, 15D, and Final Verification are all still fully pending, not started
+
+### 15C — Started 2026-08-13 (partial, blocked on a manual step)
+
+**What actually happened vs. plan:**
+- **Local `base44/functions/` tree**: done as planned — `git rm -r base44/functions` staged 129 file deletions across the whole tree. **Not committed** (agent doesn't commit/push per standing project rule — staged locally, ready for the user's own commit via GitHub Desktop). **Not deleted, and out of scope for 15C**: `base44/entities/` (28 `.jsonc` files), `base44/connectors/` (3 `.jsonc` files), and `base44/config.jsonc` — these are separate parts of the same base44-platform-tooling directory but were never named in this plan's 15C scope (which specifically says `base44/functions/`, matching the ~130-directory estimate). Flagging as a likely follow-up cleanup, not actioned unilaterally.
+- **`Pre_go-live_plan.md` P10**: updated as planned — struck through and marked resolved-via-15B with a cross-reference.
+- **`base44-proxy` deletion (dev + production): not done.** Plan assumed a Supabase MCP tool could do this; none exists (`deploy_edge_function` only creates/updates, there is no delete/remove tool in this session's toolset, and this session has no other route to the Supabase Management API). This is a genuine plan gap, not a permissions block. **Unblock: a 2-minute manual action in the Supabase Dashboard** (Edge Functions → `base44-proxy` → Delete), dev project first (`sitihbdnuxifwibontcm`), then production (`hbcrwkmgsazqrvsrmxyr`) — no install, no CLI needed, matching this project's standing preference for no-install fixes.
+
+**Deviation / unexpected finding:** 15A's "no code calls `base44-proxy`, zero live traffic" conclusion is **not fully accurate** — a direct `query_logs` pull against production just now shows real, repeated, currently-ongoing traffic (`analytics/track/batch`, `entities/User/me`, every 401), spanning the ~10 hours before this check. Root-caused to the base44 SDK's own background telemetry heartbeat, most likely firing from a browser tab that loaded the app before 15B's deploy and has stayed open/idle since (no service worker exists in this app to explain it surviving a closed tab — confirmed via `src/main.jsx`). **Does not block deletion**: every one of these calls already 401s today regardless (per `master_context.md`'s existing root-cause note on `base44-proxy`'s auth mismatch) — deleting the function only changes the failure mode, not the outcome. Recommend the user close any long-open AutoPRO tabs, but not a hard precondition.
+
+**Key assumption correction, VERIFIED vs. ASSUMED:**
+- ASSUMED (15A) → now VERIFIED-WRONG: "no live traffic to `base44-proxy`." Corrected above — traffic exists, but is confirmed harmless/already-failing.
+- VERIFIED (this session): both `base44-proxy` deployments (dev v19, prod v44) still `ACTIVE` immediately before this note — nothing has removed them yet, so the plan's remaining steps are still fully valid and unexecuted, not silently stale.
+
+**Exact next steps (resume point for a fresh session or after the user's manual action):**
+1. User deletes `base44-proxy` via the Supabase Dashboard on **dev** (`sitihbdnuxifwibontcm`) first, then **production** (`hbcrwkmgsazqrvsrmxyr`).
+2. Confirm both deletions via `get_edge_function` (expect a not-found/error result on each project).
+3. User commits + pushes the currently-staged `base44/functions/` deletion (129 files, already `git rm`'d, sitting in the working tree uncommitted).
+4. Re-run this doc's 15C Verification Plan (both projects confirmed function-free; app still functions normally — re-run 15B's smoke-test pages once more against the fully backend-removed state; `git status`/`git log` confirms the tree removal is a clean, isolated commit).
+5. Then proceed to 15D (full regression pass) — do not start 15D until step 4 is fully green, per this plan's own point-of-no-return framing for 15C.
