@@ -1,6 +1,8 @@
 # Blueprint Verification Plan
 
-**Status:** LIVING DOCUMENT — first published 2026-08-03. This document is re-run and updated as later work lands: Phase 12 (Appointment) live testing, the retired "Phase 10A" cross-module scope (folded in here, see below), and Phase 14 (Setup/Admin/Lankar Import/Final Sunset) once it moves out of Planning. It is not a one-time checklist — check items off as they're verified, and append new findings to Section 4 as testing proceeds.
+**Status:** **CLOSED, 2026-08-13 — archived.** All phases this document governs are `[Tested]`; the blueprint they support (`master_blueprint.md`) is fully closed. This document is now historical/forensic reference only — its evergreen findings (confirmed bugs, RPC behaviors, schema quirks, still-open items) were rolled into `master_context.md` as part of the final blueprint rollup. Do not treat this as a living checklist going forward.
+
+~~LIVING DOCUMENT — first published 2026-08-03. This document is re-run and updated as later work lands: Phase 12 (Appointment) live testing, the retired "Phase 10A" cross-module scope (folded in here, see below), and Phase 14 (Setup/Admin/Lankar Import/Final Sunset) once it moves out of Planning. It is not a one-time checklist — check items off as they're verified, and append new findings to Section 4 as testing proceeds.~~
 
 **Prepared:** 2026-08-03 (v1)
 
