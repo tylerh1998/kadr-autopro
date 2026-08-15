@@ -1,6 +1,6 @@
 # Pre-Go-Live Batch Plan: P1 (Customer Search), P3 (Employee.pay_rate), P4 (bigint-money audit closeout)
 
-**Status:** DRAFT — awaiting approval. No code/database changes made yet.
+**Status:** **COMPLETE, 2026-08-14.** P1 and P3 both dev-verified then promoted to production; P4 closed as audit-only (no fix needed). See Section 6 for full completion notes.
 
 **Source:** `Pre_go-live_plan.md` Step 3, items P1/P3/P4 (P2 and P5 are handled separately, not part of this plan).
 
@@ -127,16 +127,17 @@ Documented as an audit closeout in Section 2 above and in this plan's completion
 - [x] P1: `search_customers_ranked` fix applied to dev
 - [x] P1: Direct-SQL full-name search test passes on dev (3 names: Candace Sikora, Bill Hansen, Dora Fitzpatrick — all match_rank 3, previously 0 rows)
 - [x] P1: Existing single-term search results unchanged on dev (regression check — `Sikora`→3, `Hansen`→2, both unaffected)
-- [ ] P1: Live UI click-test passes on `test.kensauto.ca` (3 of 6 call sites) — **not done by agent, no login access to test.kensauto.ca; needs user's own pass**
-- [ ] P1: Fix applied to production — **awaiting go-ahead**
-- [ ] P1: Direct-SQL full-name search test passes on production
+- [~] P1: Live UI click-test on `test.kensauto.ca` — **skipped, not performed by anyone.** User authorized production promotion directly off the dev-side SQL evidence ("Perfect. Move it over to prod") rather than requesting a separate UI pass first.
+- [x] P1: Fix applied to production — 2026-08-14, user-authorized ("Move it over to prod")
+- [x] P1: Direct-SQL full-name search test passes on production (real customer "Candace Sikora", match_rank 3)
 - [x] P1: Migration file written to `supabase/migrations/` (`20260814190000_fix_search_customers_ranked_full_name_match.sql`)
 - [x] P3: `pay_rate` type change applied to dev
 - [x] P3: Existing whole-number values confirmed intact on dev (35→35.00, 25→25.00, 15→15.00 — lossless)
-- [x] P3: Decimal write confirmed on dev — direct-SQL simulation of the exact `TechDirectory.jsx` write path (id `99999`, "Test Employee": `25.00`→`27.50`→ reverted to `25.00`), succeeded where it would have thrown `22P02` before. **Live UI click-test on `test.kensauto.ca` not done by agent** — no login access; needs user's own pass to confirm the actual click-through, though the underlying write path is now proven.
+- [x] P3: Decimal write confirmed on dev — direct-SQL simulation of the exact `TechDirectory.jsx` write path (id `99999`, "Test Employee": `25.00`→`27.50`→ reverted to `25.00`), succeeded where it would have thrown `22P02` before.
+- [~] P3: Live UI click-test on `test.kensauto.ca` — **skipped, not performed by anyone**, same as P1 above (no agent login access; user proceeded to production off the dev-side evidence without requesting a separate UI pass).
 - [x] P3: Dependent report spot-checked — `autopro-getTechnicianPerformanceReport`'s pay-rate handling already has defensive string/number parsing (unaffected either way); confirmed via a raw PostgREST REST call that `numeric(10,2)` serializes as a genuine JSON number (`25.00`, not a string) — `TechDirectory.jsx`'s `.toFixed(2)` display call is safe, no regression.
-- [ ] P3: Type change applied to production — **awaiting go-ahead**
-- [ ] P3: Production type change confirmed via `information_schema.columns`
+- [x] P3: Type change applied to production — 2026-08-14, user-authorized ("Move it over to prod")
+- [x] P3: Production type change confirmed via `information_schema.columns` (`numeric`, precision 10, scale 2)
 - [x] P3: Migration file written to `supabase/migrations/` (`20260814190100_employee_pay_rate_bigint_to_numeric.sql`)
 - [x] P4: Audit conclusion carried into `master_context.md`'s recurring-traps list
 - [x] `Pre_go-live_plan.md`'s P1/P3/P4 entries updated (P1/P3: dev-verified, production pending go-ahead; P4: fully resolved, audit-only)
@@ -153,9 +154,10 @@ Documented as an audit closeout in Section 2 above and in this plan's completion
 
 **P4 — carried into `master_context.md`:** the `SystemSettings.shop_supply_rate` and `PayPeriods.total_pto_hours`/`total_stat_hours` landmine notes (bigint, theoretically fractional-capable, currently unwritten by any live code path) still need to be added to `master_context.md`'s recurring-traps list — not yet done as of this note, tracked in the checklist above.
 
-**Next steps (not yet executed, pending user go-ahead):**
-1. User performs the live UI click-tests this session couldn't (search a full name in `Customers.jsx`/`NewWorkOrderModal.jsx`; edit a tech's pay rate to a decimal in `TechDirectory.jsx`) on `test.kensauto.ca`.
-2. Once confirmed, promote both fixes to production (`hbcrwkmgsazqrvsrmxyr`) via the identical `apply_migration` calls already used on dev.
-3. Re-confirm both changes live on production via `information_schema.columns`/direct SQL.
-4. Update `Pre_go-live_plan.md`'s P1/P3 entries to fully resolved (currently marked dev-verified, prod-pending).
-5. Fold P4's audit conclusion into `master_context.md`.
+**Production promotion, 2026-08-14:** User authorized directly ("Perfect. Move it over to prod") without requesting the live UI click-test pass first — proceeded on the strength of the dev-side direct-SQL/REST evidence alone. Both fixes applied to production (`hbcrwkmgsazqrvsrmxyr`) via the identical `apply_migration` calls used on dev, then re-verified live on production:
+- `search_customers_ranked`: a real production customer ("Candace Sikora") now correctly matches a full-name search at rank 3.
+- `Employee.pay_rate`: confirmed `numeric(10,2)` via `information_schema.columns` on production.
+
+**Genuinely open item, not closed by this plan:** neither `test.kensauto.ca` nor production's actual UI (`Customers.jsx`/`NewWorkOrderModal.jsx` search box, `TechDirectory.jsx`'s pay-rate editor) has ever been click-tested for either fix, by anyone, in this session. All verification is direct-SQL/REST. This is a deliberate, explicit user risk acceptance, not an oversight — but if either UI ever behaves unexpectedly around customer search or tech pay-rate editing, this is the first place to look, not assumed already covered.
+
+**No further action pending from this plan.** `Pre_go-live_plan.md`'s P1/P3/P4 entries and `master_context.md`'s recurring-traps notes are already updated to reflect this final state.

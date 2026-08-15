@@ -56,6 +56,20 @@ serve(async (req) => {
       return res({ success: false, error: 'Missing supplierId' });
     }
 
+    // Server-side backstop: the client normalizes invoice_date to ISO (YYYY-MM-DD) before it ever
+    // gets here, but nothing enforced that server-side, so a client bug could silently persist a
+    // malformed date (e.g. "07/15/2026") that later crashes date-fns parsing in the payment UI.
+    const isValidIsoDate = (value: any) => {
+      if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+      const [y, m, d] = value.split('-').map(Number);
+      const parsed = new Date(Date.UTC(y, m - 1, d));
+      return parsed.getUTCFullYear() === y && parsed.getUTCMonth() + 1 === m && parsed.getUTCDate() === d;
+    };
+    const badDateLines = [...addedLines, ...modifiedLines].filter((l: any) => !isValidIsoDate(l.invoice_date));
+    if (badDateLines.length > 0) {
+      return res({ success: false, error: `Invalid invoice_date on ${badDateLines.length} line(s); expected YYYY-MM-DD format.` });
+    }
+
     let anyAmountChanged = false;
     const skippedDeletions: any[] = [];
     const getCurrentMountainTimeISO = () => {

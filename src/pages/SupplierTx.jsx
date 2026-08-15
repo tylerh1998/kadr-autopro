@@ -703,6 +703,28 @@ export default function SupplierTxPage() {
     setIsSaving(true);
     try {
       const linesToSave = (invoiceLines || []).filter(line => !((line.id.startsWith('temp_') || line.isNew) && !line.invoice_number && !line.description && (line.charge === 0 || line.charge === '') && (line.gst === 0 || line.gst === '')) && (line.id.startsWith('temp_') || modifiedLineIds.has(line.id)));
+      // Re-validate dates here (not just via the dateError flag) because handleLineChange clears
+      // dateError on every keystroke, so a keyboard-shortcut save (Ctrl+S) triggered before the date
+      // field blurs would otherwise bypass validation and persist a raw, un-normalized date string.
+      const dateValidationErrors = [];
+      const normalizedDates = {};
+      linesToSave.forEach((line) => {
+        const parseResult = parseAndValidateDateInput(line.invoice_date);
+        if (!parseResult.valid) {
+          dateValidationErrors.push({ line, error: parseResult.error });
+        } else {
+          normalizedDates[line.id] = parseResult.date;
+        }
+      });
+      if (dateValidationErrors.length > 0) {
+        const first = dateValidationErrors[0];
+        const message = dateValidationErrors.length === 1
+          ? `Cannot save: Invalid date for invoice line "${first.line.description || first.line.invoice_number || 'New Line'}": ${first.error}`
+          : `Cannot save: Found ${dateValidationErrors.length} invoice lines with invalid dates. Please correct them before saving.`;
+        alert(message);
+        setIsSaving(false);
+        return false;
+      }
       const invalidNumericFields = [];
       linesToSave.forEach((line, index) => {
         if (isLineLocked(line)) return;
@@ -725,8 +747,8 @@ export default function SupplierTxPage() {
         setIsSaving(false);
         return false;
       }
-      const addedLines = linesToSave.filter(l => l.id.startsWith('temp_')).map(line => ({ invoice_number: line.invoice_number, invoice_date: line.invoice_date, description: line.description, purchase_amount: parseFloat(line.charge) || 0, gst_amount: parseFloat(line.gst) || 0, gl_account: line.gl_account, gst_override: line.gst_override }));
-      const modifiedLines = linesToSave.filter(l => modifiedLineIds.has(l.id) && !l.id.startsWith('temp_')).map(line => ({ id: line.id, supplier_id: line.supplier_id, invoice_number: line.invoice_number, invoice_date: line.invoice_date, description: line.description, purchase_amount: parseFloat(line.charge) || 0, gst_amount: parseFloat(line.gst) || 0, gl_account: line.gl_account, gst_override: line.gst_override }));
+      const addedLines = linesToSave.filter(l => l.id.startsWith('temp_')).map(line => ({ invoice_number: line.invoice_number, invoice_date: normalizedDates[line.id], description: line.description, purchase_amount: parseFloat(line.charge) || 0, gst_amount: parseFloat(line.gst) || 0, gl_account: line.gl_account, gst_override: line.gst_override }));
+      const modifiedLines = linesToSave.filter(l => modifiedLineIds.has(l.id) && !l.id.startsWith('temp_')).map(line => ({ id: line.id, supplier_id: line.supplier_id, invoice_number: line.invoice_number, invoice_date: normalizedDates[line.id], description: line.description, purchase_amount: parseFloat(line.charge) || 0, gst_amount: parseFloat(line.gst) || 0, gl_account: line.gl_account, gst_override: line.gst_override }));
       const response = await supabase.functions.invoke('autopro-saveSupplierInvoiceTransactions', { body: { supplierId, addedLines, modifiedLines, deletedLineIds: Array.from(deletedLineIds) } });
       if (response.data.success) {
         await loadData();
