@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ReturnReason } from '@/entities/all';
-import { processWorkOrderPartReturn } from '@/functions/processWorkOrderPartReturn';
+import { supabase } from '@/lib/supabase';
 import { Package, RotateCcw } from 'lucide-react';
 
 export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, workOrder }) {
@@ -19,8 +18,9 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
     if (open) {
       const fetchReasons = async () => {
         try {
-          const reasonData = await ReturnReason.filter({ is_active: true, hide: false });
-          setReasons(reasonData);
+          const { data: reasonData, error } = await supabase.from('ReturnReason').select('*').eq('is_active', true).eq('hide', false);
+          if (error) throw error;
+          setReasons(reasonData || []);
         } catch (error) {
           console.error("Failed to fetch return reasons:", error);
         }
@@ -59,17 +59,19 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
     setLoading(true);
 
     try {
-      const response = await processWorkOrderPartReturn({
-        inventoryItemId: lineItem.inventory_item_id,
-        workOrderId: workOrder?.id || '',
-        roNumber: workOrder?.ro_number || '',
-        partNumber: lineItem.part_number || 'UNKNOWN',
-        description: lineItem.description || '',
-        qtyToReturn: qtyReturned,
-        createInventoryReturn: true,
-        returnReason,
-        returnNotes,
-        costEach: lineItem.cost_ea || 0,
+      const response = await supabase.functions.invoke('autopro-processWorkOrderPartReturn', {
+        body: {
+          inventoryItemId: lineItem.inventory_item_id,
+          workOrderId: workOrder?.id || '',
+          roNumber: workOrder?.ro_number || '',
+          partNumber: lineItem.part_number || 'UNKNOWN',
+          description: lineItem.description || '',
+          qtyToReturn: qtyReturned,
+          createInventoryReturn: true,
+          returnReason,
+          returnNotes,
+          costEach: lineItem.cost_ea || 0,
+        }
       });
 
       if (!response.data?.success) {
@@ -101,14 +103,14 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-          <div className="flex items-center gap-3 bg-slate-50 p-3 rounded-md">
-            <Package className="w-6 h-6 text-slate-600" />
+          <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-900/50 p-3 rounded-md border border-slate-100 dark:border-slate-800">
+            <Package className="w-6 h-6 text-slate-600 dark:text-slate-400" />
             <div>
-              <p className="font-semibold">{lineItem.part_number || 'No Part Number'}</p>
-              <p className="text-sm text-slate-500">{lineItem.description || 'No Description'}</p>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="font-semibold dark:text-slate-100">{lineItem.part_number || 'No Part Number'}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{lineItem.description || 'No Description'}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
                 Available to return: {Math.max(0, (parseFloat(lineItem.qty) || 0) - (parseFloat(lineItem.qty_on_order) || 0))} {lineItem.unit || ''} 
-                <span className="ml-1 text-slate-300">(Qty: {lineItem.qty} - On Order: {lineItem.qty_on_order || 0})</span>
+                <span className="ml-1 text-slate-300 dark:text-slate-600">(Qty: {lineItem.qty} - On Order: {lineItem.qty_on_order || 0})</span>
               </p>
             </div>
           </div>
@@ -159,7 +161,7 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
             <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={loading}>
+            <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white dark:text-white" disabled={loading}>
               <RotateCcw className="w-4 h-4 mr-2" />
               {loading ? 'Processing...' : 'Process Return'}
             </Button>

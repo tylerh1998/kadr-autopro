@@ -5,15 +5,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, Plus, AlertCircle, Trash2, Search, Check, Save } from 'lucide-react';
-import { InventoryTxs, TagAlong, OtherChargeList, InventoryCategory } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
-import { inventoryAdd } from '@/functions/inventoryAdd';
-import { inventoryUpdate } from '@/functions/inventoryUpdate';
+import { Loader2, Plus, AlertCircle, Trash2, Search, Check, Save, Upload, Pencil } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
+import WOPartsImportModal from './WOPartsImportModal';
 
-export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder }) {
+export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder, mode = 'work_order' }) {
   const [formData, setFormData] = useState({
     part_number: '',
     description: '',
@@ -56,6 +54,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
   const [existingPartQOH, setExistingPartQOH] = useState(0);
   
   const [partSearchOpen, setPartSearchOpen] = useState(false);
+  const [ocrModalOpen, setOcrModalOpen] = useState(false);
   const partNumberRef = useRef(null);
   const descriptionRef = useRef(null);
 
@@ -80,18 +79,18 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
             handleAddToBatch({ preventDefault: () => {} });
         }
         
-        // Ctrl + Enter to Process Batch
+        // Ctrl + Enter to Process Batch (defaults to On Order, or Quoted on Estimates - On Order isn't available there)
         if (e.ctrlKey && e.key === 'Enter') {
             e.preventDefault();
             if (batchItems.length > 0 && !processingBatch) {
-                handleProcessBatch();
+                handleProcessBatch(mode === 'estimate' ? 'quoted' : 'on_order');
             }
         }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [open, batchItems, processingBatch, formData]); // Depend on formData for add
+  }, [open, batchItems, processingBatch, formData, mode]); // Depend on formData for add
 
   const resetForm = (overrides = {}) => {
     setFormData({
@@ -129,19 +128,22 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
 
   const loadDropdownData = async () => {
     try {
-      const [suppliersData, salesClassesResponse, tagAlongsData, otherChargesData, categoriesData] = await Promise.all([
-        base44.functions.invoke('SupabaseProxy', {
-          action: 'read',
-          table: 'Supplier',
-          match: { inventory_supplier: true }
-        }).then(res => res.data?.data || []),
-        base44.functions.invoke('SupabaseProxy', { action: 'read' }),
-        TagAlong.list(),
-        OtherChargeList.list(),
-        InventoryCategory.list()
+      const [suppliersData, salesClassesData, tagAlongsData, otherChargesData, categoriesData] = await Promise.all([
+        supabase
+          .from('Supplier')
+          .select('*')
+          .eq('inventory_supplier', true)
+          .then(res => res.data || []),
+        supabase
+          .from('SalesClass')
+          .select('*')
+          .then(res => res.data || []),
+        supabase.from('TagAlong').select('*').then(res => res.data || []),
+        supabase.from('OtherChargeList').select('*').then(res => res.data || []),
+        supabase.from('InventoryCategory').select('*').then(res => res.data || [])
       ]);
       setSuppliers(suppliersData);
-      setSalesClasses(salesClassesResponse.data?.data || []);
+      setSalesClasses(salesClassesData || []);
       setTagAlongs(tagAlongsData);
       setOtherCharges(otherChargesData);
       setInventoryCategories(categoriesData);
@@ -162,13 +164,14 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
 
       setSearchingParts(true);
       try {
-        const response = await base44.functions.invoke('searchInventory', {
-          searchTerm: trimmedSearch,
-          limit: 50,
-          sortBy: 'part_number',
-          sortDirection: 'asc'
+        const { data, error } = await supabase.rpc('search_inventory_ranked', {
+          p_search_term: trimmedSearch,
+          p_limit: 50,
+          p_location_from: null,
+          p_location_to: null
         });
-        setSearchResults(response.data?.records || []);
+        if (error) throw error;
+        setSearchResults((data || []).map(({ total_count, match_rank, ...item }) => item));
       } catch (error) {
         console.error('Error searching inventory:', error);
         setSearchResults([]);
@@ -250,6 +253,18 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
 
     return null;
   }, [salesClasses]);
+
+  // Same tire / missing-tag-along detection InventoryAdd.jsx uses (both its manual entry
+  // and OCR import paths) - kept identical here so the warning behaves consistently everywhere.
+  const detectMissingTireTax = useCallback((partNumber, description, category, hasTagAlong) => {
+    const tireSizeRegex = /\b(P|LT|ST|T)?\d{3}\/\d{2,3}[RDB]\d{2}\b/i;
+    const isTire = /\btire(s)?\b/i.test(partNumber || '') ||
+      /\btire(s)?\b/i.test(description || '') ||
+      /\btire(s)?\b/i.test(category || '') ||
+      tireSizeRegex.test(description || '') ||
+      tireSizeRegex.test(partNumber || '');
+    return isTire && !hasTagAlong;
+  }, []);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => {
@@ -337,7 +352,8 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
         ...formData,
         temp_id: Date.now() + Math.random(),
         isExistingPart,
-        existingPartId
+        existingPartId,
+        missing_tire_tax: detectMissingTireTax(formData.part_number, formData.description, formData.category, formData.tag_along_id)
     };
 
     setBatchItems(prev => [...prev, newItem]);
@@ -355,9 +371,85 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
     setBatchItems(prev => prev.filter(item => item.temp_id !== tempId));
   };
 
-  const handleProcessBatch = async () => {
+  const handleEditBatchItem = (item) => {
+    if (formData.part_number && formData.part_number.trim() !== '') {
+        const proceed = window.confirm("This will clear the current part info you have entered above. Do you want to proceed?");
+        if (!proceed) return;
+    }
+
+    setFormData({
+        part_number: item.part_number || '',
+        description: item.description || '',
+        unit: item.unit || '',
+        category: item.category || '',
+        supplier_id: item.supplier_id || '',
+        manufacturer: item.manufacturer || '',
+        cost: item.cost !== undefined ? String(item.cost) : '',
+        selling_price: item.selling_price !== undefined ? String(item.selling_price) : '',
+        sales_class: item.sales_class || '',
+        profit_margin: item.profit_margin !== undefined ? String(item.profit_margin) : '',
+        quantity_to_order: item.quantity_to_order !== undefined ? String(item.quantity_to_order) : '1',
+        minimum_quantity: item.minimum_quantity !== undefined ? String(item.minimum_quantity) : '',
+        maximum_quantity: item.maximum_quantity !== undefined ? String(item.maximum_quantity) : '',
+        location: item.location || '',
+        core: !!item.core,
+        core_cost: item.core_cost !== undefined ? String(item.core_cost) : '',
+        tag_along_id: item.tag_along_id || '',
+        stocked_item: !!item.stocked_item,
+        is_active: item.is_active !== undefined ? item.is_active : true,
+    });
+    setCalculatedMargin(item.profit_margin !== undefined ? String(item.profit_margin) : '');
+    setIsCategorySuggested(false);
+    setIsExistingPart(!!item.isExistingPart);
+    setExistingPartId(item.existingPartId || null);
+    setExistingPartQOH(0);
+    setSearchTerm(item.part_number || '');
+    setActiveSearchTerm('');
+    setSearchResults([]);
+    setPartSearchOpen(false);
+
+    handleRemoveFromBatch(item.temp_id);
+
+    setTimeout(() => {
+        partNumberRef.current?.focus();
+    }, 100);
+  };
+
+  const validateBatchItems = (items) => {
+    const problems = [];
+    items.forEach((item, idx) => {
+      const missing = [];
+      if (!item.part_number) missing.push('Part #');
+      if (!item.description) missing.push('Description');
+      if (!(parseFloat(item.cost) > 0)) missing.push('Cost');
+      if (!(parseFloat(item.selling_price) > 0)) missing.push('Selling Price');
+      if (!item.sales_class) missing.push('Sales Class');
+      if (!item.supplier_id) missing.push('Supplier');
+      if (!(parseFloat(item.quantity_to_order) > 0)) missing.push('Qty Ordered');
+      if (missing.length > 0) {
+        problems.push(`Item ${idx + 1} (${item.part_number || 'no part #'}): missing ${missing.join(', ')}`);
+      }
+    });
+    return problems;
+  };
+
+  const handleProcessBatch = async (saveMode) => {
     if (batchItems.length === 0) return;
-    
+
+    const validationErrors = validateBatchItems(batchItems);
+    if (validationErrors.length > 0) {
+        alert(`Cannot process batch: some items are missing required fields.\n\n${validationErrors.join('\n')}`);
+        return;
+    }
+
+    const missingTireTaxItems = batchItems
+        .filter(item => item.missing_tire_tax)
+        .map(item => item.part_number || item.description || 'Unknown Part');
+    if (missingTireTaxItems.length > 0) {
+        const proceed = window.confirm(`WARNING: The following parts appear to be tires but are missing a tire tax / enviro fee tag-along:\n\n${missingTireTaxItems.join('\n')}\n\nDo you want to proceed without adding the tax?`);
+        if (!proceed) return;
+    }
+
     setProcessingBatch(true);
     const lineItemsToAdd = [];
 
@@ -365,34 +457,62 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
         for (const item of batchItems) {
             const quantityToOrder = parseFloat(item.quantity_to_order);
             let processedInventoryItem;
+            let oldQuantity = 0;
+            let newQuantity = 0;
+            let oldQuantityOnOrder = 0;
+            let newQuantityOnOrder = quantityToOrder;
+
+            // Fetch user from Supabase auth for audit trail
+            const { data: { user: authUser } } = await supabase.auth.getUser();
+            const userId = authUser?.id || null;
+            const userDisplay = authUser?.user_metadata?.full_name || authUser?.email || null;
+            const nowStr = new Date().toISOString();
 
             if (item.isExistingPart && item.existingPartId) {
                 // Update existing item QOO
-                // Fetch fresh to get current QOO via SupabaseProxy
-                const freshItemRes = await base44.functions.invoke('SupabaseProxy', {
-                    action: 'read',
-                    table: 'InventoryItem',
-                    match: { id: item.existingPartId }
-                });
-                const freshItem = freshItemRes.data?.data?.[0];
+                // Fetch fresh to get current QOO via Supabase client
+                const { data: freshItemRes } = await supabase
+                    .from('InventoryItem')
+                    .select('*')
+                    .eq('id', item.existingPartId);
+                const freshItem = freshItemRes?.[0];
                 if (!freshItem) throw new Error("Could not find existing part in database.");
                 
-                const currentQOO = freshItem.quantity_on_order || 0;
-                
-                const updateResponse = await inventoryUpdate({
-                    itemId: freshItem.id,
-                    updates: {
-                        quantity_on_order: currentQOO + quantityToOrder
-                    }
-                });
-                
-                // We use the fresh item, but we might want to ensure the line item uses the entered cost/price
-                // if they differ from master (for this specific order).
-                // But generally we link to the inventory item ID.
-                processedInventoryItem = updateResponse.data?.data || { ...freshItem, quantity_on_order: currentQOO + quantityToOrder };
+                const currentQOH = Number(freshItem.quantity_on_hand) || 0;
+                const currentQOO = Number(freshItem.quantity_on_order) || 0;
+                oldQuantity = currentQOH;
+                newQuantity = currentQOH;
+                oldQuantityOnOrder = currentQOO;
+
+                if (saveMode === 'on_order') {
+                    newQuantityOnOrder = currentQOO + quantityToOrder;
+
+                    const { error: updateError } = await supabase.rpc('update_inventory_with_audit', {
+                        p_item_id: freshItem.id,
+                        p_qoh: currentQOH,
+                        p_qoo: currentQOO + quantityToOrder,
+                        p_ro_number: workOrder.ro_number,
+                        p_supplier_inv: null,
+                        p_source_action: 'WOAddInventoryModal',
+                        p_tx_type: 'Ordered',
+                        p_description: `Ordered existing part for WO ${workOrder.ro_number}`,
+                        p_user_id: userId,
+                        p_user_name: userDisplay,
+                        p_source_record_id: workOrder.id
+                    });
+
+                    if (updateError) throw new Error('Failed to update inventory quantity via RPC: ' + updateError.message);
+
+                    processedInventoryItem = { ...freshItem, quantity_on_order: currentQOO + quantityToOrder };
+                } else {
+                    // Quoted: leave QOO untouched, no audit entry - nothing has actually been ordered yet
+                    newQuantityOnOrder = currentQOO;
+                    processedInventoryItem = freshItem;
+                }
             } else {
                 // Create new item
                 const newInventoryItemData = {
+                    id: crypto.randomUUID(),
                     part_number: item.part_number,
                     description: item.description,
                     unit: item.unit || null,
@@ -404,7 +524,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                     selling_price: parseFloat(item.selling_price) || 0,
                     profit_margin: parseFloat(item.profit_margin) || 0,
                     quantity_on_hand: 0,
-                    quantity_on_order: quantityToOrder,
+                    quantity_on_order: saveMode === 'on_order' ? quantityToOrder : 0,
                     minimum_quantity: item.minimum_quantity ? parseInt(item.minimum_quantity, 10) : 0,
                     maximum_quantity: item.maximum_quantity ? parseInt(item.maximum_quantity, 10) : 0,
                     location: item.location || null,
@@ -413,25 +533,44 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                     tag_along_id: item.tag_along_id || null,
                     stocked_item: item.stocked_item,
                     is_active: item.is_active,
+                    created_date: nowStr,
+                    updated_date: nowStr,
+                    created_by: userDisplay,
+                    created_by_id: userId,
                 };
                 
-                const createResponse = await inventoryAdd({ itemData: newInventoryItemData });
-                processedInventoryItem = createResponse.data?.data;
-            }
+                const { data: createData, error: createError } = await supabase
+                    .from('InventoryItem')
+                    .insert([newInventoryItemData])
+                    .select();
+                    
+                if (createError) throw new Error('Failed to create new inventory item: ' + createError.message);
+                processedInventoryItem = createData[0];
 
-            // Create Inventory Transaction
-            await InventoryTxs.create({
-                inventory_item_id: processedInventoryItem.id,
-                part_num: processedInventoryItem.part_number,
-                tx_date: new Date().toISOString(),
-                tx_type: 'Ordered',
-                quantity_change: 0,
-                quantity_ordered_change: quantityToOrder,
-                ro_number: workOrder.ro_number,
-                source_record_id: workOrder.id,
-                supplier_name: suppliers.find(s => s.id === item.supplier_id)?.name || '',
-                description: `Ordered ${item.isExistingPart ? 'existing' : 'new'} part for WO ${workOrder.ro_number}`
-            });
+                // Create InventoryAuditLog record ONLY for new items ordered On Order (RPC handles existing; Quoted has no quantity movement to log)
+                if (saveMode === 'on_order') {
+                    const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
+                        inventory_item_id: processedInventoryItem.id,
+                        part_num: processedInventoryItem.part_number,
+                        old_quantity: 0,
+                        new_quantity: 0,
+                        old_quantity_on_order: 0,
+                        new_quantity_on_order: quantityToOrder,
+                        supplier_name: getSupplierName(item.supplier_id),
+                        source_record_id: workOrder.id,
+                        source_function: 'WOAddInventoryModal',
+                        tx_type: 'Ordered',
+                        quantity_change: 0,
+                        quantity_ordered_change: quantityToOrder,
+                        ro_number: workOrder.ro_number,
+                        description: `Ordered new part for WO ${workOrder.ro_number}`,
+                        created_by_id: userId,
+                        created_by: userDisplay,
+                        tx_date: nowStr
+                    }]);
+                    if (auditError) console.error('Error creating InventoryAuditLog for new item:', auditError);
+                }
+            }
 
             // Create Line Item
             const coreNum = item.core ? quantityToOrder : 0;
@@ -452,7 +591,8 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                 total: quantityToOrder * (parseFloat(item.selling_price) || 0),
                 complete: false,
                 bold: false,
-                qty_on_order: quantityToOrder,
+                qty_on_order: saveMode === 'on_order' ? quantityToOrder : 0,
+                qty_quoted: saveMode === 'quoted' ? quantityToOrder : 0,
                 inventory_item_id: processedInventoryItem.id,
                 inventory_processed: true,
                 cost_ea: parseFloat(item.cost) || 0,
@@ -530,12 +670,15 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                   const supplier = suppliers.find(s => s.id === formData.supplier_id);
                   const supplierName = supplier ? supplier.name : '';
                   
-                  const response = await base44.functions.invoke('suggestInventoryCategory', {
-                      part_number: formData.part_number,
-                      description: formData.description,
-                      supplier_name: supplierName
+                  const response = await supabase.functions.invoke('autopro-suggestInventoryCategory', {
+                      body: {
+                          part_number: formData.part_number,
+                          description: formData.description,
+                          supplier_name: supplierName
+                      }
                   });
-                  
+                  if (response.error) { console.error('Category suggestion error:', response.error); return; }
+
                   if (response.data && response.data.category) {
                       setFormData(prev => {
                           if (!prev.category) {
@@ -562,6 +705,119 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
       return s ? s.name : 'Unknown';
   };
 
+  const handleOCRImportSuccess = async ({ supplierId, items }) => {
+      if (!items || items.length === 0) return;
+
+      const regularSalesClass = salesClasses.find(sc => (sc.name || '').toLowerCase() === 'regular');
+      const regularSalesClassId = regularSalesClass ? String(regularSalesClass.id) : '';
+
+      const partNumbersToFetch = items
+          .map(item => (item.part_number || '').toUpperCase().replace(/[^A-Z0-9]/g, ''))
+          .filter(Boolean);
+
+      let existingItemsMap = new Map();
+      if (partNumbersToFetch.length > 0) {
+          try {
+              const { data: existingItems, error } = await supabase
+                  .from('InventoryItem')
+                  .select('*')
+                  .in('part_number', partNumbersToFetch);
+
+              if (!error && existingItems) {
+                  existingItems.forEach(item => {
+                      existingItemsMap.set((item.part_number || '').toUpperCase(), item);
+                  });
+              }
+          } catch (err) {
+              console.error('Error fetching existing items for WO parts import:', err);
+          }
+      }
+
+      const mappedItems = items.map(item => {
+          const partNumber = (item.part_number || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+          const existingPart = existingItemsMap.get(partNumber);
+
+          const cost = parseFloat(item.cost) || 0;
+          let isCore = !!item.core;
+          let coreCost = parseFloat(item.core_cost) || 0;
+          let sellingPrice = 0;
+          let margin = 0;
+          let salesClass = regularSalesClassId;
+          let description = item.description || '';
+          let matchedTagAlongId = '';
+          const enviroFee = parseFloat(item.enviro_fee) || 0;
+
+          if (existingPart) {
+              salesClass = existingPart.sales_class || regularSalesClassId;
+              description = existingPart.description || description;
+              matchedTagAlongId = existingPart.tag_along_id || '';
+              if (!isCore && existingPart.core) {
+                  isCore = true;
+                  coreCost = parseFloat(existingPart.core_cost) || 0;
+              }
+          }
+
+          if (enviroFee > 0 && !matchedTagAlongId) {
+              let bestMatch = null;
+              let minDiff = Infinity;
+              tagAlongs.forEach(ta => {
+                  const str = (ta.name + ' ' + (ta.description || '')).replace(/\s/g, '');
+                  const match = str.match(/\$?(?:[0-9]+\.[0-9]+|[0-9]+)/);
+                  if (match) {
+                      const taPrice = parseFloat(match[0].replace('$', ''));
+                      if (taPrice >= enviroFee) {
+                          const diff = taPrice - enviroFee;
+                          if (diff < minDiff) {
+                              minDiff = diff;
+                              bestMatch = ta;
+                          }
+                      }
+                  }
+              });
+              if (bestMatch) matchedTagAlongId = bestMatch.id;
+          }
+
+          if (cost > 0 && salesClass) {
+              const calc = calculatePriceFromSalesClass(cost, salesClass);
+              if (calc) {
+                  sellingPrice = parseFloat(calc.sellingPrice);
+                  margin = parseFloat(calc.margin);
+              }
+          } else if (existingPart) {
+              sellingPrice = parseFloat(existingPart.selling_price) || 0;
+              margin = parseFloat(existingPart.profit_margin) || 0;
+          }
+
+          return {
+              part_number: partNumber,
+              description,
+              unit: existingPart ? (existingPart.unit || '') : '',
+              category: existingPart ? (existingPart.category || '') : '',
+              supplier_id: supplierId,
+              manufacturer: existingPart ? (existingPart.manufacturer || '') : '',
+              cost: cost ? cost.toFixed(2) : '',
+              selling_price: sellingPrice ? sellingPrice.toFixed(2) : '',
+              sales_class: salesClass,
+              profit_margin: margin ? margin.toFixed(2) : '',
+              quantity_to_order: (parseFloat(item.quantity) || 0).toString(),
+              minimum_quantity: existingPart ? (existingPart.minimum_quantity || 0).toString() : '',
+              maximum_quantity: existingPart ? (existingPart.maximum_quantity || 0).toString() : '',
+              location: existingPart ? (existingPart.location || '') : '',
+              core: isCore,
+              core_cost: coreCost ? coreCost.toFixed(2) : '',
+              tag_along_id: matchedTagAlongId,
+              stocked_item: existingPart ? !!existingPart.stocked_item : false,
+              is_active: true,
+              temp_id: Date.now() + Math.random(),
+              isExistingPart: !!existingPart,
+              existingPartId: existingPart ? existingPart.id : null,
+              missing_tire_tax: detectMissingTireTax(partNumber, description, existingPart ? existingPart.category : '', matchedTagAlongId),
+          };
+      });
+
+      setBatchItems(prev => [...mappedItems, ...prev]);
+  };
+
   const handlePartNumberKeyDown = (e) => {
     if (e.key === 'Enter' || e.key === 'Tab') {
         const trimmedSearch = searchTerm.trim();
@@ -585,13 +841,14 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent 
-        className="sm:max-w-5xl h-[85vh] flex flex-col p-0 gap-0"
+      <DialogContent
+        className="sm:max-w-5xl h-[85vh] flex flex-col p-0 gap-0 dark:bg-slate-950 dark:border-slate-800"
         onInteractOutside={(e) => e.preventDefault()}
       >
-        <DialogHeader className="px-6 py-4 border-b">
-          <DialogTitle className="flex items-center gap-2">
+        <DialogHeader className="px-6 py-4 border-b border-slate-200 dark:border-slate-800">
+          <DialogTitle className="flex items-center gap-2 dark:text-slate-100">
             <Plus className="w-5 h-5" />
             Add Part
           </DialogTitle>
@@ -645,7 +902,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                 <Popover open={partSearchOpen} onOpenChange={setPartSearchOpen}>
                     <PopoverTrigger asChild>
                         <div className="relative">
-                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
+                            <Search className="absolute left-2 top-2.5 h-4 w-4 text-slate-400 dark:text-slate-500" />
                             <Input
                                 ref={partNumberRef}
                                 id="part_number"
@@ -667,19 +924,19 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                             />
                         </div>
                     </PopoverTrigger>
-                    <PopoverContent className="p-0 w-[300px]" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
-                        <div className="max-h-[300px] overflow-y-auto p-1 bg-white">
+                    <PopoverContent className="p-0 w-[300px] dark:bg-slate-950 dark:border-slate-800" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+                        <div className="max-h-[300px] overflow-y-auto p-1 bg-white dark:bg-slate-950">
                             {searchingParts ? (
-                                <div className="py-4 text-center text-sm text-slate-500 flex items-center justify-center gap-2">
+                                <div className="py-4 text-center text-sm text-slate-500 dark:text-slate-400 flex items-center justify-center gap-2">
                                     <Loader2 className="w-4 h-4 animate-spin" />
                                     Searching parts...
                                 </div>
                             ) : searchTerm.trim() && !activeSearchTerm ? (
-                                <div className="py-4 text-center text-sm text-slate-500">
+                                <div className="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
                                     Press Enter or Tab to search.
                                 </div>
                             ) : searchResults.length === 0 ? (
-                                <div className="py-4 text-center text-sm text-slate-500">
+                                <div className="py-4 text-center text-sm text-slate-500 dark:text-slate-400">
                                     No existing parts found.<br/>Type to create new.
                                 </div>
                             ) : (
@@ -691,10 +948,10 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                                                 selectPartFromList(item);
                                                 setPartSearchOpen(false);
                                             }}
-                                            className="flex flex-col px-3 py-2 text-sm rounded cursor-pointer hover:bg-slate-100 border-b border-slate-50 last:border-0"
+                                            className="flex flex-col px-3 py-2 text-sm rounded cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 border-b border-slate-50 dark:border-slate-800/50 last:border-0"
                                         >
-                                            <span className="font-medium text-slate-900">{item.part_number}</span>
-                                            <span className="text-xs text-slate-500">{item.description}</span>
+                                            <span className="font-medium text-slate-900 dark:text-slate-100">{item.part_number}</span>
+                                            <span className="text-xs text-slate-500 dark:text-slate-400">{item.description}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -703,7 +960,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                     </PopoverContent>
                 </Popover>
                 {isExistingPart && (
-                    <div className={`mt-2 p-2 rounded-md border ${existingPartQOH !== 0 ? 'bg-yellow-50 border-yellow-200 text-yellow-800' : 'bg-blue-50 border-blue-200 text-blue-700'}`}>
+                    <div className={`mt-2 p-2 rounded-md border ${existingPartQOH !== 0 ? 'bg-yellow-50 dark:bg-yellow-900/30 border-yellow-200 dark:border-yellow-700/50 text-yellow-800 dark:text-yellow-400' : 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700/50 text-blue-700 dark:text-blue-400'}`}>
                         <div className="flex items-center gap-1.5 text-sm font-semibold">
                             {existingPartQOH !== 0 ? <AlertCircle className="w-4 h-4" /> : <Check className="w-4 h-4" />}
                             Existing Part Selected (QOH: {existingPartQOH})
@@ -878,7 +1135,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
 
             {/* Conditional Fields: Stocked Item Details */}
             {formData.stocked_item && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4 bg-gray-50 p-4 rounded-md">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4 bg-gray-50 dark:bg-slate-900/50 p-4 rounded-md">
                 <div className="space-y-2">
                     <Label htmlFor="minimum_quantity">Minimum (Optional)</Label>
                     <Input
@@ -931,6 +1188,13 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                 </Select>
                 </div>
 
+                <div className="flex items-end">
+                    <Button type="button" onClick={() => setOcrModalOpen(true)} className="bg-purple-600 hover:bg-purple-700 text-white">
+                        <Upload className="w-4 h-4 mr-2" />
+                        Paste/Upload Parts
+                    </Button>
+                </div>
+
                 <div className="flex gap-2 items-center">
                     <span className="text-xs text-slate-500 mr-2">Ctrl + A to Add</span>
                     <Button type="submit" disabled={loading} className="bg-black text-white hover:bg-gray-800">
@@ -941,18 +1205,17 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
             </div>
             </form>
 
-            {/* Batch List */}
             {batchItems.length > 0 && (
-                <div className="mt-8 border-t pt-4">
+                <div className="mt-8 border-t border-slate-200 dark:border-slate-800 pt-4">
                     <div className="flex justify-between items-center mb-4">
-                        <h4 className="text-lg font-semibold">Batched Items ({batchItems.length})</h4>
-                        <div className="text-sm font-medium text-slate-600">
+                        <h4 className="text-lg font-semibold dark:text-slate-100">Batched Items ({batchItems.length})</h4>
+                        <div className="text-sm font-medium text-slate-600 dark:text-slate-400">
                             Total Value: ${batchItems.reduce((acc, item) => acc + (parseFloat(item.cost || 0) * parseFloat(item.quantity_to_order || 0)), 0).toFixed(2)}
                         </div>
                     </div>
                     
-                    <div className="border rounded-md overflow-hidden bg-white shadow-sm">
-                        <div className="grid grid-cols-12 gap-4 p-3 bg-slate-50 border-b text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                    <div className="border border-slate-200 dark:border-slate-700 rounded-md overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
+                        <div className="grid grid-cols-12 gap-4 p-3 bg-slate-50 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                             <div className="col-span-3">Part Details</div>
                             <div className="col-span-2">Supplier</div>
                             <div className="col-span-1">Qty</div>
@@ -963,36 +1226,47 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
                         </div>
                         <div className="max-h-60 overflow-y-auto">
                             {batchItems.map((item, index) => (
-                                <div key={item.temp_id} className="grid grid-cols-12 gap-4 p-3 border-b last:border-0 items-center hover:bg-slate-50 text-sm">
+                                <div key={item.temp_id} className={`grid grid-cols-12 gap-4 p-3 border-b last:border-0 items-center hover:bg-slate-50 dark:hover:bg-slate-800/50 text-sm ${item.missing_tire_tax ? 'bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-700' : 'border-slate-200 dark:border-slate-700'}`}>
                                     <div className="col-span-3">
-                                        <div className="font-semibold text-slate-900">{item.part_number}</div>
-                                        <div className="text-slate-500 text-xs truncate">{item.description}</div>
+                                        <div className="font-semibold text-slate-900 dark:text-slate-100">{item.part_number}</div>
+                                        <div className="text-slate-500 dark:text-slate-400 text-xs truncate">{item.description}</div>
+                                        {item.missing_tire_tax && (
+                                            <div className="text-red-500 dark:text-red-400 font-bold italic text-[11px]">Missing Tire Tax</div>
+                                        )}
                                     </div>
-                                    <div className="col-span-2 text-slate-600 text-xs truncate">
+                                    <div className="col-span-2 text-slate-600 dark:text-slate-400 text-xs truncate">
                                         {getSupplierName(item.supplier_id)}
                                     </div>
-                                    <div className="col-span-1 font-medium">
+                                    <div className="col-span-1 font-medium dark:text-slate-200">
                                         {item.quantity_to_order}
                                     </div>
-                                    <div className="col-span-2 text-slate-600">
+                                    <div className="col-span-2 text-slate-600 dark:text-slate-400">
                                         ${parseFloat(item.cost).toFixed(2)}
                                     </div>
-                                    <div className="col-span-2 text-slate-600">
+                                    <div className="col-span-2 text-slate-600 dark:text-slate-400">
                                         ${parseFloat(item.selling_price).toFixed(2)}
                                     </div>
                                     <div className="col-span-1">
                                         {item.isExistingPart ? (
-                                            <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-[10px] px-1.5 py-0">Update</Badge>
+                                            <Badge variant="outline" className="bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-700/50 text-[10px] px-1.5 py-0">Update</Badge>
                                         ) : (
-                                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-[10px] px-1.5 py-0">New</Badge>
+                                            <Badge variant="outline" className="bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-700/50 text-[10px] px-1.5 py-0">New</Badge>
                                         )}
                                     </div>
-                                    <div className="col-span-1 flex justify-end">
+                                    <div className="col-span-1 flex justify-end gap-1">
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            onClick={() => handleEditBatchItem(item)}
+                                            className="h-8 w-8 text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                                        >
+                                            <Pencil className="w-4 h-4" />
+                                        </Button>
                                         <Button
                                             variant="ghost"
                                             size="icon"
                                             onClick={() => handleRemoveFromBatch(item.temp_id)}
-                                            className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                            className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </Button>
@@ -1005,33 +1279,64 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder })
             )}
         </div>
 
-        <div className="p-6 border-t bg-slate-50 flex justify-between items-center">
+        <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/80 flex justify-between items-center rounded-b-lg">
             <Button variant="outline" onClick={onClose} disabled={processingBatch || loading}>
                 Cancel
             </Button>
             <div className="flex gap-2 items-center">
-                {batchItems.length > 0 && <span className="text-xs text-slate-500 mr-2">Ctrl + Enter to Process</span>}
-                <Button 
-                    onClick={handleProcessBatch} 
+                {batchItems.length > 0 && (
+                    <span className="text-xs text-slate-500 mr-2">
+                        {mode === 'estimate' ? 'Ctrl + Enter for Quoted' : 'Ctrl + Enter for On Order'}
+                    </span>
+                )}
+                <Button
+                    onClick={() => handleProcessBatch('quoted')}
                     disabled={batchItems.length === 0 || processingBatch}
-                    className="bg-green-600 hover:bg-green-700 text-white min-w-[200px]"
+                    variant="outline"
+                    className="min-w-[170px] border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-400 dark:hover:bg-rose-900/20"
                 >
                     {processingBatch ? (
                         <>
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Processing Batch...
+                            Processing...
                         </>
                     ) : (
                         <>
                             <Save className="w-4 h-4 mr-2" />
-                            Save Batch & Add to WO
+                            Add Batch as Quoted
                         </>
                     )}
                 </Button>
+                {mode !== 'estimate' && (
+                    <Button
+                        onClick={() => handleProcessBatch('on_order')}
+                        disabled={batchItems.length === 0 || processingBatch}
+                        className="bg-green-600 hover:bg-green-700 text-white min-w-[200px]"
+                    >
+                        {processingBatch ? (
+                            <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Processing Batch...
+                            </>
+                        ) : (
+                            <>
+                                <Save className="w-4 h-4 mr-2" />
+                                Add Batch as On Order
+                            </>
+                        )}
+                    </Button>
+                )}
             </div>
         </div>
 
       </DialogContent>
     </Dialog>
+    <WOPartsImportModal
+      open={ocrModalOpen}
+      onClose={() => setOcrModalOpen(false)}
+      onSuccess={handleOCRImportSuccess}
+      suppliers={suppliers}
+    />
+    </>
   );
 }

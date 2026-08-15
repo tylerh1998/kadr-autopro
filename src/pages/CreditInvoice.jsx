@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { User } from "@/entities/User";
-import { SystemSettings } from "@/entities/SystemSettings";
-import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Edit3, AlertTriangle, Printer, X, Briefcase, Save, User as UserIcon, Car, Phone, Mail, FileText, ArrowLeft } from 'lucide-react';
@@ -10,6 +8,7 @@ import { createPageUrl } from '@/utils';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { supabase } from '@/lib/supabase';
 
 // Import hooks
 import { useWorkOrder } from '../components/hooks/useWorkOrder';
@@ -22,11 +21,12 @@ import WorkPROViewModal from '../components/work-orders/WorkPROViewModal';
 import ConfirmCreditInvoiceModal from '../components/work-orders/ConfirmCreditInvoiceModal';
 
 export default function CreditInvoicePage() {
+  const { employee } = useAuth();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const roNumber = searchParams.get('id');
 
-  const { workOrder, customer, vehicle, lineItems, tagAlongs, loading: woLoading, error: woError, refetch } = useWorkOrder(roNumber, { useFunctionData: true });
+  const { workOrder, customer, vehicle, lineItems, tagAlongs, loading: woLoading, error: woError, refetch } = useWorkOrder(roNumber);
   const { inventory, employees, loading: invLoading } = useShopData();
 
   const [user, setUser] = useState(null);
@@ -92,23 +92,15 @@ export default function CreditInvoicePage() {
   }, [lineItems]);
 
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const currentUser = await User.me();
-        setUser(currentUser);
-      } catch (error) {
-        console.error('Failed to load user:', error);
-      } finally {
-        setUserLoading(false);
-      }
-    };
-    loadUser();
-  }, []);
+    setUser(employee);
+    setUserLoading(false);
+  }, [employee]);
 
   useEffect(() => {
     const loadSystemSettings = async () => {
       try {
-        const settings = await SystemSettings.list();
+        const { data: settings, error } = await supabase.from('SystemSettings').select('*');
+        if (error) throw error;
         if (settings && settings.length > 0) {
           setWipLegal(settings[0].wip_legal || '');
           setDefaultMessage(settings[0].default_message || '');
@@ -206,15 +198,13 @@ export default function CreditInvoicePage() {
       const invNumericPart = invNumberMatch ? invNumberMatch[0] : '0000';
       
       // Find existing credit invoices for this invoice to determine suffix
-      const existingCreditInvoicesRes = await base44.functions.invoke('SupabaseProxy', { 
-        action: 'filter', 
-        table: 'WorkOrder', 
-        params: { 
-          customer_id: workOrder.customer_id,
-          stage: 'credit_invoice'
-        }
-      });
-      const existingCreditInvoices = existingCreditInvoicesRes.data?.data || [];
+      const { data: existingCreditInvoicesData, error: existingCreditInvoicesError } = await supabase
+        .from('WorkOrder')
+        .select('*')
+        .eq('customer_id', workOrder.customer_id)
+        .eq('stage', 'credit_invoice');
+      if (existingCreditInvoicesError) throw existingCreditInvoicesError;
+      const existingCreditInvoices = existingCreditInvoicesData || [];
       
       // Filter to only those related to this original invoice
       const relatedCredits = existingCreditInvoices.filter(ci => {
@@ -240,6 +230,7 @@ export default function CreditInvoicePage() {
       const effectivePaymentMethod = refundSource === 'cash_drawer' ? cashDrawerPaymentType : refundSource;
       
       const creditInvoiceData = {
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
         ro_number: uniqueRoNumber, // Use the generated unique RO number
         crinv_number: creditInvoiceNumber, // Use the base credit invoice number for crinv_number
         customer_id: workOrder.customer_id,
@@ -254,11 +245,11 @@ export default function CreditInvoicePage() {
         shop_supply_total: -Math.abs(shopSupplyTotal),
         tax_amount: -Math.abs(creditTaxAmount),
         total_amount: -Math.abs(creditTotalAmount),
-        line_items: JSON.stringify(selectedLineItems.map(line => {
+        line_items: selectedLineItems.map(line => {
           const lineTotal = parseFloat(line.total) || 0;
           // For other charges, if oc_total isn't set, use the line total
           // This ensures the credit shows up in the "Other Charges" breakdown
-          const ocTotalSource = (line.is_other_charge || line.other_charge_id) 
+          const ocTotalSource = (line.is_other_charge || line.other_charge_id)
               ? ((parseFloat(line.oc_total) || 0) !== 0 ? (parseFloat(line.oc_total) || 0) : lineTotal)
               : (parseFloat(line.oc_total) || 0);
 
@@ -269,52 +260,75 @@ export default function CreditInvoicePage() {
             labour: -Math.abs(parseFloat(line.labour) || 0),
             oc_total: -Math.abs(ocTotalSource),
           };
-        })),
-        payments: JSON.stringify([{
+        }),
+        payments: [{
           id: Date.now(),
           payment_date: format(new Date(), 'yyyy-MM-dd'),
           amount: -Math.abs(creditTotalAmount),
           payment_method: effectivePaymentMethod,
           reference: `Credit for ${workOrder.inv_number}`,
-        }]),
+        }],
         amount_paid: -Math.abs(creditTotalAmount),
         cp_id: workOrder.cp_id,
       };
       
       console.log('Creating credit invoice:', creditInvoiceData);
-      
-      const createRes = await base44.functions.invoke('SupabaseProxy', { action: 'create', table: 'WorkOrder', data: creditInvoiceData });
-      const createdCreditInvoice = createRes.data?.data?.[0];
+
+      const { data: createdCreditInvoice, error: createError } = await supabase
+        .from('WorkOrder')
+        .insert(creditInvoiceData)
+        .select()
+        .single();
+      if (createError) throw createError;
       console.log('Created credit invoice:', createdCreditInvoice);
 
       // Invoke GL function to create accounting entries for the credit invoice
-      const systemSettingsData = await SystemSettings.list();
+      const { data: systemSettingsData, error: systemSettingsError } = await supabase.from('SystemSettings').select('*');
+      if (systemSettingsError) throw systemSettingsError;
       const currentSystemSettings = systemSettingsData && systemSettingsData.length > 0 ? systemSettingsData[0] : {};
 
-      const glResponse = await base44.functions.invoke('handleCreditInvoiceGL', {
-        workOrder: createdCreditInvoice,
-        lineItems: JSON.parse(createdCreditInvoice.line_items),
-        payments: JSON.parse(createdCreditInvoice.payments),
-        systemSettings: currentSystemSettings
+      const { data: glResponseData, error: glInvokeError } = await supabase.functions.invoke('autopro-handleCreditInvoiceGL', {
+        body: {
+          workOrder: createdCreditInvoice,
+          lineItems: createdCreditInvoice.line_items,
+          payments: createdCreditInvoice.payments,
+          systemSettings: currentSystemSettings
+        }
       });
+      if (glInvokeError) throw new Error(glInvokeError.message);
 
-      if (glResponse.data.success) {
-        await base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'WorkOrder', id: createdCreditInvoice.id, data: {
-          accounting_details: glResponse.data.accounting_details
-        }});
+      if (glResponseData.success) {
+        const { error: accountingUpdateError } = await supabase
+          .from('WorkOrder')
+          .update({ accounting_details: glResponseData.accounting_details })
+          .eq('id', createdCreditInvoice.id);
+        if (accountingUpdateError) throw accountingUpdateError;
         console.log('GL transactions for credit invoice recorded successfully.');
       } else {
-        console.error('Failed to record GL transactions for credit invoice:', glResponse.data.error);
+        console.error('Failed to record GL transactions for credit invoice:', glResponseData.error);
       }
 
       // Fetch suppliers to map IDs to names for returns
       let suppliers = [];
       try {
-        const suppliersRes = await base44.functions.invoke('SupabaseProxy', { action: 'list', table: 'Supplier' });
-        suppliers = suppliersRes.data?.data || [];
+        const { data: suppliersData, error: suppliersError } = await supabase.from('Supplier').select('*');
+        if (suppliersError) throw suppliersError;
+        suppliers = suppliersData || [];
       } catch (err) {
         console.error("Failed to load suppliers for return processing", err);
       }
+
+      // Fetch user from Supabase auth for audit trail
+      let userId = null;
+      let userDisplay = null;
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        userId = authUser?.id || null;
+        userDisplay = authUser?.user_metadata?.full_name || authUser?.email || null;
+      } catch (err) {
+        console.error("Failed to load user for audit log", err);
+      }
+      const nowStr = new Date().toISOString();
 
       for (const line of selectedLineItems) {
         if (line.inventory_item_id) {
@@ -327,7 +341,9 @@ export default function CreditInvoicePage() {
                 const supplier = suppliers.find(s => s.id === inventoryItem.supplier_id);
                 const supplierName = supplier ? supplier.name : 'Unknown';
 
-                await base44.entities.InventoryReturn.create({
+                const returnId = crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '').substring(0, 24) : Date.now().toString();
+                const { error: returnError } = await supabase.from('InventoryReturn').insert([{
+                  id: returnId,
                   part_number: line.part_number || inventoryItem.part_number,
                   description: line.description || inventoryItem.description,
                   supplier: supplierName,
@@ -340,28 +356,34 @@ export default function CreditInvoicePage() {
                   work_order_id: workOrder.id,
                   inventory_item_id: line.inventory_item_id,
                   status: 'On-site',
-                  notes: `Core returned via Credit Invoice ${creditInvoiceNumber}`
-                });
+                  notes: `Core returned via Credit Invoice ${creditInvoiceNumber}`,
+                  created_date: nowStr,
+                  updated_date: nowStr,
+                  created_by_id: userId,
+                  created_by: userDisplay
+                }]);
+                if (returnError) console.error(`Error creating Core Return for ${line.part_number}:`, returnError);
                 console.log(`Created Core Return for ${line.part_number}`);
               } else {
                 // Regular Part Return Logic: Update QOH and create TX
                 const returnQty = parseFloat(line.qty) || 0;
                 const newQOH = (parseFloat(inventoryItem.quantity_on_hand) || 0) + returnQty;
                 
-                await base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'InventoryItem', id: line.inventory_item_id, data: {
-                  quantity_on_hand: newQOH
-                }});
-                
-                await base44.entities.InventoryTxs.create({
-                  inventory_item_id: line.inventory_item_id,
-                  ro_number: workOrder.ro_number, // This should reference the original RO number for the transaction context
-                  part_num: line.part_number || inventoryItem.part_number,
-                  tx_date: new Date().toISOString(),
-                  tx_type: 'Returned from WO',
-                  quantity_change: returnQty,
-                  quantity_ordered_change: 0,
-                  description: `Credit invoice ${creditInvoiceNumber} - returned to stock` // Use creditInvoiceNumber
+                const { error: updateError } = await supabase.rpc('update_inventory_with_audit', {
+                  p_item_id: line.inventory_item_id,
+                  p_qoh: newQOH,
+                  p_qoo: Number(inventoryItem.quantity_on_order || 0),
+                  p_ro_number: workOrder.ro_number,
+                  p_supplier_inv: null,
+                  p_source_action: 'CreditInvoice',
+                  p_tx_type: 'Returned from WO',
+                  p_description: `Credit invoice ${creditInvoiceNumber} - returned to stock`,
+                  p_user_id: userId,
+                  p_user_name: userDisplay,
+                  p_source_record_id: creditInvoiceNumber
                 });
+                
+                if (updateError) console.error('Error updating inventory via RPC:', updateError);
                 
                 console.log(`Returned ${returnQty} units of ${line.part_number} to inventory`);
               }
@@ -406,10 +428,12 @@ export default function CreditInvoicePage() {
         }
       });
       
-      await base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'WorkOrder', id: workOrder.id, data: {
-        line_items: JSON.stringify(updatedLineItems)
-      }});
-      
+      const { error: lineItemsUpdateError } = await supabase
+        .from('WorkOrder')
+        .update({ line_items: updatedLineItems })
+        .eq('id', workOrder.id);
+      if (lineItemsUpdateError) throw lineItemsUpdateError;
+
       console.log('Updated original work order line items with credit reference');
 
       // Create CustomerPayment record for the refund
@@ -422,7 +446,8 @@ export default function CreditInvoicePage() {
           paymentMethod = 'on_account';
         }
 
-        await base44.functions.invoke('SupabaseProxy', { action: 'create', table: 'CustomerPayments', data: {
+        const { error: refundPaymentError } = await supabase.from('CustomerPayments').insert({
+          id: crypto.randomUUID(),
           customer_id: workOrder.customer_id,
           work_order_id: createdCreditInvoice.id,
           payment_date: format(new Date(), 'yyyy-MM-dd'),
@@ -430,7 +455,8 @@ export default function CreditInvoicePage() {
           payment_method: paymentMethod,
           notes: `Refund for credit invoice ${creditInvoiceNumber}`,
           created_date: new Date().toISOString()
-        }});
+        });
+        if (refundPaymentError) throw refundPaymentError;
 
         console.log('Created CustomerPayment refund record');
       }
@@ -464,9 +490,9 @@ export default function CreditInvoicePage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <AlertTriangle className="w-12 h-12 mx-auto text-red-600" />
-          <h2 className="mt-4 text-xl font-semibold text-slate-900">Error Loading Work Order</h2>
-          <p className="mt-2 text-slate-600">{woError || 'Work Order not found'}</p>
+          <AlertTriangle className="w-12 h-12 mx-auto text-red-600 dark:text-red-400" />
+          <h2 className="mt-4 text-xl font-semibold text-slate-900 dark:text-slate-100">Error Loading Work Order</h2>
+          <p className="mt-2 text-slate-600 dark:text-slate-400">{woError || 'Work Order not found'}</p>
           <Button onClick={() => navigate(createPageUrl('WorkOrders'))} className="mt-4">
             Back to Work Orders
           </Button>
@@ -509,8 +535,8 @@ export default function CreditInvoicePage() {
           <div className="max-w-7xl mx-auto space-y-6">
             <div className="flex items-center justify-between no-print">
               <div>
-                <h1 className="text-3xl font-bold text-slate-900">Create Credit Invoice</h1>
-                <p className="text-slate-600 mt-1">Refund or credit customer for work order {workOrder?.wo_number}</p>
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Create Credit Invoice</h1>
+                <p className="text-slate-600 dark:text-slate-400 mt-1">Refund or credit customer for work order {workOrder?.wo_number}</p>
               </div>
               <div className="flex items-center gap-2">
                 <Button 
@@ -530,18 +556,18 @@ export default function CreditInvoicePage() {
                     </>
                   )}
                 </Button>
-                <Button 
+                <Button
                   onClick={() => navigate(createPageUrl('WorkOrderView') + `?id=${roNumber}`)}
                   variant="outline"
-                  className="bg-white"
+                  className="bg-white dark:bg-slate-900"
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Return to Invoice
                 </Button>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   onClick={() => window.close()}
-                  className="bg-white"
+                  className="bg-white dark:bg-slate-900"
                 >
                   <X className="w-4 h-4 mr-2" />
                   Cancel
@@ -563,26 +589,26 @@ export default function CreditInvoicePage() {
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div>
-                        <p className="text-sm text-slate-600 mb-1">Invoice Date</p>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Invoice Date</p>
                         <p className="font-semibold">{workOrder?.invoice_date ? format(parseLocalDate(workOrder.invoice_date), 'MMM d, yyyy') : 'Not set'}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-slate-600 mb-1">Work Order #</p>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Work Order #</p>
                         <p className="font-semibold">{workOrder?.wo_number || 'N/A'}</p>
                       </div>
                       <div>
-                        <p className="text-sm text-slate-600 mb-1">Work Order Date</p>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Work Order Date</p>
                         <p className="font-semibold">{workOrder?.wo_date ? format(parseLocalDate(workOrder.wo_date), 'MMM d, yyyy') : 'Not set'}</p>
                       </div>
                       {workOrder?.po_number && (
                         <div>
-                          <p className="text-sm text-slate-600 mb-1">PO Number</p>
+                          <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">PO Number</p>
                           <p className="font-semibold">{workOrder.po_number}</p>
                         </div>
                       )}
                       {workOrder?.description && (
                         <div className="md:col-span-3">
-                          <p className="text-sm text-slate-600 mb-1">Work Description</p>
+                          <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">Work Description</p>
                           <p className="font-semibold">{workOrder.description}</p>
                         </div>
                       )}
@@ -605,13 +631,13 @@ export default function CreditInvoicePage() {
                             <>
                               <p className="font-semibold text-lg">{customer.org_name}</p>
                               {(customer.first_name || customer.last_name) && (
-                                <p className="text-sm text-slate-600">Contact: {customer.first_name} {customer.last_name}</p>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">Contact: {customer.first_name} {customer.last_name}</p>
                               )}
                             </>
                           ) : (
                             <p className="font-semibold text-lg">{customer.first_name} {customer.last_name}</p>
                           )}
-                          <div className="text-sm text-slate-600 space-y-1">
+                          <div className="text-sm text-slate-600 dark:text-slate-400 space-y-1">
                             <p className="flex items-center gap-2">
                               <Phone className="w-4 h-4" />
                               {customer.phone}
@@ -631,7 +657,7 @@ export default function CreditInvoicePage() {
                           </div>
                         </div>
                       ) : (
-                        <p className="text-slate-500">No customer information available</p>
+                        <p className="text-slate-500 dark:text-slate-400">No customer information available</p>
                       )}
                     </CardContent>
                   </Card>
@@ -647,7 +673,7 @@ export default function CreditInvoicePage() {
                       {vehicle ? (
                         <div className="space-y-2">
                           <p className="font-semibold text-lg">{vehicle.year} {vehicle.make} {vehicle.model}</p>
-                          <div className="text-sm text-slate-600 space-y-1">
+                          <div className="text-sm text-slate-600 dark:text-slate-400 space-y-1">
                             <p><span className="font-medium">VIN:</span> {vehicle.vin || 'N/A'}</p>
                             <p><span className="font-medium">License:</span> {vehicle.license_plate || 'N/A'}</p>
                             {vehicle.unit_number && <p><span className="font-medium">Unit #:</span> {vehicle.unit_number}</p>}
@@ -657,7 +683,7 @@ export default function CreditInvoicePage() {
                           </div>
                         </div>
                       ) : (
-                        <p className="text-slate-500">No vehicle information available</p>
+                        <p className="text-slate-500 dark:text-slate-400">No vehicle information available</p>
                       )}
                     </CardContent>
                   </Card>

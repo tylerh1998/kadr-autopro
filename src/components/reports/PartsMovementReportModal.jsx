@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Package, Search, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { format, startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuarter, startOfYear, endOfYear, subDays } from "date-fns";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/lib/supabase";
 
 export default function PartsMovementReportModal() {
   const [dateFrom, setDateFrom] = useState("");
@@ -84,20 +84,16 @@ export default function PartsMovementReportModal() {
   const loadReportData = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await base44.functions.invoke('SupabaseProxy', { 
-        action: 'rpc',
-        table: 'get_parts_movement_v2',
-        data: {
-          p_start_date: dateFrom,
-          p_end_date: dateTo,
-          p_search_term: debouncedSearch
-        }
+      const { data, error } = await supabase.rpc('get_parts_movement_v2', {
+        p_start_date: dateFrom,
+        p_end_date: dateTo,
+        p_search_term: debouncedSearch
       });
 
-      if (error) throw new Error(error);
+      if (error) throw error;
 
-      if (data && data.data) {
-        setReportData(data.data);
+      if (data) {
+        setReportData(data);
       }
     } catch (error) {
       console.error("Error loading parts movement report:", error);
@@ -156,16 +152,16 @@ export default function PartsMovementReportModal() {
   }, [filteredData]);
 
   const SortIcon = ({ columnKey }) => {
-    if (sortConfig.key !== columnKey) return <ArrowUpDown className="w-4 h-4 ml-1 text-slate-400" />;
-    return sortConfig.direction === 'asc' 
-      ? <ArrowUp className="w-4 h-4 ml-1 text-blue-600" /> 
-      : <ArrowDown className="w-4 h-4 ml-1 text-blue-600" />;
+    if (sortConfig.key !== columnKey) return <ArrowUpDown className="w-4 h-4 ml-1 text-slate-400 dark:text-slate-500" />;
+    return sortConfig.direction === 'asc'
+      ? <ArrowUp className="w-4 h-4 ml-1 text-blue-600 dark:text-blue-400" />
+      : <ArrowDown className="w-4 h-4 ml-1 text-blue-600 dark:text-blue-400" />;
   };
 
   return (
     <div className="space-y-6 h-full flex flex-col min-h-0">
           {/* Controls */}
-          <div className="flex flex-wrap gap-4 bg-slate-50 p-4 rounded-lg items-end shrink-0">
+          <div className="flex flex-wrap gap-4 bg-slate-50 dark:bg-slate-800 p-4 rounded-lg items-end shrink-0">
             <div className="space-y-2 min-w-[200px]">
                <Label>Category Filter</Label>
                <Select onValueChange={setSelectedCategory} value={selectedCategory}>
@@ -192,13 +188,13 @@ export default function PartsMovementReportModal() {
             <div className="space-y-2 flex-1 min-w-[300px]">
                 <div className="flex justify-between items-center">
                     <Label>Search Parts</Label>
-                    <div className="flex gap-4 text-xs font-medium text-blue-600">
-                      <button onClick={() => setDateRange('last30')} className="hover:underline hover:text-blue-800 transition-colors">Last 30</button>
-                      <button onClick={() => setDateRange('thisMonth')} className="hover:underline hover:text-blue-800 transition-colors">This Month</button>
-                      <button onClick={() => setDateRange('lastMonth')} className="hover:underline hover:text-blue-800 transition-colors">Last Month</button>
-                      <button onClick={() => setDateRange('thisQuarter')} className="hover:underline hover:text-blue-800 transition-colors">This Qtr</button>
-                      <button onClick={() => setDateRange('thisYear')} className="hover:underline hover:text-blue-800 transition-colors">This Year</button>
-                      <button onClick={() => setDateRange('lastYear')} className="hover:underline hover:text-blue-800 transition-colors">Last Year</button>
+                    <div className="flex gap-4 text-xs font-medium text-blue-600 dark:text-blue-400">
+                      <button onClick={() => setDateRange('last30')} className="hover:underline hover:text-blue-800 dark:hover:text-blue-300 transition-colors">Last 30</button>
+                      <button onClick={() => setDateRange('thisMonth')} className="hover:underline hover:text-blue-800 dark:hover:text-blue-300 transition-colors">This Month</button>
+                      <button onClick={() => setDateRange('lastMonth')} className="hover:underline hover:text-blue-800 dark:hover:text-blue-300 transition-colors">Last Month</button>
+                      <button onClick={() => setDateRange('thisQuarter')} className="hover:underline hover:text-blue-800 dark:hover:text-blue-300 transition-colors">This Qtr</button>
+                      <button onClick={() => setDateRange('thisYear')} className="hover:underline hover:text-blue-800 dark:hover:text-blue-300 transition-colors">This Year</button>
+                      <button onClick={() => setDateRange('lastYear')} className="hover:underline hover:text-blue-800 dark:hover:text-blue-300 transition-colors">Last Year</button>
                     </div>
                 </div>
                 <div className="relative">
@@ -219,81 +215,81 @@ export default function PartsMovementReportModal() {
           </div>
 
           {/* Report Table */}
-          <Card className="flex-1 flex flex-col overflow-hidden min-h-0 shadow-sm border-slate-200">
+          <Card className="flex-1 flex flex-col overflow-hidden min-h-0 shadow-sm border-slate-200 dark:border-slate-700">
             <CardHeader className="shrink-0">
               <CardTitle className="flex items-center gap-2">
-                <Package className="w-5 h-5 text-blue-600" />
+                <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 Parts Movement Report
               </CardTitle>
             </CardHeader>
             <CardContent className="flex-1 overflow-auto p-0">
               <Table>
-                <TableHeader className="sticky top-0 bg-white z-10 shadow-sm">
-                  <TableRow className="bg-slate-50">
-                    <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('partNumber')}>
+                <TableHeader className="sticky top-0 bg-white dark:bg-slate-900 z-10 shadow-sm">
+                  <TableRow className="bg-slate-50 dark:bg-slate-800">
+                    <TableHead className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50" onClick={() => handleSort('partNumber')}>
                       <div className="flex items-center">Part # <SortIcon columnKey="partNumber" /></div>
                     </TableHead>
-                    <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('description')}>
+                    <TableHead className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50" onClick={() => handleSort('description')}>
                       <div className="flex items-center">Description <SortIcon columnKey="description" /></div>
                     </TableHead>
-                    <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('category')}>
+                    <TableHead className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50" onClick={() => handleSort('category')}>
                       <div className="flex items-center">Category <SortIcon columnKey="category" /></div>
                     </TableHead>
-                    <TableHead className="cursor-pointer hover:bg-slate-100" onClick={() => handleSort('listPrice')}>
+                    <TableHead className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50" onClick={() => handleSort('listPrice')}>
                       <div className="flex items-center">List Price <SortIcon columnKey="listPrice" /></div>
                     </TableHead>
-                    <TableHead className="text-right cursor-pointer hover:bg-slate-100 bg-amber-50" onClick={() => handleSort('wip_qty')}>
+                    <TableHead className="text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50 bg-amber-50 dark:bg-amber-900/20" onClick={() => handleSort('wip_qty')}>
                       <div className="flex items-center justify-end">WIP Qty <SortIcon columnKey="wip_qty" /></div>
                     </TableHead>
-                    <TableHead className="text-right cursor-pointer hover:bg-slate-100 bg-amber-50" onClick={() => handleSort('wip_amount')}>
+                    <TableHead className="text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50 bg-amber-50 dark:bg-amber-900/20" onClick={() => handleSort('wip_amount')}>
                       <div className="flex items-center justify-end">WIP Amt <SortIcon columnKey="wip_amount" /></div>
                     </TableHead>
-                    <TableHead className="text-right cursor-pointer hover:bg-slate-100 bg-green-50" onClick={() => handleSort('invoiced_qty')}>
+                    <TableHead className="text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50 bg-green-50 dark:bg-green-900/20" onClick={() => handleSort('invoiced_qty')}>
                       <div className="flex items-center justify-end">Invoiced Qty <SortIcon columnKey="invoiced_qty" /></div>
                     </TableHead>
-                    <TableHead className="text-right cursor-pointer hover:bg-slate-100 bg-green-50" onClick={() => handleSort('invoiced_amount')}>
+                    <TableHead className="text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50 bg-green-50 dark:bg-green-900/20" onClick={() => handleSort('invoiced_amount')}>
                       <div className="flex items-center justify-end">Invoiced Amt <SortIcon columnKey="invoiced_amount" /></div>
                     </TableHead>
-                    <TableHead className="text-right cursor-pointer hover:bg-slate-100 font-bold" onClick={() => handleSort('totalQty')}>
+                    <TableHead className="text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50 font-bold" onClick={() => handleSort('totalQty')}>
                       <div className="flex items-center justify-end">Total Qty <SortIcon columnKey="totalQty" /></div>
                     </TableHead>
-                    <TableHead className="text-right cursor-pointer hover:bg-slate-100 font-bold" onClick={() => handleSort('totalSalesAmount')}>
+                    <TableHead className="text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50 font-bold" onClick={() => handleSort('totalSalesAmount')}>
                       <div className="flex items-center justify-end">Total Amt <SortIcon columnKey="totalSalesAmount" /></div>
                     </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {sortedData.map((item, idx) => (
-                    <TableRow key={idx} className="hover:bg-slate-50/50">
+                    <TableRow key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-700/50">
                       <TableCell className="font-medium">{item.part_number}</TableCell>
                       <TableCell>{item.description}</TableCell>
                       <TableCell>{item.category}</TableCell>
                       <TableCell>
                         ${(item.list_price || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </TableCell>
-                      <TableCell className="text-right bg-amber-50/30 text-amber-700">
+                      <TableCell className="text-right bg-amber-50/30 text-amber-700 dark:bg-amber-900/10 dark:text-amber-400">
                         {Number(item.wip_qty || 0).toLocaleString()}
                       </TableCell>
-                      <TableCell className="text-right bg-amber-50/30 text-amber-700">
+                      <TableCell className="text-right bg-amber-50/30 text-amber-700 dark:bg-amber-900/10 dark:text-amber-400">
                         ${Number(item.wip_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </TableCell>
-                      <TableCell className="text-right bg-green-50/30 text-green-700">
+                      <TableCell className="text-right bg-green-50/30 text-green-700 dark:bg-green-900/10 dark:text-green-400">
                         {Number(item.invoiced_qty || 0).toLocaleString()}
                       </TableCell>
-                      <TableCell className="text-right bg-green-50/30 text-green-700">
+                      <TableCell className="text-right bg-green-50/30 text-green-700 dark:bg-green-900/10 dark:text-green-400">
                         ${Number(item.invoiced_amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </TableCell>
-                      <TableCell className="text-right font-bold text-blue-600">
+                      <TableCell className="text-right font-bold text-blue-600 dark:text-blue-400">
                         {(Number(item.invoiced_qty || 0) + Number(item.wip_qty || 0)).toLocaleString()}
                       </TableCell>
-                      <TableCell className="text-right font-bold text-blue-600">
+                      <TableCell className="text-right font-bold text-blue-600 dark:text-blue-400">
                         ${(Number(item.invoiced_amount || 0) + Number(item.wip_amount || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </TableCell>
                     </TableRow>
                   ))}
                   {reportData.length === 0 && !isLoading && (
                       <TableRow>
-                          <TableCell colSpan={10} className="text-center text-slate-500 py-8">
+                          <TableCell colSpan={10} className="text-center text-slate-500 dark:text-slate-400 py-8">
                             No parts found matching criteria
                           </TableCell>
                       </TableRow>
@@ -301,7 +297,7 @@ export default function PartsMovementReportModal() {
                   {isLoading && (
                       <TableRow>
                           <TableCell colSpan={10} className="text-center py-8">
-                            <div className="flex justify-center items-center gap-2 text-slate-500">
+                            <div className="flex justify-center items-center gap-2 text-slate-500 dark:text-slate-400">
                                 <Loader2 className="w-4 h-4 animate-spin" />
                                 Loading report data...
                             </div>
@@ -311,31 +307,31 @@ export default function PartsMovementReportModal() {
                 </TableBody>
               </Table>
             </CardContent>
-            <CardFooter className="bg-slate-100 border-t p-4 shrink-0">
+            <CardFooter className="bg-slate-100 dark:bg-slate-800 border-t dark:border-slate-700 p-4 shrink-0">
                 <div className="w-full flex justify-end gap-8 text-sm font-bold">
                     <div>
-                        <span className="text-slate-500 mr-2">Total WIP Qty:</span>
-                        <span className="text-amber-700">{totals.wipQty.toLocaleString()}</span>
+                        <span className="text-slate-500 dark:text-slate-400 mr-2">Total WIP Qty:</span>
+                        <span className="text-amber-700 dark:text-amber-400">{totals.wipQty.toLocaleString()}</span>
                     </div>
                     <div>
-                        <span className="text-slate-500 mr-2">Total WIP Amt:</span>
-                        <span className="text-amber-700">${totals.wipAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <span className="text-slate-500 dark:text-slate-400 mr-2">Total WIP Amt:</span>
+                        <span className="text-amber-700 dark:text-amber-400">${totals.wipAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                     <div>
-                        <span className="text-slate-500 mr-2">Total Inv Qty:</span>
-                        <span className="text-green-700">{totals.invoicedQty.toLocaleString()}</span>
+                        <span className="text-slate-500 dark:text-slate-400 mr-2">Total Inv Qty:</span>
+                        <span className="text-green-700 dark:text-green-400">{totals.invoicedQty.toLocaleString()}</span>
                     </div>
                     <div>
-                        <span className="text-slate-500 mr-2">Total Inv Amt:</span>
-                        <span className="text-green-700">${totals.invoicedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <span className="text-slate-500 dark:text-slate-400 mr-2">Total Inv Amt:</span>
+                        <span className="text-green-700 dark:text-green-400">${totals.invoicedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                     <div>
-                        <span className="text-slate-500 mr-2">Grand Total Qty:</span>
-                        <span className="text-blue-700">{totals.totalQty.toLocaleString()}</span>
+                        <span className="text-slate-500 dark:text-slate-400 mr-2">Grand Total Qty:</span>
+                        <span className="text-blue-700 dark:text-blue-400">{totals.totalQty.toLocaleString()}</span>
                     </div>
                     <div>
-                        <span className="text-slate-500 mr-2">Grand Total Amt:</span>
-                        <span className="text-blue-700">${totals.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                        <span className="text-slate-500 dark:text-slate-400 mr-2">Grand Total Amt:</span>
+                        <span className="text-blue-700 dark:text-blue-400">${totals.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                 </div>
             </CardFooter>

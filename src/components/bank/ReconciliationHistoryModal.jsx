@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { 
   History, 
@@ -34,19 +34,23 @@ export default function ReconciliationHistoryModal({ open, onClose, bankAccountI
     try {
       console.log('Loading reconciliation history for bank account:', bankAccountId);
       
-      const response = await base44.functions.invoke('getReconciliationHistory', {
-        bankAccountId: bankAccountId
+      const { data, error: invokeError } = await supabase.functions.invoke('autopro-getReconciliationHistory', {
+        body: { bankAccountId: bankAccountId }
       });
 
-      console.log('Backend response:', response);
+      console.log('Backend response:', data);
 
-      if (response.data?.success) {
-        setHistoryRecords(response.data.data.reconciliations || []);
-        setBankAccount(response.data.data.bank_account);
-        console.log('Loaded', response.data.data.reconciliations?.length, 'reconciliation records');
+      if (invokeError) {
+        throw invokeError;
+      }
+
+      if (data?.success) {
+        setHistoryRecords(data.data.reconciliations || []);
+        setBankAccount(data.data.bank_account);
+        console.log('Loaded', data.data.reconciliations?.length, 'reconciliation records');
       } else {
-        console.error('Backend error:', response.data?.error);
-        setError(response.data?.error || 'Failed to load reconciliation history');
+        console.error('Backend error:', data?.error);
+        setError(data?.error || 'Failed to load reconciliation history');
         setHistoryRecords([]);
         setBankAccount(null);
       }
@@ -178,11 +182,11 @@ export default function ReconciliationHistoryModal({ open, onClose, bankAccountI
         <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto print-modal">
           <DialogHeader className="no-print">
             <DialogTitle className="flex items-center gap-2 text-2xl">
-              <History className="w-6 h-6 text-blue-600" />
+              <History className="w-6 h-6 text-blue-600 dark:text-blue-400" />
               Reconciliation History
             </DialogTitle>
             {bankAccount && (
-              <div className="text-sm text-slate-600 mt-2">
+              <div className="text-sm text-slate-600 dark:text-slate-400 mt-2">
                 <div className="flex items-center gap-2">
                   <Landmark className="w-4 h-4" />
                   <span className="font-semibold">{bankAccount.name}</span>
@@ -229,16 +233,16 @@ export default function ReconciliationHistoryModal({ open, onClose, bankAccountI
             {loading && (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-slate-600">Loading reconciliation history...</p>
+                <p className="text-slate-600 dark:text-slate-400">Loading reconciliation history...</p>
               </div>
             )}
 
             {/* Error State */}
             {error && !loading && (
               <div className="text-center py-12">
-                <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-red-500" />
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">Error Loading History</h3>
-                <p className="text-slate-600">{error}</p>
+                <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-red-500 dark:text-red-400" />
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">Error Loading History</h3>
+                <p className="text-slate-600 dark:text-slate-400">{error}</p>
                 <Button onClick={loadHistory} className="mt-4">
                   Try Again
                 </Button>
@@ -249,8 +253,8 @@ export default function ReconciliationHistoryModal({ open, onClose, bankAccountI
             {!loading && !error && historyRecords.length === 0 && (
               <div className="text-center py-12">
                 <History className="w-12 h-12 mx-auto mb-4 text-slate-400" />
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">No Reconciliation History</h3>
-                <p className="text-slate-600">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">No Reconciliation History</h3>
+                <p className="text-slate-600 dark:text-slate-400">
                   This bank account has not been reconciled yet.
                 </p>
               </div>
@@ -261,25 +265,25 @@ export default function ReconciliationHistoryModal({ open, onClose, bankAccountI
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="bg-slate-50 border-b-2 border-slate-300">
-                      <th className="text-left p-3 font-semibold text-slate-700">Reconciliation ID</th>
-                      <th className="text-left p-3 font-semibold text-slate-700">Date Reconciled</th>
-                      <th className="text-left p-3 font-semibold text-slate-700">Period Covered</th>
-                      <th className="text-right p-3 font-semibold text-slate-700">Statement Balance</th>
-                      <th className="text-right p-3 font-semibold text-slate-700">Cleared Balance</th>
-                      <th className="text-right p-3 font-semibold text-slate-700">Difference</th>
-                      <th className="text-center p-3 font-semibold text-slate-700">Status</th>
-                      <th className="text-left p-3 font-semibold text-slate-700">Reconciled By</th>
-                      <th className="text-center p-3 font-semibold text-slate-700 no-print">Actions</th>
+                    <tr className="bg-slate-50 dark:bg-slate-800 border-b-2 border-slate-300 dark:border-slate-700">
+                      <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Reconciliation ID</th>
+                      <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Date Reconciled</th>
+                      <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Period Covered</th>
+                      <th className="text-right p-3 font-semibold text-slate-700 dark:text-slate-300">Statement Balance</th>
+                      <th className="text-right p-3 font-semibold text-slate-700 dark:text-slate-300">Cleared Balance</th>
+                      <th className="text-right p-3 font-semibold text-slate-700 dark:text-slate-300">Difference</th>
+                      <th className="text-center p-3 font-semibold text-slate-700 dark:text-slate-300">Status</th>
+                      <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Reconciled By</th>
+                      <th className="text-center p-3 font-semibold text-slate-700 dark:text-slate-300 no-print">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {historyRecords.map((record) => (
-                      <tr key={record.id} className="border-b hover:bg-slate-50">
+                      <tr key={record.id} className="border-b hover:bg-slate-50 dark:hover:bg-slate-800/60">
                         <td className="p-3">
                           <button
                             onClick={() => handleViewReport(record.reconciliation_id)}
-                            className="text-blue-600 hover:text-blue-800 hover:underline font-mono text-sm no-print"
+                            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline font-mono text-sm no-print"
                           >
                             {record.reconciliation_id}
                           </button>
@@ -287,10 +291,10 @@ export default function ReconciliationHistoryModal({ open, onClose, bankAccountI
                             {record.reconciliation_id}
                           </span>
                         </td>
-                        <td className="p-3 text-sm text-slate-700">
+                        <td className="p-3 text-sm text-slate-700 dark:text-slate-300">
                           {formatDisplayDateTime(record.reconciliation_date)}
                         </td>
-                        <td className="p-3 text-sm text-slate-700">
+                        <td className="p-3 text-sm text-slate-700 dark:text-slate-300">
                           <div className="flex items-center gap-1">
                             <Calendar className="w-3 h-3 text-slate-400" />
                             {record.period_start_date && record.period_end_date ? (
@@ -302,31 +306,31 @@ export default function ReconciliationHistoryModal({ open, onClose, bankAccountI
                             )}
                           </div>
                         </td>
-                        <td className="p-3 text-right font-semibold text-slate-900">
+                        <td className="p-3 text-right font-semibold text-slate-900 dark:text-slate-100">
                           ${record.statement_ending_balance.toFixed(2)}
                         </td>
-                        <td className="p-3 text-right font-semibold text-slate-900">
+                        <td className="p-3 text-right font-semibold text-slate-900 dark:text-slate-100">
                           ${record.cleared_balance_at_reconciliation.toFixed(2)}
                         </td>
                         <td className={`p-3 text-right font-semibold ${
-                          record.is_balanced ? 'text-green-700' : 'text-red-700'
+                          record.is_balanced ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'
                         }`}>
                           ${record.difference.toFixed(2)}
                         </td>
                         <td className="p-3 text-center">
                           {record.is_balanced ? (
-                            <Badge className="bg-green-100 text-green-800 border-green-200 balanced-badge">
+                            <Badge className="bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800 balanced-badge">
                               <CheckCircle2 className="w-3 h-3 mr-1 no-print" />
                               Balanced
                             </Badge>
                           ) : (
-                            <Badge className="bg-red-100 text-red-800 border-red-200 unbalanced-badge">
+                            <Badge className="bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300 border-red-200 dark:border-red-800 unbalanced-badge">
                               <AlertTriangle className="w-3 h-3 mr-1 no-print" />
                               Unbalanced
                             </Badge>
                           )}
                         </td>
-                        <td className="p-3 text-sm text-slate-700">
+                        <td className="p-3 text-sm text-slate-700 dark:text-slate-300">
                           {record.reconciled_by}
                         </td>
                         <td className="p-3 text-center no-print">
@@ -334,7 +338,7 @@ export default function ReconciliationHistoryModal({ open, onClose, bankAccountI
                             onClick={() => handleViewReport(record.reconciliation_id)}
                             variant="ghost"
                             size="sm"
-                            className="text-blue-600 hover:text-blue-800"
+                            className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
                           >
                             <ExternalLink className="w-4 h-4" />
                           </Button>
@@ -345,15 +349,15 @@ export default function ReconciliationHistoryModal({ open, onClose, bankAccountI
                 </table>
 
                 {/* Summary */}
-                <div className="mt-6 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="mt-6 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <DollarSign className="w-5 h-5 text-slate-600" />
-                      <span className="font-semibold text-slate-900">
+                      <DollarSign className="w-5 h-5 text-slate-600 dark:text-slate-400" />
+                      <span className="font-semibold text-slate-900 dark:text-slate-100">
                         Total Reconciliations: {historyRecords.length}
                       </span>
                     </div>
-                    <div className="text-sm text-slate-600">
+                    <div className="text-sm text-slate-600 dark:text-slate-400">
                       Balanced: {historyRecords.filter(r => r.is_balanced).length} • 
                       Unbalanced: {historyRecords.filter(r => !r.is_balanced).length}
                     </div>

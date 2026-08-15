@@ -14,10 +14,10 @@ export default function OverheadTable({ rows, onRowChange, sortConfig, onSort })
   ];
 
   const methodColors = {
-    "SCU MC": "text-blue-600",
-    "ATB MC": "text-red-600",
-    "SCU Bank": "text-green-600",
-    "Payroll": "text-yellow-600"
+    "SCU MC": "text-blue-600 dark:text-blue-400",
+    "ATB MC": "text-red-600 dark:text-red-400",
+    "SCU Bank": "text-green-600 dark:text-green-400",
+    "Payroll": "text-yellow-600 dark:text-yellow-400"
   };
 
   const formatCurrencyInput = (value) => {
@@ -47,20 +47,20 @@ export default function OverheadTable({ rows, onRowChange, sortConfig, onSort })
   };
 
   return (
-    <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
+    <div className="border rounded-lg overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-slate-100 border-b">
+          <thead className="bg-slate-100 dark:bg-slate-800 border-b">
             <tr>
-              <th className="p-2 w-12 text-center text-slate-500 font-medium">#</th>
-              <th className="p-2 w-12 text-center text-slate-500 font-medium">Use</th>
+              <th className="p-2 w-12 text-center text-slate-500 dark:text-slate-400 font-medium">#</th>
+              <th className="p-2 w-12 text-center text-slate-500 dark:text-slate-400 font-medium">Use</th>
               {headers.map(header => (
-                <th 
-                  key={header.id} 
+                <th
+                  key={header.id}
                   className={cn(
-                    "p-2 text-left text-slate-700 font-semibold border-r last:border-r-0 select-none whitespace-nowrap", 
+                    "p-2 text-left text-slate-700 dark:text-slate-300 font-semibold border-r last:border-r-0 select-none whitespace-nowrap",
                     header.width,
-                    header.sortable && "cursor-pointer hover:bg-slate-200 transition-colors"
+                    header.sortable && "cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                   )}
                   onClick={() => header.sortable && onSort && onSort(header.id)}
                 >
@@ -74,14 +74,14 @@ export default function OverheadTable({ rows, onRowChange, sortConfig, onSort })
           </thead>
           <tbody>
             {rows.map((row, index) => (
-              <tr key={index} className="border-b last:border-b-0 hover:bg-slate-50 transition-colors">
+              <tr key={index} className="border-b last:border-b-0 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
                 <td className="p-1 text-center text-xs select-none">
                   <button
                     type="button"
                     onClick={() => handleToggleIncluded(index)}
                     className={cn(
                       "w-full h-8 rounded-md font-semibold transition-colors",
-                      row?.included === true ? "bg-blue-600 text-white" : "bg-white text-slate-500 border border-slate-200"
+                      row?.included === true ? "bg-blue-600 text-white" : "bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700"
                     )}
                   >
                     {index + 1}
@@ -144,10 +144,10 @@ export default function OverheadTable({ rows, onRowChange, sortConfig, onSort })
                       <SelectValue placeholder="-" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="SCU MC" className="text-blue-600 font-medium">SCU MC</SelectItem>
-                      <SelectItem value="ATB MC" className="text-red-600 font-medium">ATB MC</SelectItem>
-                      <SelectItem value="SCU Bank" className="text-green-600 font-medium">SCU Bank</SelectItem>
-                      <SelectItem value="Payroll" className="text-yellow-600 font-medium">Payroll</SelectItem>
+                      <SelectItem value="SCU MC" className="text-blue-600 dark:text-blue-400 font-medium">SCU MC</SelectItem>
+                      <SelectItem value="ATB MC" className="text-red-600 dark:text-red-400 font-medium">ATB MC</SelectItem>
+                      <SelectItem value="SCU Bank" className="text-green-600 dark:text-green-400 font-medium">SCU Bank</SelectItem>
+                      <SelectItem value="Payroll" className="text-yellow-600 dark:text-yellow-400 font-medium">Payroll</SelectItem>
                     </SelectContent>
                   </Select>
                 </td>

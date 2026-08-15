@@ -53,68 +53,68 @@ export default function LankarWOHeaderInfo({ info, customer, vehicle }) {
           <div className="xl:col-span-2 flex flex-col gap-6 min-w-0">
             <div className="grid md:grid-cols-2 gap-6">
               <div className="space-y-4 min-w-0">
-                <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                   <User className="w-5 h-5" />
                   Customer Information
                 </h3>
                 <div className="space-y-2 text-sm min-w-0 break-words">
-                  <p className="font-medium text-slate-900 break-words">{getCustomerDisplayName(customer)}</p>
+                  <p className="font-medium text-slate-900 dark:text-slate-100 break-words">{getCustomerDisplayName(customer)}</p>
                   {customer?.phone && (
-                    <p className="flex items-center gap-2 text-slate-600"><Phone className="w-4 h-4" />{customer.phone}</p>
+                    <p className="flex items-center gap-2 text-slate-600 dark:text-slate-400"><Phone className="w-4 h-4" />{customer.phone}</p>
                   )}
                   {customer?.email && (
-                    <p className="flex items-center gap-2 text-slate-600"><Mail className="w-4 h-4" />{customer.email}</p>
+                    <p className="flex items-center gap-2 text-slate-600 dark:text-slate-400"><Mail className="w-4 h-4" />{customer.email}</p>
                   )}
                   {(customer?.address || customer?.city || customer?.state) && (
-                    <p className="flex items-start gap-2 text-slate-600"><MapPin className="w-4 h-4 mt-0.5" /><span>{customer?.address}{customer?.city ? `, ${customer.city}` : ''}{customer?.state ? `, ${customer.state}` : ''}{customer?.zip_code ? ` ${customer.zip_code}` : ''}</span></p>
+                    <p className="flex items-start gap-2 text-slate-600 dark:text-slate-400"><MapPin className="w-4 h-4 mt-0.5" /><span>{customer?.address}{customer?.city ? `, ${customer.city}` : ''}{customer?.state ? `, ${customer.state}` : ''}{customer?.zip_code ? ` ${customer.zip_code}` : ''}</span></p>
                   )}
                 </div>
               </div>
 
               <div className="space-y-4 min-w-0">
-                <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                   <Car className="w-5 h-5" />
                   Vehicle Information
                 </h3>
                 <div className="space-y-2 text-sm min-w-0 break-words">
-                  <p className="font-medium text-slate-900">{vehicle ? `${vehicle.year || ''} ${vehicle.make || ''} ${vehicle.model || ''}`.trim() || 'Vehicle Found' : 'No Vehicle Found'}</p>
-                  {vehicle?.vin && <p className="text-slate-600"><span className="font-medium">VIN:</span> {vehicle.vin}</p>}
-                  {vehicle?.license_plate && <p className="text-slate-600"><span className="font-medium">License:</span> {vehicle.license_plate}</p>}
-                  {vehicle?.color && <p className="text-slate-600"><span className="font-medium">Color:</span> {vehicle.color}</p>}
-                  {info?.txtOdometer && <p className="text-slate-600"><span className="font-medium">Odometer:</span> {info.txtOdometer}</p>}
+                  <p className="font-medium text-slate-900 dark:text-slate-100">{vehicle ? `${vehicle.year || ''} ${vehicle.make || ''} ${vehicle.model || ''}`.trim() || 'Vehicle Found' : 'No Vehicle Found'}</p>
+                  {vehicle?.vin && <p className="text-slate-600 dark:text-slate-400"><span className="font-medium">VIN:</span> {vehicle.vin}</p>}
+                  {vehicle?.license_plate && <p className="text-slate-600 dark:text-slate-400"><span className="font-medium">License:</span> {vehicle.license_plate}</p>}
+                  {vehicle?.color && <p className="text-slate-600 dark:text-slate-400"><span className="font-medium">Color:</span> {vehicle.color}</p>}
+                  {info?.txtOdometer && <p className="text-slate-600 dark:text-slate-400"><span className="font-medium">Odometer:</span> {info.txtOdometer}</p>}
                 </div>
               </div>
             </div>
 
             {info?.txtCustomerRequests && (
-              <div className="pt-4 border-t border-slate-100">
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">Customer Requests</h3>
-                <p className="text-slate-600 bg-slate-50 p-4 rounded-lg whitespace-pre-wrap border border-slate-100">{info.txtCustomerRequests}</p>
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">Customer Requests</h3>
+                <p className="text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 p-4 rounded-lg whitespace-pre-wrap border border-slate-100 dark:border-slate-700">{info.txtCustomerRequests}</p>
               </div>
             )}
 
             {info?.Summary && (
-              <div className="pt-4 border-t border-slate-100">
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">Summary</h3>
-                <p className="text-slate-600 bg-slate-50 p-4 rounded-lg whitespace-pre-wrap border border-slate-100">{cleanText(info.Summary)}</p>
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">Summary</h3>
+                <p className="text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 p-4 rounded-lg whitespace-pre-wrap border border-slate-100 dark:border-slate-700">{cleanText(info.Summary)}</p>
               </div>
             )}
           </div>
 
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Calendar className="w-5 h-5" />
               Document Details
             </h3>
             <div className="space-y-2 text-sm">
-              {info?.WOorPWOorEorINVorCRED && <p className="text-slate-600"><span className="font-medium">Type:</span> {getStageLabel(info.WOorPWOorEorINVorCRED)}</p>}
-              {info?.woid && <p className="text-slate-600"><span className="font-medium">Work Order #:</span> {info.woid}</p>}
-              {info?.invoiceid && <p className="text-slate-600"><span className="font-medium">Invoice #:</span> {info.invoiceid}</p>}
-              {info?.wodate && <p className="text-slate-600"><span className="font-medium">Work Order Date:</span> {formatDate(info.wodate)}</p>}
-              {info?.invoicedate && <p className="text-slate-600"><span className="font-medium">Invoice Date:</span> {formatDate(info.invoicedate)}</p>}
-              {info?.ponum && <p className="text-slate-600"><span className="font-medium">PO #:</span> {info.ponum}</p>}
-              {info?.estid && <p className="text-slate-600"><span className="font-medium">Estimate ID:</span> {info.estid}</p>}
-              {info?.WOdeleted && <p className="text-slate-600"><span className="font-medium">Deleted Flag:</span> {info.WOdeleted}</p>}
+              {info?.WOorPWOorEorINVorCRED && <p className="text-slate-600 dark:text-slate-400"><span className="font-medium">Type:</span> {getStageLabel(info.WOorPWOorEorINVorCRED)}</p>}
+              {info?.woid && <p className="text-slate-600 dark:text-slate-400"><span className="font-medium">Work Order #:</span> {info.woid}</p>}
+              {info?.invoiceid && <p className="text-slate-600 dark:text-slate-400"><span className="font-medium">Invoice #:</span> {info.invoiceid}</p>}
+              {info?.wodate && <p className="text-slate-600 dark:text-slate-400"><span className="font-medium">Work Order Date:</span> {formatDate(info.wodate)}</p>}
+              {info?.invoicedate && <p className="text-slate-600 dark:text-slate-400"><span className="font-medium">Invoice Date:</span> {formatDate(info.invoicedate)}</p>}
+              {info?.ponum && <p className="text-slate-600 dark:text-slate-400"><span className="font-medium">PO #:</span> {info.ponum}</p>}
+              {info?.estid && <p className="text-slate-600 dark:text-slate-400"><span className="font-medium">Estimate ID:</span> {info.estid}</p>}
+              {info?.WOdeleted && <p className="text-slate-600 dark:text-slate-400"><span className="font-medium">Deleted Flag:</span> {info.WOdeleted}</p>}
             </div>
           </div>
         </div>

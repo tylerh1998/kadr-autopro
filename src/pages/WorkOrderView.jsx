@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, SystemSettings } from '@/entities/all';
-import { saveworkorderdata } from '@/functions/saveworkorderdata';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Edit3, CreditCard, AlertTriangle, Printer, X, Briefcase, Send, FileText, BarChart3 } from 'lucide-react';
+import { Loader2, Edit3, CreditCard, AlertTriangle, Printer, X, Briefcase, Send, FileText, BarChart3, UserCheck } from 'lucide-react';
 import { createPageUrl } from '@/utils';
-import { base44 } from '@/api/base44Client';
 import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
 
 // Import hooks
@@ -25,6 +24,7 @@ import AdvancePaymentModal from '../components/work-orders/AdvancePaymentModal';
 import WorkOrderProfitability from '../components/work-orders/WorkOrderProfitability';
 import VehicleDetails from '../components/vehicles/VehicleDetails';
 import WorkOrderHistoryModal from '../components/work-orders/history/WorkOrderHistoryModal';
+import ROApprovalsModal from '../components/work-orders/ROApprovalsModal';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import {
   ContextMenu,
@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/context-menu";
 
 export default function WorkOrderViewPage() {
+  const { employee } = useAuth();
   const urlParams = new URLSearchParams(window.location.search);
   const navigate = useNavigate();
   const roNumber = urlParams.get('id');
@@ -49,7 +50,7 @@ export default function WorkOrderViewPage() {
     loading: workOrderLoading,
     error: workOrderError,
     refetch
-  } = useWorkOrder(roNumber, { useFunctionData: true, lockAction: 'none' });
+  } = useWorkOrder(roNumber);
   const { inventory, employees, allEmployees, loading: invLoading } = useShopData();
 
   const [user, setUser] = useState(null);
@@ -70,25 +71,18 @@ export default function WorkOrderViewPage() {
   const [shopSupplyRate, setShopSupplyRate] = useState(0.07);
   const [showVehicleDetailsModal, setShowVehicleDetailsModal] = useState(false);
   const [showVersionHistoryModal, setShowVersionHistoryModal] = useState(false);
+  const [showApprovalsModal, setShowApprovalsModal] = useState(false);
 
   useEffect(() => {
-    const loadUser = async () => {
-      try {
-        const currentUser = await User.me();
-        setUser(currentUser);
-      } catch (error) {
-        console.error('Failed to load user:', error);
-      } finally {
-        setUserLoading(false);
-      }
-    };
-    loadUser();
-  }, []);
+    setUser(employee);
+    setUserLoading(false);
+  }, [employee]);
 
   useEffect(() => {
     const loadSystemSettings = async () => {
       try {
-        const settings = await SystemSettings.list();
+        const { data: settings, error: settingsError } = await supabase.from('SystemSettings').select('*');
+        if (settingsError) throw settingsError;
         if (settings && settings.length > 0) {
           setWipLegal(settings[0].wip_legal || '');
           setDefaultMessage(settings[0].default_message || '');
@@ -109,20 +103,16 @@ export default function WorkOrderViewPage() {
       if (!workOrder?.wo_number) return;
 
       try {
-        const projectResponse = await base44.functions.invoke('workProProxy', {
-          entityName: 'Project',
-          method: 'filter',
-          params: {
-            work_order: workOrder.wo_number
-          }
-        });
+        const { data: projects, error } = await supabase
+          .from('Project')
+          .select('*')
+          .eq('work_order', workOrder.wo_number);
 
-        if (projectResponse.data.success) {
-          const projects = projectResponse.data.data || [];
-          const foundProject = projects.length > 0 ? projects[0] : null;
-          setWorkPROProject(foundProject);
-          setWorkPROProjects(projects);
-        }
+        if (error) throw error;
+
+        const foundProject = projects && projects.length > 0 ? projects[0] : null;
+        setWorkPROProject(foundProject);
+        setWorkPROProjects(projects || []);
       } catch (error) {
         console.error('Error fetching WorkPRO data:', error);
       }
@@ -200,7 +190,10 @@ export default function WorkOrderViewPage() {
 
       // Step 3: Convert the invoice back to work_order stage
       try {
-        await saveworkorderdata({ ro_number: workOrder.ro_number, data: { stage: 'work_order' } });
+        const { error: saveError } = await supabase.functions.invoke('autopro-saveworkorderdata', {
+          body: { ro_number: workOrder.ro_number, data: { stage: 'work_order' } }
+        });
+        if (saveError) throw new Error(saveError.message || JSON.stringify(saveError));
         
         // Step 4: Redirect to WorkOrderEdit
         const url = `/WorkOrderEdit?id=${roNumber}`;
@@ -256,8 +249,8 @@ export default function WorkOrderViewPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin mx-auto text-blue-600" />
-          <p className="mt-4 text-slate-600">Loading work order...</p>
+          <Loader2 className="w-12 h-12 animate-spin mx-auto text-blue-600 dark:text-blue-400" />
+          <p className="mt-4 text-slate-600 dark:text-slate-400">Loading work order...</p>
         </div>
       </div>
     );
@@ -267,9 +260,9 @@ export default function WorkOrderViewPage() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <AlertTriangle className="w-12 h-12 mx-auto text-red-600" />
-          <h2 className="mt-4 text-xl font-semibold text-slate-900">Error Loading Work Order</h2>
-          <p className="mt-2 text-slate-600">{workOrderError || 'Work order not found'}</p>
+          <AlertTriangle className="w-12 h-12 mx-auto text-red-600 dark:text-red-400" />
+          <h2 className="mt-4 text-xl font-semibold text-slate-900 dark:text-slate-100">Error Loading Work Order</h2>
+          <p className="mt-2 text-slate-600 dark:text-slate-400">{workOrderError || 'Work order not found'}</p>
           <Button onClick={() => navigate(createPageUrl('WorkOrders'))} className="mt-4">
             Back to Work Orders
           </Button>
@@ -308,18 +301,18 @@ export default function WorkOrderViewPage() {
               {/* Header with Stage Indicator and Actions */}
               <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 no-print">
                 {/* Stage/Number Box */}
-                <div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden min-w-[200px]">
+                <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden min-w-[200px]">
                   <div className={`${stageConfig.headerColor} px-4 py-1.5 text-white text-xs font-bold uppercase tracking-wider`}>
                     {stageConfig.text}
                   </div>
                   <div className="px-4 py-2">
-                    <h1 className="text-xl font-bold text-slate-900">
+                    <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">
                       {workOrder.stage === 'estimate' ? (workOrder.est_number || 'New Estimate') :
                         workOrder.stage === 'credit_invoice' ? (workOrder.crinv_number || 'New Credit Invoice') :
                         workOrder.stage === 'invoice' ? (workOrder.inv_number || 'New Invoice') :
                         (workOrder.wo_number || workOrder.ro_number || 'New Work Order')}
                     </h1>
-                    <p className="text-slate-500 text-xs">View Only Mode</p>
+                    <p className="text-slate-500 dark:text-slate-400 text-xs">View Only Mode</p>
                   </div>
                 </div>
 
@@ -369,11 +362,20 @@ export default function WorkOrderViewPage() {
                     <span className="leading-tight">Print</span>
                   </Button>
 
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowApprovalsModal(true)}
+                    className="h-auto min-h-[88px] w-[96px] flex-col gap-2 px-3 py-3 text-center text-xs sm:text-sm whitespace-normal"
+                  >
+                    <UserCheck className="w-5 h-5" />
+                    <span className="leading-tight">Approvals</span>
+                  </Button>
+
                   <Button 
                     variant="outline" 
                     onClick={handleEditWorkOrder} 
                     disabled={workOrder.stage === 'credit_invoice'}
-                    className="h-auto min-h-[88px] w-[120px] flex-col gap-2 px-3 py-3 text-center text-xs sm:text-sm whitespace-normal border-green-300 text-green-700 hover:bg-green-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="h-auto min-h-[88px] w-[120px] flex-col gap-2 px-3 py-3 text-center text-xs sm:text-sm whitespace-normal border-green-300 dark:border-green-800 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/30 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Edit3 className="w-5 h-5" />
                     <span className="leading-tight">Edit Work Order</span>
@@ -383,7 +385,7 @@ export default function WorkOrderViewPage() {
                     <Button
                       variant="outline"
                       onClick={handleCreateCreditInvoice}
-                      className="h-auto min-h-[88px] w-[132px] flex-col gap-2 px-3 py-3 text-center text-xs sm:text-sm whitespace-normal border-red-300 text-red-700 hover:bg-red-50"
+                      className="h-auto min-h-[88px] w-[132px] flex-col gap-2 px-3 py-3 text-center text-xs sm:text-sm whitespace-normal border-red-300 dark:border-red-800 text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30"
                     >
                       <CreditCard className="w-5 h-5" />
                       <span className="leading-tight">Create Credit Invoice</span>
@@ -393,7 +395,7 @@ export default function WorkOrderViewPage() {
                   <Button
                     variant="outline"
                     onClick={handleExit}
-                    className="h-auto min-h-[88px] w-[96px] flex-col gap-2 px-3 py-3 text-center text-xs sm:text-sm whitespace-normal bg-slate-100 hover:bg-slate-200"
+                    className="h-auto min-h-[88px] w-[96px] flex-col gap-2 px-3 py-3 text-center text-xs sm:text-sm whitespace-normal bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700"
                   >
                     <X className="w-5 h-5" />
                     <span className="leading-tight">Exit</span>
@@ -518,6 +520,13 @@ export default function WorkOrderViewPage() {
         onClose={() => setShowVersionHistoryModal(false)}
         workOrderId={workOrder?.id}
         employees={allEmployees || employees}
+      />
+
+      {/* Approvals Modal (includes in-app snapshot view + print) */}
+      <ROApprovalsModal
+        open={showApprovalsModal}
+        onClose={() => setShowApprovalsModal(false)}
+        workOrderId={workOrder?.id}
       />
 
       {/* Vehicle Details Modal */}

@@ -25,7 +25,7 @@ export default function SerialNumberModal({ open, onClose, onSave, currentSerial
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md dark:bg-slate-950 dark:border-slate-800">
         <DialogHeader>
           <DialogTitle>Serial Number</DialogTitle>
         </DialogHeader>

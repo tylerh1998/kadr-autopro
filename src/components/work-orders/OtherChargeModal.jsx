@@ -5,13 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { OtherChargeList, ChartOfAccount } from '@/entities/all';
 import { Separator } from '@/components/ui/separator';
 import { Loader2, Calendar as CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, parseISO } from 'date-fns';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 
 export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCharge, editingChargeLine, workOrderNumber }) {
   const [chargeTypes, setChargeTypes] = useState([]);
@@ -48,17 +47,14 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [typesData, suppliersResponse, accountsData] = await Promise.all([
-          OtherChargeList.filter({ is_active: true }),
-          base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'Supplier'
-          }),
-          ChartOfAccount.list('account_number')
+        const [typesResponse, suppliersResponse, accountsResponse] = await Promise.all([
+          supabase.from('OtherChargeList').select('*').eq('is_active', true),
+          supabase.from('Supplier').select('*'),
+          supabase.from('ChartOfAccount').select('*').order('account_number')
         ]);
-        setChargeTypes((typesData || []).map(unwrapEntityData));
-        setSuppliers(((suppliersResponse.data?.data) || []).map(unwrapEntityData).sort((a, b) => (a.name || '').localeCompare(b.name || '')));
-        setGlAccounts((accountsData || []).map(unwrapEntityData));
+        setChargeTypes((typesResponse.data || []).map(unwrapEntityData));
+        setSuppliers((suppliersResponse.data || []).map(unwrapEntityData).sort((a, b) => (a.name || '').localeCompare(b.name || '')));
+        setGlAccounts((accountsResponse.data || []).map(unwrapEntityData));
       } catch (error) {
         console.error('Failed to fetch data:', error);
         setChargeTypes([]);
@@ -123,13 +119,12 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
         setApplyCost(true);
         setLoadingSupplierInvoiceLine(true);
         
-        base44.functions.invoke('SupabaseProxy', {
-          action: 'read',
-          table: 'SupplierInvoiceLine',
-          match: { id: editingChargeLine.supplier_invoice_line_id }
-        })
+        supabase
+          .from('SupplierInvoiceLine')
+          .select('*')
+          .eq('id', editingChargeLine.supplier_invoice_line_id)
           .then(response => {
-            const sil = (response.data?.data || [])[0];
+            const sil = response.data?.[0];
             if (!sil) throw new Error('Supplier invoice line not found');
             console.log('=== DEBUG: Fetched SupplierInvoiceLine for editing:', sil);
             setLinkedSupplierId(sil.supplier_id ? String(sil.supplier_id) : '');
@@ -251,12 +246,12 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
       if (!editingChargeLine) {
         try {
           setSubmitting(true);
-          const supplierResponse = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'Supplier',
-            match: { id: linkedSupplierId }
-          });
-          const freshSupplier = (supplierResponse.data?.data || [])[0];
+          const { data: supplierResponse, error: suppError } = await supabase
+            .from('Supplier')
+            .select('*')
+            .eq('id', linkedSupplierId);
+          if (suppError) throw suppError;
+          const freshSupplier = supplierResponse?.[0];
           if (freshSupplier && freshSupplier.LockedByUser) {
             alert(`Supplier locked by: ${freshSupplier.LockedByUser}`);
             setSubmitting(false);
@@ -339,8 +334,8 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
         
         {loadingSupplierInvoiceLine ? (
           <div className="flex items-center justify-center p-8">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
-            <span className="ml-3 text-slate-600">Loading cost details...</span>
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400" />
+            <span className="ml-3 text-slate-600 dark:text-slate-400">Loading cost details...</span>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -390,7 +385,7 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
                 </div>
               </div>
               
-              <div className="flex items-center space-x-2 bg-slate-50 p-3 rounded">
+              <div className="flex items-center space-x-2 bg-slate-50 dark:bg-slate-800 p-3 rounded">
                 <Checkbox
                   id="taxable"
                   checked={isTaxable}
@@ -401,18 +396,18 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
                 </Label>
               </div>
               
-              <div className="flex gap-4 bg-blue-50 p-3 rounded">
+              <div className="flex gap-4 bg-blue-50 dark:bg-blue-900/30 p-3 rounded">
                 <div className="flex-1 text-center">
-                  <p className="text-xs text-blue-700">Subtotal</p>
-                  <p className="text-sm font-medium text-blue-900">${subtotal.toFixed(2)}</p>
+                  <p className="text-xs text-blue-700 dark:text-blue-400">Subtotal</p>
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100">${subtotal.toFixed(2)}</p>
                 </div>
-                <div className="flex-1 text-center border-l border-blue-200">
-                  <p className="text-xs text-blue-700">GST {isTaxable ? '(5%)' : '(N/A)'}</p>
-                  <p className="text-sm font-medium text-blue-900">${isTaxable ? (subtotal * 0.05).toFixed(2) : '0.00'}</p>
+                <div className="flex-1 text-center border-l border-blue-200 dark:border-blue-800">
+                  <p className="text-xs text-blue-700 dark:text-blue-400">GST {isTaxable ? '(5%)' : '(N/A)'}</p>
+                  <p className="text-sm font-medium text-blue-900 dark:text-blue-100">${isTaxable ? (subtotal * 0.05).toFixed(2) : '0.00'}</p>
                 </div>
-                <div className="flex-1 text-center border-l border-blue-200">
-                  <p className="text-xs text-blue-700">Charge Total</p>
-                  <p className="text-sm font-bold text-blue-900">${(subtotal + (isTaxable ? subtotal * 0.05 : 0)).toFixed(2)}</p>
+                <div className="flex-1 text-center border-l border-blue-200 dark:border-blue-800">
+                  <p className="text-xs text-blue-700 dark:text-blue-400">Charge Total</p>
+                  <p className="text-sm font-bold text-blue-900 dark:text-blue-100">${(subtotal + (isTaxable ? subtotal * 0.05 : 0)).toFixed(2)}</p>
                 </div>
               </div>
             </div>
@@ -434,14 +429,14 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
               </div>
 
               {editingChargeLine?.supplier_invoice_line_id && (
-                <p className="text-sm text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">
+                <p className="text-sm text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 p-2 rounded border border-amber-200 dark:border-amber-800">
                   To change the cost details, go to the Supplier Transactions page and edit them there.
                 </p>
               )}
               
               {applyCost && (
-                <div className="space-y-4 bg-slate-50 p-4 rounded border border-slate-200">
-                  <h4 className="font-semibold text-slate-900">Cost Details</h4>
+                <div className="space-y-4 bg-slate-50 dark:bg-slate-800 p-4 rounded border border-slate-200 dark:border-slate-700">
+                  <h4 className="font-semibold text-slate-900 dark:text-slate-100">Cost Details</h4>
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -597,7 +592,7 @@ export default function OtherChargeModal({ open, onClose, onAddCharge, onEditCha
 
                     <div className="space-y-2">
                       <Label>Total</Label>
-                      <div className="h-10 flex items-center px-3 bg-white border rounded">
+                      <div className="h-10 flex items-center px-3 bg-white dark:bg-slate-900 border dark:border-slate-700 rounded">
                         <span className="font-semibold">${supplierTotal.toFixed(2)}</span>
                       </div>
                     </div>

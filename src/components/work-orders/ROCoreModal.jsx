@@ -4,13 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { InventoryReturn } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
 import { format } from 'date-fns';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
-import { ReturnCoretoWO } from '@/functions/ReturnCoretoWO';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCoreProcessed }) {
+  const { employee } = useAuth();
   const [qty, setQty] = useState('');
   const [coreAction, setCoreAction] = useState('received');
   const [loading, setLoading] = useState(false);
@@ -57,14 +57,16 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
     setLoading(true);
     try {
       if (coreAction === 'return_to_work_order') {
-        const response = await ReturnCoretoWO({
-          part_number: lineItem.part_number || 'N/A',
-          work_order_id: workOrder.id,
-          quantity: qtyProcessed
+        const { data: response, error: returnError } = await supabase.functions.invoke('autopro-returnCoreToWO', {
+          body: {
+            part_number: lineItem.part_number || 'N/A',
+            work_order_id: workOrder.id,
+            quantity: qtyProcessed
+          }
         });
 
-        if (!response.data?.success) {
-          alert(response.data?.error || 'Failed to return core to work order.');
+        if (returnError || !response?.success) {
+          alert(response?.error || returnError?.message || 'Failed to return core to work order.');
           return;
         }
 
@@ -81,12 +83,11 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
       let supplierId = 'Unknown Supplier';
       if (lineItem.inventory_item_id) {
         try {
-          const response = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'InventoryItem',
-            match: { id: lineItem.inventory_item_id }
-          });
-          const inventoryItem = response.data?.data?.[0];
+          const { data, error } = await supabase
+            .from('InventoryItem')
+            .select('*')
+            .eq('id', lineItem.inventory_item_id);
+          const inventoryItem = data?.[0];
           if (inventoryItem && inventoryItem.supplier_id) {
             supplierId = inventoryItem.supplier_id;
           }
@@ -95,7 +96,9 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
         }
       }
 
+      const now = new Date().toISOString();
       const returnRecord = {
+        id: crypto.randomUUID(),
         inventory_item_id: lineItem.inventory_item_id || null,
         part_number: lineItem.part_number || 'N/A',
         description: `${lineItem.description || 'Core'} (Core Return)`,
@@ -108,10 +111,15 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
         return_date: format(toMountainTime(new Date()), 'yyyy-MM-dd'),
         work_order_id: workOrder?.id || null,
         status: 'On-site',
-        notes: 'Core received from customer, awaiting return to supplier.'
+        notes: 'Core received from customer, awaiting return to supplier.',
+        created_date: now,
+        updated_date: now,
+        created_by: employee?.email || null,
+        created_by_id: employee?.id || null,
       };
 
-      await InventoryReturn.create(returnRecord);
+      const { error: createError } = await supabase.from('InventoryReturn').insert([returnRecord]);
+      if (createError) throw createError;
 
       const newCoreRet = coreRet + qtyProcessed;
       onCoreProcessed(qtyProcessed, 'received', coreCost, newCoreRet);
@@ -130,23 +138,23 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="dark:bg-slate-950 dark:border-slate-800">
         <DialogHeader>
           <DialogTitle>Process Core</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
           <div>
-            <p className="text-sm text-slate-600 mb-2">
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
               <strong>Part:</strong> {lineItem.part_number} - {lineItem.description}
             </p>
-            <p className="text-sm text-slate-600 mb-2">
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
               <strong>Total Cores:</strong> {coreNum}
             </p>
-            <p className="text-sm text-slate-600 mb-2">
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
               <strong>Cores Returned by Customer:</strong> {coreRet}
             </p>
-            <p className="text-sm text-slate-600 mb-4">
+            <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
               <strong>Core Cost Each:</strong> ${coreCost.toFixed(2)}
             </p>
           </div>
@@ -162,7 +170,7 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
                 <SelectItem value="return_to_work_order">Return Core to Work Order</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
               {coreAction === 'return_to_work_order'
                 ? 'Move an on-site core return back onto this work order. Only matching part #, same work order, and On-site inventory return records will be used.'
                 : 'Log that customer has returned the core. Creates an on-site inventory return record for later processing.'}
@@ -180,7 +188,7 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
               onChange={(e) => setQty(e.target.value)}
               placeholder="Enter quantity"
             />
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
               {coreAction === 'return_to_work_order'
                 ? `Max available on this line: ${coreRet}`
                 : `Max outstanding on this line: ${outstandingCoreQty}`}

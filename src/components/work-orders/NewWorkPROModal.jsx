@@ -7,9 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, Save, Droplet } from 'lucide-react';
-import { Employee } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { Loader2, Save, Droplet, X } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 export default function NewWorkPROModal({ open, onClose, customers, vehicles, onProjectCreated, initialData, lockedFields = [] }) {
   const [employees, setEmployees] = useState([]);
@@ -45,7 +44,8 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
   useEffect(() => {
     const loadEmployees = async () => {
       try {
-        const allEmployees = await Employee.list();
+        const { data: allEmployees, error: employeesError } = await supabase.from('Employee').select('*');
+        if (employeesError) throw employeesError;
         const techs = allEmployees.filter(emp => 
           emp.position === 'technician' || 
           emp.position === 'apprentice' ||
@@ -123,6 +123,7 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
     setSaving(true);
     try {
       const projectData = {
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
         name: `${formData.customer}${formData.task ? ' - ' + formData.task : ''}`,
         customer: formData.customer,
         vehicle: formData.vehicle,
@@ -152,15 +153,13 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
         projectData.oil_change_type = formData.oil_change_type;
       }
 
-      const response = await base44.functions.invoke('workProProxy', {
-        entityName: 'Project',
-        method: 'create',
-        params: projectData
-      });
+      const { data: newProject, error } = await supabase
+        .from('Project')
+        .insert(projectData)
+        .select()
+        .single();
 
-      if (!response.data?.success) throw new Error(response.data?.error || 'Failed to create project');
-
-      const newProject = response.data.data;
+      if (error) throw error;
       
       if (onProjectCreated) {
         onProjectCreated(newProject);
@@ -181,19 +180,28 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
   };
 
   const statusButtons = [
-    { key: 'to_do', label: 'To Do', color: 'bg-slate-900 hover:bg-slate-800 text-white', inactiveColor: 'bg-white hover:bg-slate-50 text-slate-900 border border-slate-300' },
-    { key: 'in_progress', label: 'In Progress', color: 'bg-blue-600 hover:bg-blue-700 text-white', inactiveColor: 'bg-white hover:bg-blue-50 text-blue-600 border border-blue-300' },
-    { key: 'parts_needed', label: 'Parts Needed', color: 'bg-red-600 hover:bg-red-700 text-white', inactiveColor: 'bg-white hover:bg-red-50 text-red-600 border border-red-300' },
-    { key: 'on_hold', label: 'On Hold', color: 'bg-orange-500 hover:bg-orange-600 text-white', inactiveColor: 'bg-white hover:bg-orange-50 text-orange-500 border border-orange-300' },
-    { key: 'done', label: 'Done', color: 'bg-green-600 hover:bg-green-700 text-white', inactiveColor: 'bg-white hover:bg-green-50 text-green-600 border border-green-300' },
-    { key: 'archived', label: 'Archived', color: 'bg-gray-600 hover:bg-gray-700 text-white', inactiveColor: 'bg-white hover:bg-gray-50 text-gray-600 border border-gray-300' }
+    { key: 'to_do', label: 'To Do', color: 'bg-slate-900 hover:bg-slate-800 text-white', inactiveColor: 'bg-white hover:bg-slate-50 text-slate-900 border border-slate-300 dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-100 dark:border-slate-700' },
+    { key: 'in_progress', label: 'In Progress', color: 'bg-blue-600 hover:bg-blue-700 text-white', inactiveColor: 'bg-white hover:bg-blue-50 text-blue-600 border border-blue-300 dark:bg-slate-900 dark:hover:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800' },
+    { key: 'parts_needed', label: 'Parts Needed', color: 'bg-red-600 hover:bg-red-700 text-white', inactiveColor: 'bg-white hover:bg-red-50 text-red-600 border border-red-300 dark:bg-slate-900 dark:hover:bg-red-950/30 dark:text-red-400 dark:border-red-800' },
+    { key: 'on_hold', label: 'On Hold', color: 'bg-orange-500 hover:bg-orange-600 text-white', inactiveColor: 'bg-white hover:bg-orange-50 text-orange-500 border border-orange-300 dark:bg-slate-900 dark:hover:bg-orange-950/30 dark:text-orange-400 dark:border-orange-800' },
+    { key: 'done', label: 'Done', color: 'bg-green-600 hover:bg-green-700 text-white', inactiveColor: 'bg-white hover:bg-green-50 text-green-600 border border-green-300 dark:bg-slate-900 dark:hover:bg-green-950/30 dark:text-green-400 dark:border-green-800' },
+    { key: 'archived', label: 'Archived', color: 'bg-gray-600 hover:bg-gray-700 text-white', inactiveColor: 'bg-white hover:bg-gray-50 text-gray-600 border border-gray-300 dark:bg-slate-900 dark:hover:bg-gray-800/50 dark:text-gray-400 dark:border-gray-700' }
   ];
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto dark:bg-slate-950 dark:border-slate-800 [&>button]:hidden">
         <DialogHeader>
-          <DialogTitle>Create New WorkPRO Project</DialogTitle>
+          <DialogTitle className="flex items-center justify-between text-slate-950 dark:text-slate-50">
+            <span>Create New WorkPRO Project</span>
+            <button
+              onClick={onClose}
+              className="h-8 w-8 bg-red-600 hover:bg-red-700 text-white rounded-none p-0 transition-colors focus:outline-none flex items-center justify-center border border-red-500 shadow-sm"
+              aria-label="Close"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -226,7 +234,7 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
                 onChange={(e) => handleFieldChange('vin', e.target.value)}
                 placeholder="Enter VIN"
                 disabled={lockedFields.includes('vin')}
-                className={lockedFields.includes('vin') ? 'bg-slate-100 text-slate-500' : ''}
+                className={lockedFields.includes('vin') ? 'bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400' : ''}
               />
             </div>
             <div>
@@ -236,7 +244,7 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
                 onChange={(e) => handleFieldChange('work_order', e.target.value)}
                 placeholder="WO Number"
                 disabled={lockedFields.includes('work_order')}
-                className={lockedFields.includes('work_order') ? 'bg-slate-100 text-slate-500' : ''}
+                className={lockedFields.includes('work_order') ? 'bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400' : ''}
               />
             </div>
           </div>
@@ -280,11 +288,11 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
 
           {/* Oil Change Details Section - Only shown when project_type is 'oil_change' */}
           {formData.project_type === 'oil_change' && (
-            <Card className="bg-blue-50 border-blue-200">
+            <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900/30">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Droplet className="w-5 h-5 text-blue-600" />
-                  <h3 className="text-sm font-semibold text-slate-900">Oil Change Details</h3>
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Oil Change Details</h3>
                 </div>
                 
                 <div className="space-y-3">
@@ -417,7 +425,7 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
           {/* Employees Assigned */}
           <div>
             <Label className="text-sm font-medium">Employees Assigned</Label>
-            <div className="grid grid-cols-2 gap-2 mt-2 p-3 border rounded-lg bg-slate-50 max-h-32 overflow-y-auto">
+            <div className="grid grid-cols-2 gap-2 mt-2 p-3 border border-slate-200 dark:border-slate-800 rounded-lg bg-slate-50 dark:bg-slate-900/50 max-h-32 overflow-y-auto">
               {employees.map((employee) => {
                 const employeeName = getEmployeeName(employee);
                 const isChecked = formData.assigned_employees.includes(employeeName);
@@ -439,7 +447,7 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
                 );
               })}
               {employees.length === 0 && (
-                <p className="text-slate-500 text-sm col-span-2">No employees found</p>
+                <p className="text-slate-500 dark:text-slate-400 text-sm col-span-2">No employees found</p>
               )}
             </div>
             <p className="text-xs text-slate-500 mt-1">

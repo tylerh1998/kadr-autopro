@@ -5,12 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { InventoryReturn, InventoryTxs, GLTransaction, WorkOrder } from '@/entities/all';
 import { format } from 'date-fns';
 import { Shield, AlertTriangle } from 'lucide-react';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
-import { searchSuppliers } from '@/functions/searchSuppliers';
-import { SupabaseProxy } from '@/functions/SupabaseProxy';
+import { supabase } from '@/lib/supabase';
 
 export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder, onSuccess }) {
   const [quantity, setQuantity] = useState('1');
@@ -43,12 +41,13 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
       const fetchData = async () => {
         if (lineItem.inventory_item_id) {
           try {
-            const itemResponse = await SupabaseProxy({
-              action: 'read',
-              table: 'InventoryItem',
-              match: { id: lineItem.inventory_item_id }
-            });
-            setInventoryItem(itemResponse.data?.data?.[0] || null);
+            const { data, error } = await supabase
+              .from('InventoryItem')
+              .select('*')
+              .eq('id', lineItem.inventory_item_id);
+            
+            if (error) throw error;
+            setInventoryItem(data?.[0] || null);
           } catch (error) {
             console.error('Error fetching inventory item:', error);
             setInventoryItem(null);
@@ -61,8 +60,14 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
         }
 
         try {
-          const suppliersResponse = await searchSuppliers({ searchTerm: '' });
-          setSuppliers(suppliersResponse.data?.suppliers || []);
+          const { data: suppliersData, error: suppliersError } = await supabase.from('Supplier').select('*');
+          if (suppliersError) throw suppliersError;
+          const sortedSuppliers = [...(suppliersData || [])].sort((a, b) => {
+            if (a.pin_to_top && !b.pin_to_top) return -1;
+            if (!a.pin_to_top && b.pin_to_top) return 1;
+            return (a.name || '').localeCompare(b.name || '');
+          });
+          setSuppliers(sortedSuppliers);
         } catch (error) {
           console.error('Error fetching suppliers:', error);
           setSuppliers([]);
@@ -103,8 +108,16 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
       const supplier = suppliers.find(s => s.id === inventoryItem.supplier_id);
       const supplierName = supplier?.name || 'Unknown Supplier';
 
+      // Fetch user from Supabase auth for audit trail
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const userId = authUser?.id || null;
+      const userDisplay = authUser?.user_metadata?.full_name || authUser?.email || null;
+      const nowStr = new Date().toISOString();
+
       // Create InventoryReturn record
+      const returnId = crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '').substring(0, 24) : Date.now().toString();
       const returnData = {
+        id: returnId,
         inventory_item_id: inventoryItem.id,
         part_number: lineItem.part_number,
         description: lineItem.description,
@@ -117,27 +130,36 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
         return_date: format(toMountainTime(new Date()), 'yyyy-MM-dd'),
         status: 'On-site',
         work_order_id: workOrder.id,
-        notes: notes || `Warranty return from WO ${workOrder.wo_number || workOrder.ro_number}. Scope: ${returnScope}`
+        notes: notes || `Warranty return from WO ${workOrder.wo_number || workOrder.ro_number}. Scope: ${returnScope}`,
+        created_date: nowStr,
+        updated_date: nowStr,
+        created_by_id: userId,
+        created_by: userDisplay
       };
 
-      const createdReturn = await InventoryReturn.create(returnData);
-      console.log('Created warranty return:', createdReturn);
+      const { error: returnError } = await supabase.from('InventoryReturn').insert([returnData]);
+      if (returnError) throw new Error('Failed to create InventoryReturn: ' + returnError.message);
+      console.log('Created warranty return:', returnId);
 
-      // Create InventoryTxs record (informational only, no quantity change)
-      const txData = {
+      // Create InventoryAuditLog record (informational only, no quantity change)
+      const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
         inventory_item_id: inventoryItem.id,
-        ro_number: workOrder.wo_number || workOrder.ro_number,
         part_num: lineItem.part_number,
-        tx_date: new Date().toISOString(),
-        tx_type: 'Returned to Supplier',
+        old_quantity: Number(inventoryItem.quantity_on_hand || 0),
+        new_quantity: Number(inventoryItem.quantity_on_hand || 0),
+        old_quantity_on_order: Number(inventoryItem.quantity_on_order || 0),
+        new_quantity_on_order: Number(inventoryItem.quantity_on_order || 0),
+        source_record_id: returnId,
+        source_function: 'WarrantyReturnModal',
+        ro_number: workOrder.wo_number || workOrder.ro_number,
+        tx_type: 'Warranty Return', // Match the plan
         quantity_change: 0, // Informational only
-        quantity_ordered_change: 0,
-        supplier_name: supplierName,
-        source_record_id: createdReturn.id,
-        description: `Warranty return - ${returnScope}. ${notes || 'No additional notes.'}`
-      };
-
-      await InventoryTxs.create(txData);
+        description: `Warranty return - ${returnScope}. ${notes || 'No additional notes.'}`,
+        created_by_id: userId,
+        created_by: userDisplay,
+        tx_date: nowStr
+      }]);
+      if (auditError) console.error('Error creating InventoryAuditLog:', auditError);
       console.log('Created warranty transaction record');
 
       // Create GL Transactions (Replicating Legacy Warranty Logic)
@@ -146,26 +168,37 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
       // ensuring consistency with return_date is best.
       const glDate = format(toMountainTime(new Date()), 'yyyy-MM-dd');
       const totalCost = (inventoryItem.cost || 0) * qty;
-      await GLTransaction.bulkCreate([
+      const { error: glError } = await supabase.from('GLTransaction').insert([
         {
+          id: crypto.randomUUID(),
           account_number: "5000",
           transaction_date: glDate,
           description: `Warranty Return: ${lineItem.part_number} (WO# ${workOrder.wo_number || workOrder.ro_number})`,
           credit_amount: totalCost,
           debit_amount: 0,
           source_type: "adjustment",
-          source_id: createdReturn.id
+          source_id: returnId,
+          created_date: nowStr,
+          updated_date: nowStr,
+          created_by: userDisplay,
+          created_by_id: userId
         },
         {
+          id: crypto.randomUUID(),
           account_number: "1200",
           transaction_date: glDate,
           description: `Warranty Return: ${lineItem.part_number} (WO# ${workOrder.wo_number || workOrder.ro_number})`,
           debit_amount: totalCost,
           credit_amount: 0,
           source_type: "adjustment",
-          source_id: createdReturn.id
+          source_id: returnId,
+          created_date: nowStr,
+          updated_date: nowStr,
+          created_by: userDisplay,
+          created_by_id: userId
         }
       ]);
+      if (glError) console.error('Error creating GL transactions:', glError);
       console.log('Created GL transactions for warranty return');
 
       // Update WorkOrder line items with warranty_returned flag
@@ -173,9 +206,10 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
       // but since this is usually done in view mode or single user, we'll try to use current props or fetch.
       // Ideally we fetch the latest.
       try {
-        const freshWO = await WorkOrder.get(workOrder.id);
-        const currentLines = JSON.parse(freshWO.line_items || '[]');
-        
+        const { data: freshWO, error: freshWOError } = await supabase.from('WorkOrder').select('*').eq('id', workOrder.id).single();
+        if (freshWOError) throw freshWOError;
+        const currentLines = Array.isArray(freshWO.line_items) ? freshWO.line_items : [];
+
         // Find the matching line item. We try to match by properties since IDs might not be reliable or unique in all cases
         // But if lineItem has an ID, we use it.
         const lineIndex = currentLines.findIndex(l => {
@@ -190,9 +224,11 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
             const currentReturned = parseFloat(currentLines[lineIndex].warranty_returned) || 0;
             currentLines[lineIndex].warranty_returned = currentReturned + qty;
             
-            await WorkOrder.update(workOrder.id, {
-                line_items: JSON.stringify(currentLines)
-            });
+            const { error: updateError } = await supabase.from('WorkOrder').update({
+                line_items: currentLines,
+                last_updated: new Date().toISOString()
+            }).eq('id', workOrder.id);
+            if (updateError) throw updateError;
             console.log('Updated Work Order line item warranty_returned flag');
         } else {
             console.warn('Could not find matching line item to update warranty flag');
@@ -224,28 +260,28 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-blue-600" />
+            <Shield className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             Warranty Return
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Part Info */}
-          <div className="bg-slate-50 p-3 rounded-lg">
-            <p className="font-semibold text-slate-900">{lineItem.part_number}</p>
-            <p className="text-sm text-slate-600">{lineItem.description}</p>
+          <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-lg">
+            <p className="font-semibold text-slate-900 dark:text-slate-100">{lineItem.part_number}</p>
+            <p className="text-sm text-slate-600 dark:text-slate-300">{lineItem.description}</p>
             <div className="flex gap-4 mt-2 text-xs">
-                <span className="text-slate-500">Original Qty: {lineItem.qty}</span>
-                <span className="text-orange-600">Already Returned: {alreadyReturnedQty}</span>
-                <span className="font-semibold text-green-600">Available: {availableQty}</span>
+                <span className="text-slate-500 dark:text-slate-400">Original Qty: {lineItem.qty}</span>
+                <span className="text-orange-600 dark:text-orange-400">Already Returned: {alreadyReturnedQty}</span>
+                <span className="font-semibold text-green-600 dark:text-green-400">Available: {availableQty}</span>
             </div>
           </div>
 
           {/* Error if already credited */}
           {lineItem.credit_flag && (
-            <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-red-800">
+            <div className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg">
+              <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-red-800 dark:text-red-300">
                 <p className="font-medium">Already Credited</p>
                 <p>Already credited on {lineItem.credit_flag}</p>
               </div>
@@ -254,9 +290,9 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
 
           {/* Warning if not linked to inventory */}
           {inventoryLookupComplete && !inventoryItem && (
-            <div className="flex items-start gap-2 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <AlertTriangle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-yellow-800">
+            <div className="flex items-start gap-2 p-3 bg-yellow-50 dark:bg-yellow-950/40 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+              <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+              <div className="text-sm text-yellow-800 dark:text-yellow-300">
                 <p className="font-medium">Not linked to inventory</p>
                 <p>This line item is not linked to an inventory item. The return will be created but inventory tracking may be limited.</p>
               </div>
@@ -277,7 +313,7 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
               disabled={availableQty <= 0}
             />
             {availableQty <= 0 && (
-                <p className="text-xs text-red-500 mt-1">No quantity available for warranty return.</p>
+                <p className="text-xs text-red-500 dark:text-red-400 mt-1">No quantity available for warranty return.</p>
             )}
           </div>
 
@@ -308,8 +344,8 @@ export default function WarrantyReturnModal({ open, onClose, lineItem, workOrder
           </div>
 
           {/* Info message */}
-          <div className="text-xs text-slate-600 bg-blue-50 p-3 rounded-lg">
-            <p className="font-medium text-blue-900 mb-1">Note:</p>
+          <div className="text-xs text-slate-600 dark:text-slate-300 bg-blue-50 dark:bg-blue-950/40 p-3 rounded-lg">
+            <p className="font-medium text-blue-900 dark:text-blue-300 mb-1">Note:</p>
             <p>This will create a warranty return record but will NOT remove the part from the work order. The part will be marked for return to the supplier.</p>
           </div>
 

@@ -88,7 +88,7 @@ export default function ConfirmCreditInvoiceModal({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
-            <AlertTriangle className="w-6 h-6 text-orange-500" />
+            <AlertTriangle className="w-6 h-6 text-orange-500 dark:text-orange-400" />
             Confirm Credit Invoice
           </DialogTitle>
           <DialogDescription className="text-base mt-4">
@@ -99,12 +99,12 @@ export default function ConfirmCreditInvoiceModal({
         <div className="space-y-6 py-4">
           {/* Inventory Return Warning */}
           {inventoryItemsCount > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <Package className="w-5 h-5 text-blue-600 mt-0.5" />
+                <Package className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" />
                 <div>
-                  <h4 className="font-semibold text-blue-900 mb-1">Inventory Returns</h4>
-                  <ul className="text-sm text-blue-800 list-disc list-inside mt-1">
+                  <h4 className="font-semibold text-blue-900 dark:text-blue-300 mb-1">Inventory Returns</h4>
+                  <ul className="text-sm text-blue-800 dark:text-blue-300 list-disc list-inside mt-1">
                     {stockReturnItems.length > 0 && (
                       <li>{stockReturnItems.length} item{stockReturnItems.length !== 1 ? 's' : ''} returning to <strong>Stock</strong></li>
                     )}
@@ -118,29 +118,29 @@ export default function ConfirmCreditInvoiceModal({
           )}
 
           {/* Selected Items Summary */}
-          <div className="bg-slate-50 rounded-lg p-4">
-            <h4 className="font-semibold text-slate-900 mb-3">Selected Items for Credit</h4>
+          <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4">
+            <h4 className="font-semibold text-slate-900 dark:text-slate-100 mb-3">Selected Items for Credit</h4>
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {selectedLineItems.map((line, index) => (
                 <div key={index} className="flex justify-between items-center text-sm">
-                  <span className="text-slate-700">
+                  <span className="text-slate-700 dark:text-slate-300">
                     {line.description || line.part_number || 'Unnamed Item'}
                     {line.qty && ` (Qty: ${line.qty})`}
                   </span>
-                  <span className="font-medium text-slate-900">
+                  <span className="font-medium text-slate-900 dark:text-slate-100">
                     ${(line.total || 0).toFixed(2)}
                   </span>
                 </div>
               ))}
             </div>
-            <div className="mt-3 pt-3 border-t border-slate-200">
+            <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
               <div className="flex justify-between items-center font-semibold">
                 <span>Total Credit Amount:</span>
-                <span className="text-lg text-red-600">
+                <span className="text-lg text-red-600 dark:text-red-400">
                   -${grandTotal.toFixed(2)}
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-1 text-right">
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 text-right">
                 Includes parts, labor, other charges, shop supplies ({(shopSupplyRate * 100).toFixed(0)}%), and GST (5%)
               </p>
             </div>
@@ -149,7 +149,7 @@ export default function ConfirmCreditInvoiceModal({
           {/* Refund Payment Source */}
           <div className="space-y-2">
             <Label htmlFor="refund-source" className="text-base font-semibold">
-              Refund Payment Source <span className="text-red-500">*</span>
+              Refund Payment Source <span className="text-red-500 dark:text-red-400">*</span>
             </Label>
             <Select value={refundSource} onValueChange={(value) => {
               setRefundSource(value);
@@ -164,7 +164,7 @@ export default function ConfirmCreditInvoiceModal({
                 <SelectItem value="on_account">On Account</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               Select how the customer will receive their refund
             </p>
           </div>
@@ -173,7 +173,7 @@ export default function ConfirmCreditInvoiceModal({
           {refundSource === 'cash_drawer' && (
             <div className="space-y-2">
               <Label htmlFor="payment-type" className="text-base font-semibold">
-                Payment Type <span className="text-red-500">*</span>
+                Payment Type <span className="text-red-500 dark:text-red-400">*</span>
               </Label>
               <Select value={cashDrawerPaymentType} onValueChange={setCashDrawerPaymentType}>
                 <SelectTrigger id="payment-type" className="w-full">

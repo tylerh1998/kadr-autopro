@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowLeft, Calendar as CalendarIcon, Save, DollarSign, AlertTriangle, Search, Edit, Printer, Loader2, ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowLeft, Calendar as CalendarIcon, Save, DollarSign, AlertTriangle, Search, ScanLine, Printer, Loader2, ArrowUp, ArrowDown } from 'lucide-react';
 import { format, subDays, parseISO } from 'date-fns';
 import { createPageUrl } from '@/utils';
 import SupplierForm from '../components/suppliers/SupplierForm';
@@ -20,6 +21,7 @@ import SupplierTxPaymentHistoryTab from '../components/suppliers/SupplierTxPayme
 import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
 import { toMountainTime } from '../components/utils/mountainTimeUtils';
 import { useSupplierLock } from '../components/context/SupplierLockContext';
+import { releaseSupplierLockKeepAlive } from '../components/utils/supplierLockUtils';
 
 const GST_RATE = 0.05;
 
@@ -178,6 +180,7 @@ const recalculateConceptualInvoices = (lines, existingConceptualInvoices, range)
 };
 
 export default function SupplierTxPage() {
+  const { employee } = useAuth();
   const [supplier, setSupplier] = useState(null);
   const [invoiceLines, setInvoiceLines] = useState([]);
   const [allInvoiceLines, setAllInvoiceLines] = useState([]);
@@ -230,9 +233,9 @@ export default function SupplierTxPage() {
   useEffect(() => {
     const fetchSources = async () => {
       try {
-        const locs = await base44.entities.LinesOfCredit.list();
+        const { data: locs } = await supabase.from('LinesOfCredit').select('*');
         const map = {};
-        locs.forEach(loc => map[loc.id] = loc.name);
+        (locs || []).forEach(loc => map[loc.id] = loc.name);
         setSourceMap(map);
       } catch (err) {
         console.error('Error fetching sources', err);
@@ -329,7 +332,7 @@ export default function SupplierTxPage() {
   const acquireLock = useCallback(async () => {
     if (!supplierId) return false;
     try {
-      const response = await retryWithBackoff(() => base44.functions.invoke('acquireSupplierLock', { supplierId }));
+      const response = await retryWithBackoff(() => supabase.functions.invoke('autopro-acquireSupplierLock', { body: { supplierId } }));
       if (response.data?.success) {
         setLockAcquired(true);
         return true;
@@ -349,10 +352,7 @@ export default function SupplierTxPage() {
   const releaseLock = useCallback(async (userToUnlock = currentUser) => {
     if (!supplierId || !userToUnlock) return;
     try {
-      const res = await retryWithBackoff(() => base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Supplier', match: { id: supplierId } }));
-      if (res.data?.data?.[0]?.LockedByUser === userToUnlock.email) {
-        await retryWithBackoff(() => base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'Supplier', id: supplierId, data: { LockedByUser: '' } }));
-      }
+      await retryWithBackoff(() => supabase.functions.invoke('autopro-releaseSupplierLock', { body: { supplierId } }));
     } catch {}
   }, [supplierId, retryWithBackoff, currentUser]);
 
@@ -365,7 +365,11 @@ export default function SupplierTxPage() {
         e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
         return e.returnValue;
       }
-      if (supplierId && currentUser) releaseLock(currentUser);
+      // A real page unload can't reliably wait on an awaited network call (the
+      // browser may tear the page down mid-request) — use the keepalive-backed
+      // release here instead of `releaseLock`, which is only safe for in-app
+      // (SPA) navigation where the JS runtime keeps running afterward.
+      if (supplierId && currentUser) releaseSupplierLockKeepAlive(supplierId);
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
@@ -378,15 +382,15 @@ export default function SupplierTxPage() {
     if (!supplierId) return;
     setLoading(true);
     try {
-      const [user, response, suppliersResponse] = await Promise.all([
-        base44.auth.me(),
-        base44.functions.invoke('getSupplierTransactions', { supplierId, dateRange: { from: dateRange.from.toISOString(), to: dateRange.to.toISOString() } }),
-        base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Supplier' })
+      const user = employee;
+      const [response, suppliersResponse] = await Promise.all([
+        supabase.functions.invoke('autopro-getSupplierTransactions', { body: { supplierId, dateRange: { from: dateRange.from.toISOString(), to: dateRange.to.toISOString() } } }),
+        supabase.from('Supplier').select('*')
       ]);
       setCurrentUser(user);
       if (!response.data.success) throw new Error(response.data.error || 'Failed to fetch supplier transactions');
       const { supplier: supplierData, chartOfAccounts: chartOfAccountsData, payments: paymentsData, conceptualInvoices: invoicesInRange, invoiceLines: enrichedLines, allInvoiceLines: allEnrichedLines, currentBalance: totalBalance, allConceptualInvoices: allInvoicesData } = response.data.data;
-      if (supplierData?.LockedByUser && supplierData.LockedByUser !== user.email) {
+      if (supplierData?.LockedByUser && supplierData.LockedByUser !== user?.email) {
         setSupplier(supplierData);
         setIsLockedByOtherUser(true);
         setLockedByUserName(supplierData.LockedByUser);
@@ -397,7 +401,7 @@ export default function SupplierTxPage() {
       setLockedByUserName('');
       setSupplier(supplierData);
       setChartOfAccounts(chartOfAccountsData);
-      setSupplierOptions((suppliersResponse.data?.data || []).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' })));
+      setSupplierOptions((suppliersResponse.data || []).sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' })));
       setPayments(paymentsData.sort((a, b) => new Date(b.payment_date) - new Date(a.payment_date)));
       setCurrentBalance(totalBalance);
       const mapLine = (line) => {
@@ -431,7 +435,7 @@ export default function SupplierTxPage() {
       setAllInvoiceLines(allEnrichedLines.map(mapLine));
       setModifiedLineIds(new Set());
       setDeletedLineIds(new Set());
-      setLockAcquired(supplierData?.LockedByUser === user.email);
+      setLockAcquired(supplierData?.LockedByUser === user?.email);
       if (!supplierData?.LockedByUser) setTimeout(() => acquireLock(), 0);
     } catch (error) {
       console.error('Error loading supplier data:', error);
@@ -440,7 +444,7 @@ export default function SupplierTxPage() {
       setLoading(false);
       setHasUnsavedChanges(false);
     }
-  }, [supplierId, dateRange, ensureEmptyLine, acquireLock]);
+  }, [supplierId, dateRange, ensureEmptyLine, acquireLock, employee]);
 
   useEffect(() => { if (supplierId) loadData(); }, [supplierId, dateRange, loadData]);
 
@@ -705,6 +709,28 @@ export default function SupplierTxPage() {
     setIsSaving(true);
     try {
       const linesToSave = (invoiceLines || []).filter(line => !((line.id.startsWith('temp_') || line.isNew) && !line.invoice_number && !line.description && (line.charge === 0 || line.charge === '') && (line.gst === 0 || line.gst === '')) && (line.id.startsWith('temp_') || modifiedLineIds.has(line.id)));
+      // Re-validate dates here (not just via the dateError flag) because handleLineChange clears
+      // dateError on every keystroke, so a keyboard-shortcut save (Ctrl+S) triggered before the date
+      // field blurs would otherwise bypass validation and persist a raw, un-normalized date string.
+      const dateValidationErrors = [];
+      const normalizedDates = {};
+      linesToSave.forEach((line) => {
+        const parseResult = parseAndValidateDateInput(line.invoice_date);
+        if (!parseResult.valid) {
+          dateValidationErrors.push({ line, error: parseResult.error });
+        } else {
+          normalizedDates[line.id] = parseResult.date;
+        }
+      });
+      if (dateValidationErrors.length > 0) {
+        const first = dateValidationErrors[0];
+        const message = dateValidationErrors.length === 1
+          ? `Cannot save: Invalid date for invoice line "${first.line.description || first.line.invoice_number || 'New Line'}": ${first.error}`
+          : `Cannot save: Found ${dateValidationErrors.length} invoice lines with invalid dates. Please correct them before saving.`;
+        alert(message);
+        setIsSaving(false);
+        return false;
+      }
       const invalidNumericFields = [];
       linesToSave.forEach((line, index) => {
         if (isLineLocked(line)) return;
@@ -727,9 +753,9 @@ export default function SupplierTxPage() {
         setIsSaving(false);
         return false;
       }
-      const addedLines = linesToSave.filter(l => l.id.startsWith('temp_')).map(line => ({ invoice_number: line.invoice_number, invoice_date: line.invoice_date, description: line.description, purchase_amount: parseFloat(line.charge) || 0, gst_amount: parseFloat(line.gst) || 0, gl_account: line.gl_account, gst_override: line.gst_override }));
-      const modifiedLines = linesToSave.filter(l => modifiedLineIds.has(l.id) && !l.id.startsWith('temp_')).map(line => ({ id: line.id, supplier_id: line.supplier_id, invoice_number: line.invoice_number, invoice_date: line.invoice_date, description: line.description, purchase_amount: parseFloat(line.charge) || 0, gst_amount: parseFloat(line.gst) || 0, gl_account: line.gl_account, gst_override: line.gst_override }));
-      const response = await base44.functions.invoke('saveSupplierInvoiceTransactions', { supplierId, addedLines, modifiedLines, deletedLineIds: Array.from(deletedLineIds) });
+      const addedLines = linesToSave.filter(l => l.id.startsWith('temp_')).map(line => ({ invoice_number: line.invoice_number, invoice_date: normalizedDates[line.id], description: line.description, purchase_amount: parseFloat(line.charge) || 0, gst_amount: parseFloat(line.gst) || 0, gl_account: line.gl_account, gst_override: line.gst_override }));
+      const modifiedLines = linesToSave.filter(l => modifiedLineIds.has(l.id) && !l.id.startsWith('temp_')).map(line => ({ id: line.id, supplier_id: line.supplier_id, invoice_number: line.invoice_number, invoice_date: normalizedDates[line.id], description: line.description, purchase_amount: parseFloat(line.charge) || 0, gst_amount: parseFloat(line.gst) || 0, gl_account: line.gl_account, gst_override: line.gst_override }));
+      const response = await supabase.functions.invoke('autopro-saveSupplierInvoiceTransactions', { body: { supplierId, addedLines, modifiedLines, deletedLineIds: Array.from(deletedLineIds) } });
       if (response.data.success) {
         await loadData();
         return true;
@@ -796,7 +822,7 @@ export default function SupplierTxPage() {
     setLoading(true);
     try {
       console.log('Cancel supplier payment payload:', payment, 'payment.id:', payment?.id);
-      const response = await base44.functions.invoke('cancelSupplierPayment', { paymentId: payment.id });
+      const response = await supabase.functions.invoke('autopro-cancelSupplierPayment', { body: { paymentId: payment.id } });
       if (response.data.success) {
         alert('Payment cancelled successfully.');
         loadData();
@@ -968,13 +994,32 @@ export default function SupplierTxPage() {
     setIsNavigatingBack(false);
   }, [hasUnsavedChanges, supplierId, lockAcquired, currentUser, releaseLock, navigate, handleSaveAll, isNavigatingBack]);
 
+  const handleOpenReconcile = useCallback(async () => {
+    const goToReconcile = async () => {
+      if (lockAcquired && supplierId && currentUser) await releaseLock(currentUser);
+      navigate(createPageUrl(`ReconcileSupplier?id=${supplierId}`));
+    };
+    if (hasUnsavedChanges) {
+      const message = 'You have unsaved changes. Would you like to save them before reconciling this supplier?\n\nClick "OK" to save changes and continue.\nClick "Cancel" to continue without saving.';
+      const userWantsToSave = window.confirm(message);
+      if (userWantsToSave) {
+        const saveSuccessful = await handleSaveAll();
+        if (saveSuccessful) return await goToReconcile();
+      } else {
+        return await goToReconcile();
+      }
+    } else {
+      return await goToReconcile();
+    }
+  }, [hasUnsavedChanges, lockAcquired, supplierId, currentUser, releaseLock, navigate, handleSaveAll]);
+
   const handleSupplierUpdate = async (updatedSupplierData) => {
     try {
       if (!supplier?.id) return alert('Missing supplier ID.');
-      await base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'Supplier', id: supplier.id, data: updatedSupplierData });
+      await supabase.from('Supplier').update({ ...updatedSupplierData, updated_date: new Date().toISOString() }).eq('id', supplier.id);
       setShowEditSupplierModal(false);
-      const res = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Supplier', match: { id: supplier.id } });
-      setSupplier(res.data?.data?.[0] || supplier);
+      const res = await supabase.from('Supplier').select('*').eq('id', supplier.id);
+      setSupplier(res.data?.[0] || supplier);
       alert('Supplier updated successfully');
     } catch {
       alert('Failed to update supplier.');
@@ -989,14 +1034,14 @@ export default function SupplierTxPage() {
 
   if (isLockedByOtherUser) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-        <Card className="max-w-md w-full"><CardContent className="pt-6"><div className="text-center space-y-4"><div className="mx-auto w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center"><AlertTriangle className="w-6 h-6 text-yellow-600" /></div><div><h2 className="text-xl font-bold text-gray-900 mb-2">Supplier Currently Being Edited</h2><p className="text-gray-600">This supplier is currently being edited by <span className="font-semibold">{lockedByUserName}</span>.</p><p className="text-gray-500 text-sm mt-2">You can view it in read-only mode or try again later.</p></div><div className="flex flex-col gap-2 pt-4"><Button onClick={() => navigate(createPageUrl(`SupplierTxView?id=${supplierId}`))} className="w-full" variant="outline">View Read-Only</Button><Button onClick={() => window.location.reload()} className="w-full" variant="outline">Try Again</Button><Button onClick={() => navigate(createPageUrl('Suppliers'))} className="w-full" variant="ghost">Cancel</Button></div></div></CardContent></Card>
+      <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex items-center justify-center p-6">
+        <Card className="max-w-md w-full"><CardContent className="pt-6"><div className="text-center space-y-4"><div className="mx-auto w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center"><AlertTriangle className="w-6 h-6 text-yellow-600" /></div><div><h2 className="text-xl font-bold text-gray-900 dark:text-slate-100 mb-2">Supplier Currently Being Edited</h2><p className="text-gray-600 dark:text-slate-400">This supplier is currently being edited by <span className="font-semibold">{lockedByUserName}</span>.</p><p className="text-gray-500 dark:text-slate-500 text-sm mt-2">You can view it in read-only mode or try again later.</p></div><div className="flex flex-col gap-2 pt-4"><Button onClick={() => navigate(createPageUrl(`SupplierTxView?id=${supplierId}`))} className="w-full" variant="outline">View Read-Only</Button><Button onClick={() => window.location.reload()} className="w-full" variant="outline">Try Again</Button><Button onClick={() => navigate(createPageUrl('Suppliers'))} className="w-full" variant="ghost">Cancel</Button></div></div></CardContent></Card>
       </div>
     );
   }
 
   if (loading || isSaving) {
-    return <div className="min-h-screen bg-gray-50 flex items-center justify-center"><div className="text-center"><div className="text-lg font-semibold">{isSaving ? 'Saving changes...' : 'Loading supplier data.....'}</div><div className="text-gray-500 mt-2">This may take a moment</div><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mt-4"></div></div></div>;
+    return <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex items-center justify-center"><div className="text-center"><div className="text-lg font-semibold dark:text-slate-100">{isSaving ? 'Saving changes...' : 'Loading supplier data.....'}</div><div className="text-gray-500 dark:text-slate-400 mt-2">This may take a moment</div><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mt-4"></div></div></div>;
   }
 
   return (
@@ -1052,14 +1097,14 @@ export default function SupplierTxPage() {
       <div className="p-6 min-h-screen">
         <div className="max-w-screen-xl mx-auto">
           <div className="print-header"><div className="print-header-grid"><div><h2 style={{ fontSize: '14pt', margin: 0, fontWeight: 'bold' }}>{supplier?.name}</h2><div style={{ fontSize: '9px' }}>Transaction Report • {dateRange.from && dateRange.to ? `${format(dateRange.from, 'MMM dd, yyyy')} - ${format(dateRange.to, 'MMM dd, yyyy')}` : 'All Dates'}</div></div><div className="text-right"><div style={{ fontSize: '8px', color: '#666', marginBottom: '4px' }}>Printed: {format(new Date(), 'MMM dd, yyyy HH:mm')}</div><div className="print-totals"><div className="print-total-item"><div className="print-total-label">Date Range Total</div><div className="print-total-value">${dateRangeTotal.toFixed(2)}</div></div><div className="print-total-item"><div className="print-total-label">Balance Owing</div><div className="print-total-value">${currentBalance.toFixed(2)}</div></div></div></div></div></div>
-          <div className="mb-6"><div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between"><div className="flex flex-col gap-3 sm:flex-row sm:items-center"><Button variant="outline" onClick={handleBackNavigation} disabled={isNavigatingBack} className="bg-slate-900 text-white hover:bg-slate-800 hover:text-white border-slate-900">{isNavigatingBack ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ArrowLeft className="w-4 h-4 mr-2" />}Back</Button><div className="min-w-0 rounded-lg border border-slate-200 bg-white px-4 py-2 shadow-sm"><h1 className="text-2xl font-bold text-slate-900 truncate max-w-[600px]" title={supplier?.name}>{supplier?.name}</h1></div></div><div className="flex flex-wrap items-center gap-3"><Button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 text-white"><Printer className="w-4 h-4 mr-2" />Print</Button><Button onClick={() => setShowEditSupplierModal(true)} disabled={isLockedByOtherUser || !lockAcquired} variant="outline" className="bg-white border-slate-300 hover:bg-slate-50"><Edit className="w-4 h-4 mr-2" />Edit Supplier</Button><Button onClick={handleSaveAll} disabled={!hasUnsavedChanges || isSaving || isLockedByOtherUser || !lockAcquired} className="bg-slate-900 hover:bg-slate-800 text-white"><Save className="w-4 h-4 mr-2" />{isSaving ? 'Saving...' : 'Save All Changes'}</Button><Button onClick={async () => { if (hasUnsavedChanges) { const userChoice = window.confirm('You have unsaved changes. Would you like to save them before making a payment?\n\nClick "OK" to save and continue, or "Cancel" to continue without saving.'); if (userChoice) { const saveSuccessful = await handleSaveAll(); if (saveSuccessful) setShowPaymentModal(true); } else setShowPaymentModal(true); } else setShowPaymentModal(true); }} disabled={isLockedByOtherUser || !lockAcquired} className="bg-green-600 hover:bg-green-700 text-white"><DollarSign className="w-4 h-4 mr-2" />Make Payment</Button></div></div></div>
+          <div className="mb-6"><div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between"><div className="flex flex-col gap-3 sm:flex-row sm:items-center"><Button variant="outline" onClick={handleBackNavigation} disabled={isNavigatingBack} className="bg-slate-900 text-white hover:bg-slate-800 hover:text-white border-slate-900">{isNavigatingBack ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ArrowLeft className="w-4 h-4 mr-2" />}Back</Button><button type="button" onClick={() => setShowEditSupplierModal(true)} disabled={isLockedByOtherUser || !lockAcquired} title="Edit Supplier" className="min-w-0 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-2 shadow-sm text-left hover:bg-slate-50 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:hover:bg-white dark:disabled:hover:bg-slate-900 transition-colors"><h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 truncate max-w-[600px]" title={supplier?.name}>{supplier?.name}</h1></button></div><div className="flex flex-wrap items-center gap-3"><Button onClick={() => window.print()} className="bg-blue-600 hover:bg-blue-700 text-white"><Printer className="w-4 h-4 mr-2" />Print</Button><Button onClick={handleOpenReconcile} disabled={isLockedByOtherUser || !lockAcquired} className="bg-indigo-600 hover:bg-indigo-700 text-white"><ScanLine className="w-4 h-4 mr-2" />Reconcile</Button><Button onClick={handleSaveAll} disabled={!hasUnsavedChanges || isSaving || isLockedByOtherUser || !lockAcquired} className="bg-slate-900 hover:bg-slate-800 text-white"><Save className="w-4 h-4 mr-2" />{isSaving ? 'Saving...' : 'Save All Changes'}</Button><Button onClick={async () => { if (hasUnsavedChanges) { const userChoice = window.confirm('You have unsaved changes. Would you like to save them before making a payment?\n\nClick "OK" to save and continue, or "Cancel" to continue without saving.'); if (userChoice) { const saveSuccessful = await handleSaveAll(); if (saveSuccessful) setShowPaymentModal(true); } else setShowPaymentModal(true); } else setShowPaymentModal(true); }} disabled={isLockedByOtherUser || !lockAcquired} className="bg-green-600 hover:bg-green-700 text-white"><DollarSign className="w-4 h-4 mr-2" />Make Payment</Button></div></div></div>
           <div className="mb-4 flex justify-between items-start">
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2"><Label htmlFor="daysBackInput">Days Back:</Label><Input id="daysBackInput" type="number" value={pendingDaysBack} onChange={(e) => handlePendingDaysBackChange(e.target.value)} className="w-20 bg-white" disabled={isLockedByOtherUser || !lockAcquired} /></div>
+                <div className="flex items-center gap-2"><Label htmlFor="daysBackInput">Days Back:</Label><Input id="daysBackInput" type="number" value={pendingDaysBack} onChange={(e) => handlePendingDaysBackChange(e.target.value)} className="w-20 bg-white dark:bg-slate-800" disabled={isLockedByOtherUser || !lockAcquired} /></div>
                 <Popover><PopoverTrigger asChild><Button variant="outline" className="w-64 justify-start text-left font-normal" disabled={isLockedByOtherUser || !lockAcquired}><CalendarIcon className="mr-2 h-4 w-4" />{pendingDateRange.from && pendingDateRange.to ? `${safeFormatDate(pendingDateRange.from.toISOString())} - ${safeFormatDate(pendingDateRange.to.toISOString())}` : 'Select a date range'}</Button></PopoverTrigger><PopoverContent className="w-auto p-0" align="end"><Calendar mode="range" selected={pendingDateRange} onSelect={handlePendingDateRangeChange} numberOfMonths={2} disabled={isLockedByOtherUser || !lockAcquired} /></PopoverContent></Popover>
                 <Button onClick={handleApplyDateRange} disabled={isLockedByOtherUser || !lockAcquired || loading || isSaving} className="bg-blue-600 hover:bg-blue-700">Apply</Button>
-                <div className="flex items-center gap-2"><Search className="w-4 h-4 text-slate-400" /><Input placeholder="Search invoice #, description, or amount..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-96 bg-white" disabled={isLockedByOtherUser || !lockAcquired} /></div>
+                <div className="flex items-center gap-2"><Search className="w-4 h-4 text-slate-400" /><Input placeholder="Search invoice #, description, or amount..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-96 bg-white dark:bg-slate-800" disabled={isLockedByOtherUser || !lockAcquired} /></div>
               </div>
               <div className="flex gap-4 text-sm px-1">
                 <button onClick={() => handleQuickRange('thisMonth')} className="text-blue-600 hover:text-blue-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLockedByOtherUser || !lockAcquired}>This Month</button>
@@ -1069,10 +1114,10 @@ export default function SupplierTxPage() {
                 <button onClick={() => handleQuickRange('lastYear')} className="text-blue-600 hover:text-blue-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLockedByOtherUser || !lockAcquired}>Last Year</button>
               </div>
             </div>
-            <Card className="bg-white shadow-sm"><CardContent className="p-4"><div className="flex gap-6"><div className="text-right"><p className="text-sm text-slate-500">Date Range Total</p><p className="text-lg font-bold">${dateRangeTotal.toFixed(2)}</p></div><div className="text-right"><p className="text-sm text-slate-500">Total Balance Owing</p><p className="text-lg font-bold text-red-600">${currentBalance.toFixed(2)}</p></div></div></CardContent></Card>
+            <Card className="bg-white dark:bg-slate-900 shadow-sm"><CardContent className="p-4"><div className="flex gap-6"><div className="text-right"><p className="text-sm text-slate-500 dark:text-slate-400">Date Range Total</p><p className="text-lg font-bold dark:text-slate-100">${dateRangeTotal.toFixed(2)}</p></div><div className="text-right"><p className="text-sm text-slate-500 dark:text-slate-400">Total Balance Owing</p><p className="text-lg font-bold text-red-600">${currentBalance.toFixed(2)}</p></div></div></CardContent></Card>
           </div>
           <Tabs value={currentActiveTab} onValueChange={handleTabChange} className="space-y-4">
-            <TabsList><TabsTrigger value="invoice-lines">Invoice Lines</TabsTrigger><TabsTrigger value="invoice-summary">Invoice Summary</TabsTrigger><TabsTrigger value="payment-history">Payment History</TabsTrigger></TabsList>
+            <TabsList><TabsTrigger value="invoice-lines" className="transition-colors hover:bg-blue-100 hover:text-blue-700 dark:hover:bg-blue-900/40 dark:hover:text-blue-300 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:hover:bg-blue-600 data-[state=active]:hover:text-white dark:data-[state=active]:bg-blue-600 dark:data-[state=active]:text-white">Invoice Lines</TabsTrigger><TabsTrigger value="invoice-summary" className="transition-colors hover:bg-blue-100 hover:text-blue-700 dark:hover:bg-blue-900/40 dark:hover:text-blue-300 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:hover:bg-blue-600 data-[state=active]:hover:text-white dark:data-[state=active]:bg-blue-600 dark:data-[state=active]:text-white">Invoice Summary</TabsTrigger><TabsTrigger value="payment-history" className="transition-colors hover:bg-blue-100 hover:text-blue-700 dark:hover:bg-blue-900/40 dark:hover:text-blue-300 data-[state=active]:bg-blue-600 data-[state=active]:text-white data-[state=active]:hover:bg-blue-600 data-[state=active]:hover:text-white dark:data-[state=active]:bg-blue-600 dark:data-[state=active]:text-white">Payment History</TabsTrigger></TabsList>
             <TabsContent value="invoice-lines"><Card><CardContent className="p-0"><SupplierTxInvoiceLinesTab filteredInvoiceLines={filteredInvoiceLines} sortConfig={sortConfig} requestSort={requestSort} isLockedByOtherUser={isLockedByOtherUser} lockAcquired={lockAcquired} setSelectedLineId={setSelectedLineId} handleLineChange={handleLineChange} handleDateBlur={handleDateBlur} formatDateForInput={formatDateForInput} safeParseDateForCalendar={safeParseDateForCalendar} handleCalendarDateSelect={handleCalendarDateSelect} handleValueBlur={handleValueBlur} chartOfAccounts={chartOfAccounts} handleGlAccountChange={handleGlAccountChange} handleDeleteLine={handleDeleteLine} handleToggleGstOverride={handleToggleGstOverride} handleEditLineClick={handleEditLineClick} handleAddLineAbove={handleAddLineAbove} handleAddLineBelow={handleAddLineBelow} isLineLocked={isLineLocked} /></CardContent></Card></TabsContent>
             <TabsContent value="invoice-summary"><SupplierTxInvoiceSummaryTab conceptualInvoices={filteredConceptualInvoices} invoiceLines={invoiceLines} expandedInvoices={expandedInvoices} toggleInvoiceExpansion={toggleInvoiceExpansion} safeFormatDate={safeFormatDate} isLockedByOtherUser={isLockedByOtherUser} lockAcquired={lockAcquired} chartOfAccounts={chartOfAccounts} handleLineChange={handleLineChange} handleDateBlur={handleDateBlur} formatDateForInput={formatDateForInput} handleValueBlur={handleValueBlur} handleGlAccountChange={handleGlAccountChange} handleDeleteLine={handleDeleteLine} handleToggleGstOverride={handleToggleGstOverride} handleAddSummaryLineBelow={handleAddSummaryLineBelow} handleEditLineClick={handleEditLineClick} isLineLocked={isLineLocked} /></TabsContent>
             <TabsContent value="payment-history"><SupplierTxPaymentHistoryTab loading={loading} payments={payments} expandedPayments={expandedPayments} togglePaymentExpansion={togglePaymentExpansion} safeFormatDate={safeFormatDate} handlePrintCheque={handlePrintCheque} handleCancelPayment={handleCancelPayment} sourceMap={sourceMap} isLockedByOtherUser={isLockedByOtherUser} lockAcquired={lockAcquired} /></TabsContent>

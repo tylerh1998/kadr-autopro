@@ -8,23 +8,17 @@ import { Upload, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 
 import { checkBankAccountLock } from '../utils/mountainTimeUtils';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function DepositModal({ open, onClose, bankAccounts, totalAmount, forDepositItems, onSubmit }) {
+  const { employee } = useAuth();
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(false);
-  
+
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const user = await base44.auth.me();
-        setCurrentUser(user);
-      } catch (error) {
-        console.error('Error fetching user:', error);
-      }
-    };
-    fetchUser();
-  }, []);
+    setCurrentUser(employee);
+  }, [employee]);
   const [formData, setFormData] = useState({
     bankAccountId: '',
     depositDate: format(new Date(), 'yyyy-MM-dd'),
@@ -52,13 +46,13 @@ export default function DepositModal({ open, onClose, bankAccounts, totalAmount,
     setLoading(true);
     try {
       // Check if bank account is locked
-      const accountResponse = await base44.functions.invoke('SupabaseProxy', {
-        action: 'filter',
-        table: 'BankAccount',
-        params: { id: formData.bankAccountId }
-      });
-      const account = accountResponse.data?.data?.[0];
-      
+      const { data: accountData, error: accountError } = await supabase
+        .from('BankAccount')
+        .select('*')
+        .eq('id', formData.bankAccountId);
+      if (accountError) throw accountError;
+      const account = accountData?.[0];
+
       // Check if any lock exists (even for current user) that is not expired
       if (account?.locked_by_user && account?.locked_timestamp) {
         const lockStatus = checkBankAccountLock(account, currentUser?.email || '');
@@ -121,31 +115,31 @@ export default function DepositModal({ open, onClose, bankAccounts, totalAmount,
           {/* Deposit Summary */}
           <div className="space-y-2">
             <Label>Deposit Summary</Label>
-            <div className="bg-slate-50 rounded-lg p-4 space-y-2">
+            <div className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 space-y-2">
               {breakdown.length === 0 ? (
-                <p className="text-sm text-slate-600">No items selected for deposit</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">No items selected for deposit</p>
               ) : hasMultipleMethods ? (
                 <>
                   {breakdown.map(item => (
                     <div key={item.method} className="flex justify-between items-center text-sm">
-                      <span className="text-slate-600">
+                      <span className="text-slate-600 dark:text-slate-400">
                         {item.displayName} ({item.count} {item.count === 1 ? 'item' : 'items'})
                       </span>
-                      <span className="font-medium text-slate-900">${item.total.toFixed(2)}</span>
+                      <span className="font-medium text-slate-900 dark:text-slate-100">${item.total.toFixed(2)}</span>
                     </div>
                   ))}
-                  <div className="border-t border-slate-200 mt-2 pt-2 flex justify-between items-center">
-                    <span className="text-sm font-semibold text-slate-900">Total</span>
-                    <span className="text-lg font-bold text-slate-900">${totalAmount.toFixed(2)}</span>
+                  <div className="border-t border-slate-200 dark:border-slate-700 mt-2 pt-2 flex justify-between items-center">
+                    <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">Total</span>
+                    <span className="text-lg font-bold text-slate-900 dark:text-slate-100">${totalAmount.toFixed(2)}</span>
                   </div>
                 </>
               ) : (
                 <div className="flex justify-between items-center">
                   <div>
-                    <p className="text-sm font-medium text-slate-900">{breakdown[0].displayName}</p>
-                    <p className="text-xs text-slate-600">{breakdown[0].count} {breakdown[0].count === 1 ? 'item' : 'items'}</p>
+                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{breakdown[0].displayName}</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400">{breakdown[0].count} {breakdown[0].count === 1 ? 'item' : 'items'}</p>
                   </div>
-                  <span className="text-lg font-bold text-slate-900">${totalAmount.toFixed(2)}</span>
+                  <span className="text-lg font-bold text-slate-900 dark:text-slate-100">${totalAmount.toFixed(2)}</span>
                 </div>
               )}
             </div>

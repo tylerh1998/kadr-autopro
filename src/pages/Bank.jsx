@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { ChartOfAccount } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
-import { getBankTransactions } from '@/functions/getBankTransactions';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -42,6 +41,7 @@ const parseLocalDate = (dateString) => {
 };
 
 export default function BankPage() {
+  const { employee } = useAuth();
   const [bankAccounts, setBankAccounts] = useState([]);
   const [selectedAccountId, setSelectedAccountId] = useState('');
   const [transactions, setTransactions] = useState([]);
@@ -69,22 +69,26 @@ export default function BankPage() {
 
   const createGLTransaction = useCallback(async (transactionData) => {
     const userDisplay = currentUser?.full_name || currentUser?.email || currentUser?.id;
-    const response = await base44.functions.invoke('SupabaseProxy', {
-      action: 'create',
-      table: 'GLTransaction',
-      data: {
-        ...transactionData,
+    const nowIso = new Date().toISOString();
+    const { data: record, error } = await supabase
+      .from('GLTransaction')
+      .insert({
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+        created_date: nowIso,
+        updated_date: nowIso,
         created_by: userDisplay,
         created_by_id: currentUser?.id,
-        updated_by: userDisplay
-      }
-    });
+        updated_by: userDisplay,
+        ...transactionData
+      })
+      .select()
+      .single();
 
-    if (response.data?.error) {
-      throw new Error(response.data.error);
+    if (error) {
+      throw new Error(error.message);
     }
 
-    return response.data?.data?.[0] || null;
+    return record || null;
   }, [currentUser]);
 
   const handleSort = (key) => {
@@ -96,26 +100,16 @@ export default function BankPage() {
     });
   };
 
-  // Fetch current user
+  // Current user, sourced from Employee via AuthContext
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const user = await base44.auth.me();
-        setCurrentUser(user);
-      } catch (error) {
-        console.error('Error fetching user:', error);
-      }
-    };
-    fetchUser();
-  }, []);
+    setCurrentUser(employee);
+  }, [employee]);
 
   const fetchBankAccountsFromSupabase = useCallback(async () => {
-    const response = await base44.functions.invoke('SupabaseProxy', {
-      action: 'list',
-      table: 'BankAccount'
-    });
+    const { data, error } = await supabase.from('BankAccount').select('*');
+    if (error) throw new Error(error.message);
 
-    return (response.data?.data || []).filter(acc => acc.is_active !== false);
+    return (data || []).filter(acc => acc.is_active !== false);
   }, []);
 
   // New function to load all initial data, including balance recalculation
@@ -127,8 +121,8 @@ export default function BankPage() {
 
       console.log('Recalculating balances for all bank accounts...');
       const recalculationPromises = activeAccounts.map(account =>
-        base44.functions.invoke('calculateBankBalances', {
-          bankAccountId: account.id
+        supabase.functions.invoke('autopro-calculateBankBalances', {
+          body: { bankAccountId: account.id }
         }).catch(error => {
           console.error(`Failed to recalculate balances for account ${account.name}:`, error);
           return null;
@@ -146,8 +140,9 @@ export default function BankPage() {
         setSelectedAccountId(primaryAccount.id);
       }
       
-      const chartData = await ChartOfAccount.list();
-      setChartOfAccounts(chartData);
+      const { data: chartData, error: chartError } = await supabase.from('ChartOfAccount').select('*');
+      if (chartError) throw chartError;
+      setChartOfAccounts(chartData || []);
 
     } catch (error) {
       console.error('Error loading bank data:', error);
@@ -185,13 +180,17 @@ export default function BankPage() {
         return;
       }
 
-      const response = await getBankTransactions({
-        bankAccountId: selectedAccountId,
-        fromDate: appliedFromDate,
-        toDate: appliedToDate
+      const { data: response, error: getTxError } = await supabase.functions.invoke('autopro-getBankTransactions', {
+        body: {
+          bankAccountId: selectedAccountId,
+          fromDate: appliedFromDate,
+          toDate: appliedToDate
+        }
       });
+      if (getTxError) throw getTxError;
+      if (response?.error) throw new Error(response.error);
 
-      const transactionsData = (response.data?.transactions || []).map(tx => ({
+      const transactionsData = (response?.transactions || []).map(tx => ({
         ...tx,
         debit_amount: parseFloat(tx.debit_amount) || 0,
         credit_amount: parseFloat(tx.credit_amount) || 0,
@@ -293,18 +292,25 @@ export default function BankPage() {
   const handleSaveAccount = async (accountData) => {
     try {
       if (editingAccount && editingAccount.id) {
-        await base44.functions.invoke('SupabaseProxy', {
-          action: 'update',
-          table: 'BankAccount',
-          id: editingAccount.id,
-          data: accountData
-        });
+        const { error } = await supabase
+          .from('BankAccount')
+          .update({ ...accountData, updated_date: new Date().toISOString() })
+          .eq('id', editingAccount.id);
+        if (error) throw new Error(error.message);
       } else {
-        await base44.functions.invoke('SupabaseProxy', {
-          action: 'create',
-          table: 'BankAccount',
-          data: accountData
-        });
+        const userDisplay = currentUser?.full_name || currentUser?.email || currentUser?.id;
+        const nowIso = new Date().toISOString();
+        const { error } = await supabase
+          .from('BankAccount')
+          .insert({
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+            created_date: nowIso,
+            updated_date: nowIso,
+            created_by: userDisplay,
+            created_by_id: currentUser?.id,
+            ...accountData
+          });
+        if (error) throw new Error(error.message);
       }
       setShowEditModal(false);
       setEditingAccount(null);
@@ -322,10 +328,10 @@ export default function BankPage() {
     
     setRefreshing(true);
     try {
-      await base44.functions.invoke('calculateBankBalances', {
-        bankAccountId: selectedAccountId
+      await supabase.functions.invoke('autopro-calculateBankBalances', {
+        body: { bankAccountId: selectedAccountId }
       });
-      
+
       // Reload accounts to get updated current_balance and last_recalculated_date
       const updatedAccountsData = await fetchBankAccountsFromSupabase();
       const updatedActiveAccounts = updatedAccountsData.filter(acc => acc.is_active !== false);
@@ -347,10 +353,12 @@ export default function BankPage() {
 
     setFlushingLocks(true);
     try {
-      const response = await base44.functions.invoke('flushBankLocks');
-      const result = response.data || response;
-      
-      alert(result.message || 'Locks flushed successfully!');
+      const { data, error: invokeError } = await supabase.functions.invoke('autopro-flushBankLocks');
+      if (invokeError) {
+        throw new Error(invokeError.message);
+      }
+
+      alert(data?.message || 'Locks flushed successfully!');
       
       // Reload bank accounts to reflect unlocked status
       await loadBankAccounts();
@@ -380,33 +388,35 @@ export default function BankPage() {
       if (editingTransaction) {
         // Store old transaction data for GL reversal
         oldTransactionData = { ...editingTransaction };
-        
+
         // Update existing transaction
-        const updateResponse = await base44.functions.invoke('SupabaseProxy', {
-          action: 'update',
-          table: 'BankTransaction',
-          id: editingTransaction.id,
-          data: transactionData
-        });
-        if (updateResponse.data?.error) {
-          throw new Error(updateResponse.data.error);
+        const { error: updateError } = await supabase
+          .from('BankTransaction')
+          .update({ ...transactionData, updated_date: new Date().toISOString() })
+          .eq('id', editingTransaction.id);
+        if (updateError) {
+          throw new Error(updateError.message);
         }
         savedTransaction = { ...transactionData, id: editingTransaction.id };
       } else {
         // Create new transaction with banktx flag
-        const createResponse = await base44.functions.invoke('SupabaseProxy', {
-          action: 'create',
-          table: 'BankTransaction',
-          data: {
+        const nowIso = new Date().toISOString();
+        const { data: createdTransaction, error: createError } = await supabase
+          .from('BankTransaction')
+          .insert({
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+            created_date: nowIso,
+            updated_date: nowIso,
             ...transactionData,
             bank_account_id: selectedAccountId,
             banktx: true
-          }
-        });
-        if (createResponse.data?.error) {
-          throw new Error(createResponse.data.error);
+          })
+          .select()
+          .single();
+        if (createError) {
+          throw new Error(createError.message);
         }
-        savedTransaction = createResponse.data?.data?.[0] || {
+        savedTransaction = createdTransaction || {
           ...transactionData,
           bank_account_id: selectedAccountId,
           banktx: true
@@ -423,10 +433,10 @@ export default function BankPage() {
         setEditingTransaction(null);
         
         // Trigger balance recalculation even without GL posting for the bank account balance
-        await base44.functions.invoke('calculateBankBalances', {
-          bankAccountId: selectedAccountId
+        await supabase.functions.invoke('autopro-calculateBankBalances', {
+          body: { bankAccountId: selectedAccountId }
         });
-        
+
         loadTransactions();
         return;
       }
@@ -554,8 +564,8 @@ export default function BankPage() {
       }
 
       // Trigger balance recalculation after transaction save
-      await base44.functions.invoke('calculateBankBalances', {
-        bankAccountId: selectedAccountId
+      await supabase.functions.invoke('autopro-calculateBankBalances', {
+        body: { bankAccountId: selectedAccountId }
       });
 
       setShowTransactionModal(false);
@@ -626,18 +636,17 @@ export default function BankPage() {
         }
       }
 
-      const deleteResponse = await base44.functions.invoke('SupabaseProxy', {
-        action: 'delete',
-        table: 'BankTransaction',
-        id: transaction.id
-      });
-      if (deleteResponse.data?.error) {
-        throw new Error(deleteResponse.data.error);
+      const { error: deleteError } = await supabase
+        .from('BankTransaction')
+        .delete()
+        .eq('id', transaction.id);
+      if (deleteError) {
+        throw new Error(deleteError.message);
       }
 
       // Trigger balance recalculation
-      await base44.functions.invoke('calculateBankBalances', {
-        bankAccountId: selectedAccountId
+      await supabase.functions.invoke('autopro-calculateBankBalances', {
+        body: { bankAccountId: selectedAccountId }
       });
 
       setShowTransactionModal(false);
@@ -674,15 +683,13 @@ export default function BankPage() {
       }
 
       // Acquire lock
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'BankAccount',
-        id: selectedAccountId,
-        data: {
+      await supabase
+        .from('BankAccount')
+        .update({
           locked_by_user: currentUser.email,
           locked_timestamp: new Date().toISOString()
-        }
-      });
+        })
+        .eq('id', selectedAccountId);
 
       // Navigate to reconcile page
       navigate(`${createPageUrl('Reconcile')}?bank_account_id=${selectedAccountId}`);
@@ -694,7 +701,7 @@ export default function BankPage() {
 
   const handleTransfer = async (transferData) => {
     try {
-      const response = await base44.functions.invoke('transferFunds', transferData);
+      const response = await supabase.functions.invoke('autopro-transferFunds', { body: transferData });
       
       // Handle both possible response structures
       const result = response.data || response;
@@ -776,7 +783,24 @@ export default function BankPage() {
           }
           table { border-collapse: collapse; width: 100%; font-size: 10px; }
           th, td { border: 1px solid #000; padding: 2px 4px; text-align: left; }
-          th { background-color: #f0f0f0; font-weight: bold; }
+          th { background-color: #f0f0f0 !important; font-weight: bold; color: #000 !important; }
+
+          /* Force light/black output regardless of app dark mode */
+          body {
+            background-color: white !important;
+          }
+          div[class*="bg-slate-"], div[class*="bg-white"] {
+            background-color: white !important;
+          }
+          .text-slate-900, .text-slate-700, .text-slate-600, .text-slate-500, .text-slate-400 {
+            color: #000 !important;
+          }
+          .text-green-600 {
+            color: #16a34a !important;
+          }
+          .text-red-600 {
+            color: #dc2626 !important;
+          }
         }
       `}</style>
 
@@ -785,8 +809,8 @@ export default function BankPage() {
           {/* Header */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">Bank Accounts</h1>
-              <p className="text-slate-600 mt-1">Manage bank transactions and reconciliation</p>
+              <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Bank Accounts</h1>
+              <p className="text-slate-600 dark:text-slate-400 mt-1">Manage bank transactions and reconciliation</p>
             </div>
             <div className="flex gap-3 flex-wrap">
               <Button 
@@ -826,11 +850,11 @@ export default function BankPage() {
 
           {/* Lock Status Indicator */}
           {accountLockStatus.isLocked && selectedAccount && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-center gap-3 no-print">
-              <Lock className="w-5 h-5 text-amber-600" />
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4 flex items-center gap-3 no-print">
+              <Lock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
               <div>
-                <p className="font-semibold text-amber-900">Account Locked</p>
-                <p className="text-sm text-amber-700">
+                <p className="font-semibold text-amber-900 dark:text-amber-300">Account Locked</p>
+                <p className="text-sm text-amber-700 dark:text-amber-400">
                   This bank account is currently being edited by {accountLockStatus.lockedByUser}
                 </p>
               </div>
@@ -863,23 +887,23 @@ export default function BankPage() {
                     <div className="flex gap-2 text-xs">
                       <button
                         onClick={() => handleQuickFilter('thisMonth')}
-                        className="text-blue-600 hover:text-blue-800 hover:underline"
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline"
                         type="button"
                       >
                         This Month
                       </button>
-                      <span className="text-slate-300">|</span>
+                      <span className="text-slate-300 dark:text-slate-600">|</span>
                       <button
                         onClick={() => handleQuickFilter('lastMonth')}
-                        className="text-blue-600 hover:text-blue-800 hover:underline"
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline"
                         type="button"
                       >
                         Last Month
                       </button>
-                      <span className="text-slate-300">|</span>
+                      <span className="text-slate-300 dark:text-slate-600">|</span>
                       <button
                         onClick={() => handleQuickFilter('last3Months')}
-                        className="text-blue-600 hover:text-blue-800 hover:underline"
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline"
                         type="button"
                       >
                         Last 3 Months
@@ -932,11 +956,11 @@ export default function BankPage() {
                 </div>
 
                 <div className="space-y-2 text-right min-w-[140px]">
-                  <Label className="text-slate-600">Account Balance</Label>
+                  <Label className="text-slate-600 dark:text-slate-400">Account Balance</Label>
                   <div>
-                    <p className="text-xl font-bold text-slate-900">${(selectedAccount?.current_balance || 0).toFixed(2)}</p>
+                    <p className="text-xl font-bold text-slate-900 dark:text-slate-100">${(selectedAccount?.current_balance || 0).toFixed(2)}</p>
                     {selectedAccount?.last_recalculated_date && (
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
                         Updated: {format(new Date(selectedAccount.last_recalculated_date), 'MMM d, h:mm a')}
                       </p>
                     )}
@@ -957,18 +981,18 @@ export default function BankPage() {
             
             {/* Transactions Table */}
             <Card>
-              <CardHeader className="no-print sticky top-16 z-30 bg-white border-b shadow-sm">
+              <CardHeader className="no-print sticky top-16 z-30 bg-white dark:bg-slate-900 border-b shadow-sm">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <Landmark className="w-5 h-5" />
                     Bank Transactions ({transactions.length})
                   </CardTitle>
                   <div className="flex items-center gap-2">
-                    <Button 
-                      onClick={() => setShowTransferModal(true)} 
-                      size="sm" 
+                    <Button
+                      onClick={() => setShowTransferModal(true)}
+                      size="sm"
                       variant="outline"
-                      className="bg-white"
+                      className="bg-white dark:bg-slate-900"
                       disabled={!selectedAccountId || bankAccounts.length < 2}
                     >
                       <ArrowLeftRight className="w-4 h-4 mr-2" />
@@ -984,10 +1008,10 @@ export default function BankPage() {
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
-                    <thead className="bg-slate-50 border-b">
+                    <thead className="bg-slate-50 dark:bg-slate-800 border-b">
                       <tr>
-                        <th 
-                          className="text-left p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200 transition-colors"
+                        <th
+                          className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                           onClick={() => handleSort('transaction_date')}
                         >
                           <div className="flex items-center gap-1">
@@ -997,9 +1021,9 @@ export default function BankPage() {
                             )}
                           </div>
                         </th>
-                        <th className="text-left p-3 font-semibold text-slate-700">Description</th>
-                        <th 
-                          className="text-right p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200 transition-colors"
+                        <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Description</th>
+                        <th
+                          className="text-right p-3 font-semibold text-slate-700 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                           onClick={() => handleSort('debit')}
                         >
                           <div className="flex items-center justify-end gap-1">
@@ -1009,8 +1033,8 @@ export default function BankPage() {
                             )}
                           </div>
                         </th>
-                        <th 
-                          className="text-right p-3 font-semibold text-slate-700 cursor-pointer hover:bg-slate-200 transition-colors"
+                        <th
+                          className="text-right p-3 font-semibold text-slate-700 dark:text-slate-300 cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                           onClick={() => handleSort('credit')}
                         >
                           <div className="flex items-center justify-end gap-1">
@@ -1020,38 +1044,38 @@ export default function BankPage() {
                             )}
                           </div>
                         </th>
-                        <th className="text-center p-3 font-semibold text-slate-700">Cleared</th>
+                        <th className="text-center p-3 font-semibold text-slate-700 dark:text-slate-300">Cleared</th>
                       </tr>
                     </thead>
                     <tbody>
                       {loading ? (
                         Array(5).fill(0).map((_, i) => (
                           <tr key={i} className="border-b animate-pulse">
-                            <td className="p-3"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
-                            <td className="p-3"><div className="h-4 bg-slate-200 rounded w-48"></div></td>
-                            <td className="p-3"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
-                            <td className="p-3"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
-                            <td className="p-3"><div className="h-4 bg-slate-200 rounded w-8"></div></td>
+                            <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-24"></div></td>
+                            <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-48"></div></td>
+                            <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16"></div></td>
+                            <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16"></div></td>
+                            <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-8"></div></td>
                           </tr>
                         ))
                       ) : transactions.length > 0 ? (
                         transactions.map((tx, index) => (
-                          <tr key={tx.id} className="border-b hover:bg-slate-50">
+                          <tr key={tx.id} className="border-b hover:bg-slate-50 dark:hover:bg-slate-800/60">
                             <td className="p-3">{format(parseLocalDate(tx.transaction_date), 'MMM d, yyyy')}</td>
                             <td className="p-3">
                               <div>
                                 {tx.banktx ? (
                                   <button
                                     onClick={() => handleEditTransaction(tx)}
-                                    className="font-medium text-slate-900 hover:text-blue-700 hover:underline cursor-pointer text-left"
+                                    className="font-medium text-slate-900 dark:text-slate-100 hover:text-blue-700 dark:hover:text-blue-400 hover:underline cursor-pointer text-left"
                                   >
                                     {tx.description}
                                   </button>
                                 ) : (
-                                  <span className="font-medium text-slate-900">{tx.description}</span>
+                                  <span className="font-medium text-slate-900 dark:text-slate-100">{tx.description}</span>
                                 )}
                                 {tx.reference && (
-                                  <span className="text-slate-500 text-xs ml-2">Ref: {tx.reference}</span>
+                                  <span className="text-slate-500 dark:text-slate-400 text-xs ml-2">Ref: {tx.reference}</span>
                                 )}
                               </div>
                             </td>
@@ -1060,12 +1084,12 @@ export default function BankPage() {
                                 ['manual', 'fee', 'interest'].includes(tx.source_type) ? (
                                   <button
                                     onClick={() => handleEditTransaction(tx)}
-                                    className="font-medium text-red-600 hover:text-red-700 hover:underline cursor-pointer"
+                                    className="font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:underline cursor-pointer"
                                   >
                                     ${tx.debit_amount.toFixed(2)}
                                   </button>
                                 ) : (
-                                  <span className="font-medium text-red-600">${tx.debit_amount.toFixed(2)}</span>
+                                  <span className="font-medium text-red-600 dark:text-red-400">${tx.debit_amount.toFixed(2)}</span>
                                 )
                               )}
                             </td>
@@ -1074,19 +1098,19 @@ export default function BankPage() {
                                 tx.source_type === 'deposit' ? (
                                   <button
                                     onClick={() => handleDepositClick(tx)}
-                                    className="font-medium text-green-600 hover:text-green-700 hover:underline cursor-pointer"
+                                    className="font-medium text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:underline cursor-pointer"
                                   >
                                     ${tx.credit_amount.toFixed(2)}
                                   </button>
                                 ) : ['manual', 'fee', 'interest'].includes(tx.source_type) ? (
                                   <button
                                     onClick={() => handleEditTransaction(tx)}
-                                    className="font-medium text-green-600 hover:text-green-700 hover:underline cursor-pointer"
+                                    className="font-medium text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:underline cursor-pointer"
                                   >
                                     ${tx.credit_amount.toFixed(2)}
                                   </button>
                                 ) : (
-                                  <span className="font-medium text-green-600">
+                                  <span className="font-medium text-green-600 dark:text-green-400">
                                     ${tx.credit_amount.toFixed(2)}
                                   </span>
                                 )
@@ -1094,9 +1118,9 @@ export default function BankPage() {
                             </td>
                             <td className="p-3 text-center">
                               {tx.cleared ? (
-                                <Badge className="bg-green-100 text-green-800">Cleared</Badge>
+                                <Badge className="bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300">Cleared</Badge>
                               ) : (
-                                <Badge variant="outline" className="text-slate-500">Uncleared</Badge>
+                                <Badge variant="outline" className="text-slate-500 dark:text-slate-400">Uncleared</Badge>
                               )}
                             </td>
                           </tr>
@@ -1107,8 +1131,8 @@ export default function BankPage() {
                             <div className="text-slate-400 mb-4">
                               <Landmark className="w-12 h-12 mx-auto" />
                             </div>
-                            <h3 className="text-lg font-semibold text-slate-900 mb-2">No Transactions</h3>
-                            <p className="text-slate-600">
+                            <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">No Transactions</h3>
+                            <p className="text-slate-600 dark:text-slate-400">
                               {selectedAccount ? 'No transactions found for the selected date range.' : 'Select a bank account to view transactions.'}
                             </p>
                           </td>

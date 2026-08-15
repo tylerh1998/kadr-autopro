@@ -45,14 +45,14 @@ export default function NoteWorkOrderLinkModal({ open, onOpenChange, workOrders 
                   type="button"
                   onClick={() => onSelectWorkOrder?.(workOrder)}
                   disabled={isSaving}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-left transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800"
                 >
-                  <div className="text-sm font-semibold text-slate-900">{workOrderNumber} - {customerName}</div>
-                  <div className="mt-1 text-sm text-slate-600">{vehicleName}</div>
+                  <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">{workOrderNumber} - {customerName}</div>
+                  <div className="mt-1 text-sm text-slate-600 dark:text-slate-400">{vehicleName}</div>
                 </button>
               );
             }) : (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">No work orders found.</div>
+              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">No work orders found.</div>
             )}
           </div>
           <div className="flex justify-end">

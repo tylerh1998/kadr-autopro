@@ -15,7 +15,7 @@ export default function CustomerPaymentsBreakdownReport({ data }) {
         <CardHeader>
           <CardTitle>Customer Payments Breakdown</CardTitle>
         </CardHeader>
-        <CardContent className="py-12 text-center text-slate-600">
+        <CardContent className="py-12 text-center text-slate-600 dark:text-slate-400">
           No customer payments found for the selected period.
         </CardContent>
       </Card>
@@ -29,13 +29,13 @@ export default function CustomerPaymentsBreakdownReport({ data }) {
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid gap-3 sm:grid-cols-2">
-          <div className="rounded-lg border bg-slate-50 px-4 py-3">
-            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Total Payments</div>
-            <div className="mt-1 text-2xl font-bold text-slate-900">{formatCurrency(totalAmount)}</div>
+          <div className="rounded-lg border bg-slate-50 dark:bg-slate-800 px-4 py-3">
+            <div className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Total Payments</div>
+            <div className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">{formatCurrency(totalAmount)}</div>
           </div>
-          <div className="rounded-lg border bg-slate-50 px-4 py-3">
-            <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Payment Count</div>
-            <div className="mt-1 text-2xl font-bold text-slate-900">{totalCount}</div>
+          <div className="rounded-lg border bg-slate-50 dark:bg-slate-800 px-4 py-3">
+            <div className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Payment Count</div>
+            <div className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">{totalCount}</div>
           </div>
         </div>
 
@@ -56,11 +56,14 @@ export default function CustomerPaymentsBreakdownReport({ data }) {
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip formatter={(value) => formatCurrency(value)} />
+              <Tooltip
+                formatter={(value) => formatCurrency(value)}
+                contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', color: 'hsl(var(--foreground))' }}
+              />
             </PieChart>
           </ResponsiveContainer>
         ) : (
-          <div className="flex h-[340px] items-center justify-center rounded-lg border border-dashed text-sm text-slate-500">
+          <div className="flex h-[340px] items-center justify-center rounded-lg border border-dashed text-sm text-slate-500 dark:text-slate-400">
             No received payment methods found for the selected period.
           </div>
         )}
@@ -71,31 +74,31 @@ export default function CustomerPaymentsBreakdownReport({ data }) {
               <div className="flex min-w-0 items-start gap-3">
                 <div className="mt-1 h-4 w-4 rounded" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
                 <div>
-                  <div className="text-sm font-medium text-slate-900">{item.paymentMethod}</div>
-                  <div className="text-xs text-slate-500">
+                  <div className="text-sm font-medium text-slate-900 dark:text-slate-100">{item.paymentMethod}</div>
+                  <div className="text-xs text-slate-500 dark:text-slate-400">
                     {item.excludeFromTotals
                       ? `${item.count} AR charge${item.count === 1 ? '' : 's'} · excluded from totals and chart`
                       : `${item.count} payment${item.count === 1 ? '' : 's'} · ${item.percentage.toFixed(1)}% of total`}
                   </div>
                   {item.receivedOnAccounts !== null && (
-                    <div className="mt-2 space-y-1 rounded-md bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                    <div className="mt-2 space-y-1 rounded-md bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs text-slate-600 dark:text-slate-400">
                       <div className="flex items-center justify-between gap-4">
                         <span>Method Total</span>
-                        <span className="font-medium text-slate-900">{formatCurrency(item.amount)}</span>
+                        <span className="font-medium text-slate-900 dark:text-slate-100">{formatCurrency(item.amount)}</span>
                       </div>
                       <div className="flex items-center justify-between gap-4">
                         <span>Received On Accounts</span>
-                        <span className="font-medium text-slate-900">{formatCurrency(item.receivedOnAccounts)}</span>
+                        <span className="font-medium text-slate-900 dark:text-slate-100">{formatCurrency(item.receivedOnAccounts)}</span>
                       </div>
-                      <div className="flex items-center justify-between gap-4 border-t border-slate-200 pt-1">
+                      <div className="flex items-center justify-between gap-4 border-t border-slate-200 dark:border-slate-700 pt-1">
                         <span>Net</span>
-                        <span className="font-semibold text-slate-900">{formatCurrency(item.net)}</span>
+                        <span className="font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(item.net)}</span>
                       </div>
                     </div>
                   )}
                 </div>
               </div>
-              <div className="text-sm font-semibold text-slate-900">{formatCurrency(item.amount)}</div>
+              <div className="text-sm font-semibold text-slate-900 dark:text-slate-100">{formatCurrency(item.amount)}</div>
             </div>
           ))}
         </div>

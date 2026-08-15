@@ -6,8 +6,8 @@ export default function ChequeRegister() {
     <div className="p-6 min-h-screen">
       <div className="max-w-7xl mx-auto space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Cheque Register</h1>
-          <p className="text-slate-600 mt-1">View and manage issued cheques</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Cheque Register</h1>
+          <p className="text-slate-600 dark:text-slate-400 mt-1">View and manage issued cheques</p>
         </div>
         <IssuedChequesTable />
       </div>

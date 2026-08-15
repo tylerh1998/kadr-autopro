@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChartOfAccount } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 
 export default function BankAccountEditModal({ open, onClose, bankAccount, onSubmit }) {
   const [formData, setFormData] = useState({
@@ -24,8 +24,17 @@ export default function BankAccountEditModal({ open, onClose, bankAccount, onSub
   useEffect(() => {
     const loadAccounts = async () => {
       // Fetch only 'Asset' type accounts for GL Account selection
-      const accountsData = await ChartOfAccount.filter({ account_type: 'Asset' }, 'account_number');
-      setAccounts(accountsData);
+      const { data: accountsData, error } = await supabase
+        .from('ChartOfAccount')
+        .select('*')
+        .eq('account_type', 'Asset')
+        .order('account_number');
+      if (error) {
+        console.error('Error loading GL accounts:', error);
+        setAccounts([]);
+        return;
+      }
+      setAccounts(accountsData || []);
     };
     if (open) {
       loadAccounts();
@@ -128,13 +137,13 @@ export default function BankAccountEditModal({ open, onClose, bankAccount, onSub
             </div>
             <div className="space-y-2">
               <Label htmlFor="gl_account">GL Account</Label>
-              <Select value={formData.gl_account} onValueChange={(value) => handleSelectChange('gl_account', value)}>
+              <Select value={String(formData.gl_account || '')} onValueChange={(value) => handleSelectChange('gl_account', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a GL account..." />
                 </SelectTrigger>
                 <SelectContent>
                   {accounts.map(account => (
-                    <SelectItem key={account.id} value={account.account_number}>
+                    <SelectItem key={account.id} value={String(account.account_number)}>
                       {account.account_number} - {account.account_name}
                     </SelectItem>
                   ))}
@@ -152,7 +161,7 @@ export default function BankAccountEditModal({ open, onClose, bankAccount, onSub
                   id="is_active" 
                   checked={formData.is_active}
                   onChange={handleChange}
-                  className="rounded border-slate-300"
+                  className="rounded border-slate-300 dark:border-slate-600"
                 />
                 <Label htmlFor="is_active">Active Account</Label>
               </div>

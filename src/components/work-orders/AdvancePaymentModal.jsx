@@ -7,8 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Plus, Lock, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { WorkOrder, GLTransaction } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { checkFiscalPeriodStatus } from '@/components/utils/fiscalPeriodUtils';
 
 export default function AdvancePaymentModal({
@@ -35,7 +34,7 @@ export default function AdvancePaymentModal({
     let parsedPayments = [];
     if (workOrder?.payments) {
       try {
-        const paymentsData = JSON.parse(workOrder.payments);
+        const paymentsData = typeof workOrder.payments === 'string' ? JSON.parse(workOrder.payments) : workOrder.payments;
         if (Array.isArray(paymentsData)) {
           // Normalize payment objects to handle inconsistent property names
           parsedPayments = paymentsData.map(payment => ({
@@ -87,17 +86,17 @@ export default function AdvancePaymentModal({
       console.log("DEBUG: workOrder object at call time:", workOrder);
       console.log("DEBUG: ro_number used:", workOrder.ro_number);
       
-      const response = await base44.functions.invoke('SupabaseProxy', {
-        action: 'read',
-        table: 'WorkOrder',
-        match: { ro_number: workOrder.ro_number }
-      });
+      const { data, error } = await supabase
+        .from('WorkOrder')
+        .select('*')
+        .eq('ro_number', workOrder.ro_number);
       
-      if (!response.data || !response.data.data || response.data.data.length === 0) {
+      if (error) throw error;
+      if (!data || data.length === 0) {
           throw new Error("Could not find work order");
       }
       
-      const currentWorkOrder = response.data.data[0];
+      const currentWorkOrder = data[0];
       const currentStage = currentWorkOrder?.stage;
       console.log(`DATABASE CHECK RESULT: Stage is '${currentStage}'.`);
       return currentStage === 'invoice';
@@ -145,12 +144,14 @@ export default function AdvancePaymentModal({
       // Create the payment via parent (which creates CustomerPayment record)
       const createdPayment = await onProcessPayment('add', newPaymentData);
       
+      const { data: { user } } = await supabase.auth.getUser();
+      const nowIso = new Date().toISOString();
+      const userDisplay = user?.user_metadata?.full_name || user?.email || 'unknown';
+
       // Post GL transactions for the advance payment through SupabaseProxy
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'create',
-        table: 'GLTransaction',
-        data: [
+      const { error: glError } = await supabase.from('GLTransaction').insert([
           {
+            id: crypto.randomUUID(),
             account_number: '1010',
             transaction_date: paymentDate,
             description: `Advance payment received - WO ${workOrder.wo_number || workOrder.ro_number}`,
@@ -158,9 +159,15 @@ export default function AdvancePaymentModal({
             debit_amount: paymentAmount,
             credit_amount: 0,
             source_type: 'work_order',
-            source_id: createdPayment?.id || ''
+            source_id: createdPayment?.id || '',
+            created_date: nowIso,
+            updated_date: nowIso,
+            created_by: userDisplay,
+            created_by_id: user?.id || null,
+            updated_by: userDisplay
           },
           {
+            id: crypto.randomUUID(),
             account_number: '2100',
             transaction_date: paymentDate,
             description: `Advance payment received - WO ${workOrder.wo_number || workOrder.ro_number}`,
@@ -168,10 +175,16 @@ export default function AdvancePaymentModal({
             debit_amount: 0,
             credit_amount: paymentAmount,
             source_type: 'work_order',
-            source_id: createdPayment?.id || ''
+            source_id: createdPayment?.id || '',
+            created_date: nowIso,
+            updated_date: nowIso,
+            created_by: userDisplay,
+            created_by_id: user?.id || null,
+            updated_by: userDisplay
           }
-        ]
-      });
+        ]);
+        
+      if (glError) throw glError;
       
       // Reset form for next entry only after successful processing
       setAmount('');
@@ -213,8 +226,11 @@ export default function AdvancePaymentModal({
 
     try {
       // Validation: Check CustomerPayments entity
-      const cpRes = await base44.functions.invoke('supabaseCustomerPayments', { action: 'get', id: paymentIdToDelete });
-      const cp = cpRes?.data?.data;
+      const { data: cpData } = await supabase
+        .from('CustomerPayment')
+        .select('*')
+        .eq('id', paymentIdToDelete);
+      const cp = cpData?.[0];
       if (cp) {
         if (cp.deposited) {
           alert("Cannot delete this payment as it has already been deposited.");
@@ -247,12 +263,14 @@ export default function AdvancePaymentModal({
       const woRef = workOrder.wo_number || workOrder.ro_number;
       const reversalDesc = `Reversal: Advance payment - WO ${woRef}`;
 
-      // Post reversal GL transactions through SupabaseProxy
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'create',
-        table: 'GLTransaction',
-        data: [
+      const { data: { user } } = await supabase.auth.getUser();
+      const nowIso = new Date().toISOString();
+      const userDisplay = user?.user_metadata?.full_name || user?.email || 'unknown';
+
+      // Post reversal GL transactions through Supabase client
+      const { error: revGlError } = await supabase.from('GLTransaction').insert([
           {
+            id: crypto.randomUUID(),
             account_number: '1010',
             transaction_date: reversalDate,
             description: reversalDesc,
@@ -260,9 +278,15 @@ export default function AdvancePaymentModal({
             debit_amount: 0,
             credit_amount: paymentAmount,
             source_type: 'work_order',
-            source_id: paymentIdToDelete
+            source_id: paymentIdToDelete,
+            created_date: nowIso,
+            updated_date: nowIso,
+            created_by: userDisplay,
+            created_by_id: user?.id || null,
+            updated_by: userDisplay
           },
           {
+            id: crypto.randomUUID(),
             account_number: '2100',
             transaction_date: reversalDate,
             description: reversalDesc,
@@ -270,10 +294,16 @@ export default function AdvancePaymentModal({
             debit_amount: paymentAmount,
             credit_amount: 0,
             source_type: 'work_order',
-            source_id: paymentIdToDelete
+            source_id: paymentIdToDelete,
+            created_date: nowIso,
+            updated_date: nowIso,
+            created_by: userDisplay,
+            created_by_id: user?.id || null,
+            updated_by: userDisplay
           }
-        ]
-      });
+        ]);
+        
+      if (revGlError) throw revGlError;
 
       // Delete the payment via parent
       await onProcessPayment('delete', { id: paymentIdToDelete });
@@ -342,12 +372,11 @@ export default function AdvancePaymentModal({
                     </div>
                   </div>
                 )}
-                
               </CardContent>
-              <DialogFooter className="p-4 bg-slate-50 rounded-b-lg">
+              <div className="p-4 bg-slate-50 dark:bg-slate-900 rounded-b-lg border-t dark:border-slate-800">
                 <div className="flex items-center gap-2 w-full">
                   <div className="flex-1">
-                    <Label htmlFor="paymentDate" className="text-xs text-slate-600">Payment Date</Label>
+                    <Label htmlFor="paymentDate" className="text-xs text-slate-600 dark:text-slate-400">Payment Date</Label>
                     <Input
                       id="paymentDate"
                       type="date"
@@ -366,24 +395,24 @@ export default function AdvancePaymentModal({
                     {processing ? 'Processing...' : 'Apply Payment'}
                   </Button>
                 </div>
-              </DialogFooter>
+              </div>
             </Card>
           )}
 
           {/* Existing Payments List */}
           {payments.length > 0 ? (
             <div className="space-y-4">
-              <h4 className="text-sm font-semibold text-slate-700">Existing Payments:</h4>
-              <div className="bg-slate-50 rounded-lg p-4 space-y-2 max-h-60 overflow-y-auto pr-2">
+              <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Existing Payments:</h4>
+              <div className="bg-slate-50 dark:bg-slate-900 rounded-lg p-4 space-y-2 max-h-60 overflow-y-auto pr-2">
                 {payments.map((payment, index) => (
-                  <div key={payment.id || `temp-${index}`} className="flex justify-between items-center py-2 border-b border-slate-200 last:border-b-0">
+                  <div key={payment.id || `temp-${index}`} className="flex justify-between items-center py-2 border-b border-slate-200 dark:border-slate-800 last:border-b-0">
                     <div>
                       <span className="font-medium">${payment.amount.toFixed(2)}</span>
-                      <span className="text-slate-500 ml-2">
+                      <span className="text-slate-500 dark:text-slate-400 ml-2">
                         {payment.payment_method} 
                         {payment.reference && ` - ${payment.reference}`}
                       </span>
-                      <div className="text-xs text-slate-400">
+                      <div className="text-xs text-slate-400 dark:text-slate-500">
                         {payment.payment_date ? format(new Date(payment.payment_date), 'MMMM d, yyyy') : 'Unknown Date'}
                       </div>
                     </div>
@@ -392,7 +421,7 @@ export default function AdvancePaymentModal({
                         variant="outline"
                         size="sm"
                         onClick={() => handleDeletePayment(payment)}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/30"
                         disabled={isInvoiceUI || processing}
                       >
                         {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Delete'}
@@ -407,7 +436,7 @@ export default function AdvancePaymentModal({
           )}
           
           {/* Footer with Totals */}
-          <div className="pt-4 border-t">
+          <div className="pt-4 border-t dark:border-slate-800">
               <div className="flex justify-between items-center text-lg font-bold">
                   <span>Total Paid:</span>
                   <span>${totalPaid.toFixed(2)}</span>

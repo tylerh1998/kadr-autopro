@@ -1,9 +1,14 @@
 {
-  "name": "base44-app",
+  "name": "autopro-app",
   "private": true,
   "version": "0.0.0",
+  "description": "AutoPro Desktop Client",
+  "author": "Kens Auto",
   "type": "module",
+  "main": "electron/main.js",
   "scripts": {
+    "start:desktop": "electron .",
+    "build:desktop": "electron-builder",
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint . --quiet",
@@ -12,8 +17,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@base44/sdk": "^0.8.41",
-    "@base44/vite-plugin": "^1.0.30",
     "@hello-pangea/dnd": "^17.0.0",
     "@hookform/resolvers": "^4.1.2",
     "@radix-ui/react-accordion": "^1.2.3",
@@ -45,7 +48,7 @@
     "@radix-ui/react-tooltip": "^1.1.8",
     "@stripe/react-stripe-js": "^3.0.0",
     "@stripe/stripe-js": "^5.2.0",
-    "@supabase/supabase-js": "^2.109.0",
+    "@supabase/supabase-js": "^2.110.8",
     "@tanstack/react-query": "^5.84.1",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",
@@ -78,6 +81,7 @@
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.171.0",
     "vaul": "^1.1.2",
+    "xhr2": "^0.2.1",
     "zod": "^3.24.2"
   },
   "devDependencies": {
@@ -85,9 +89,13 @@
     "@types/node": "^22.13.5",
     "@types/react": "^18.2.66",
     "@types/react-dom": "^18.2.22",
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "baseline-browser-mapping": "^2.8.32",
+    "concurrently": "^10.0.4",
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3",
     "eslint": "^9.19.0",
     "eslint-plugin-react": "^7.37.4",
     "eslint-plugin-react-hooks": "^5.0.0",
@@ -98,5 +106,20 @@
     "tailwindcss": "^3.4.17",
     "typescript": "^5.8.2",
     "vite": "^6.1.0"
+  },
+  "build": {
+    "appId": "ca.kensauto.autopro",
+    "productName": "AutoPro Desktop",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "public/icon.ico"
+    },
+    "files": [
+      "electron/**/*",
+      "dist/**/*"
+    ]
   }
 }

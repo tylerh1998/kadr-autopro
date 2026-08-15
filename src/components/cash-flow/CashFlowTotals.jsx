@@ -62,7 +62,7 @@ export default function CashFlowTotals({ rows, overheadRows, summaryData, onSumm
 
   const renderEditableRow = (label, field) => (
     <div className="flex justify-between items-center gap-2">
-      <span className="text-sm font-medium text-slate-500">{label}</span>
+      <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</span>
       <div className="w-32">
         <Input
           type="text"
@@ -76,9 +76,9 @@ export default function CashFlowTotals({ rows, overheadRows, summaryData, onSumm
     </div>
   );
 
-  const renderCalculatedRow = (label, amount, colorClass = "text-slate-900") => (
+  const renderCalculatedRow = (label, amount, colorClass = "text-slate-900 dark:text-slate-100") => (
     <div className="flex justify-between items-center">
-      <span className="text-sm font-medium text-slate-500">{label}</span>
+      <span className="text-sm font-medium text-slate-500 dark:text-slate-400">{label}</span>
       <span className={`font-bold font-mono ${colorClass}`}>{formatCurrency(amount)}</span>
     </div>
   );
@@ -99,28 +99,28 @@ export default function CashFlowTotals({ rows, overheadRows, summaryData, onSumm
   };
 
   return (
-    <Card className="bg-white shadow-sm border">
+    <Card className="bg-white dark:bg-slate-900 shadow-sm border">
       <Collapsible open={isSummaryOpen} onOpenChange={setIsSummaryOpen}>
         <CardHeader className="pb-3 border-b">
           <CollapsibleTrigger asChild>
             <div className="flex items-center justify-between cursor-pointer group">
-              <CardTitle className="text-lg text-slate-800 group-hover:text-blue-600 transition-colors">Cash Flow Summary</CardTitle>
-              <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${isSummaryOpen ? 'rotate-180' : ''}`} />
+              <CardTitle className="text-lg text-slate-800 dark:text-slate-200 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Cash Flow Summary</CardTitle>
+              <ChevronDown className={`w-4 h-4 text-slate-500 dark:text-slate-400 transition-transform duration-200 ${isSummaryOpen ? 'rotate-180' : ''}`} />
             </div>
           </CollapsibleTrigger>
         </CardHeader>
         <CollapsibleContent>
           <CardContent className="pt-4 space-y-3">
             {renderEditableRow("Current Bank Balance", "bankBalance")}
-            {renderCalculatedRow("Outstanding Cheques", outstandingCheques, "text-red-600")}
+            {renderCalculatedRow("Outstanding Cheques", outstandingCheques, "text-red-600 dark:text-red-400")}
             <div className="flex justify-between items-center gap-2">
               <span
-                className="text-sm font-medium text-blue-600 underline decoration-dotted underline-offset-4 cursor-pointer hover:text-blue-800"
+                className="text-sm font-medium text-blue-600 dark:text-blue-400 underline decoration-dotted underline-offset-4 cursor-pointer hover:text-blue-800 dark:hover:text-blue-300"
                 onClick={() => setIsPadRegistriesOpen(true)}
               >
                 PAD &amp; Registries
               </span>
-              <span className="font-bold font-mono text-slate-900">{formatCurrency(padRegistries)}</span>
+              <span className="font-bold font-mono text-slate-900 dark:text-slate-100">{formatCurrency(padRegistries)}</span>
             </div>
             {renderEditableRow("Upcoming Payroll", "upcomingPayroll")}
             {renderEditableRow("Upcoming Payroll Remit", "payrollRemit")}
@@ -129,7 +129,7 @@ export default function CashFlowTotals({ rows, overheadRows, summaryData, onSumm
 
             <div className="flex justify-between items-center gap-2">
               <span
-                className="text-sm font-medium text-blue-600 underline decoration-dotted underline-offset-4 cursor-pointer hover:text-blue-800"
+                className="text-sm font-medium text-blue-600 dark:text-blue-400 underline decoration-dotted underline-offset-4 cursor-pointer hover:text-blue-800 dark:hover:text-blue-300"
                 onClick={() => setIsDepositHistoryOpen(true)}
               >
                 Expected Deposits
@@ -149,8 +149,8 @@ export default function CashFlowTotals({ rows, overheadRows, summaryData, onSumm
             <Separator className="my-2" />
 
             <div className="flex justify-between items-center pt-2">
-              <span className="text-base font-bold text-slate-700">Current Cash Position</span>
-              <span className={`text-xl font-bold font-mono ${currentCashPosition >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              <span className="text-base font-bold text-slate-700 dark:text-slate-300">Current Cash Position</span>
+              <span className={`text-xl font-bold font-mono ${currentCashPosition >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                 {formatCurrency(currentCashPosition)}
               </span>
             </div>
@@ -212,13 +212,13 @@ function RemainingPaymentsSection({ rows, val, formatCurrency }) {
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <Separator />
-      <CardContent className="pt-4 pb-2 bg-white">
+      <CardContent className="pt-4 pb-2 bg-white dark:bg-slate-900">
         <CollapsibleTrigger asChild>
           <div className="flex items-center justify-between cursor-pointer group">
-            <h3 className="font-semibold text-slate-700 group-hover:text-blue-600 transition-colors">Remaining Payments</h3>
+            <h3 className="font-semibold text-slate-700 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Remaining Payments</h3>
             <div className="flex items-center gap-2">
-              {!isOpen && <span className="font-mono text-slate-700 text-sm font-bold">{formatCurrency(totalRemaining)}</span>}
-              <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+              {!isOpen && <span className="font-mono text-slate-700 dark:text-slate-300 text-sm font-bold">{formatCurrency(totalRemaining)}</span>}
+              <ChevronDown className={`w-4 h-4 text-slate-500 dark:text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
             </div>
           </div>
         </CollapsibleTrigger>
@@ -227,14 +227,14 @@ function RemainingPaymentsSection({ rows, val, formatCurrency }) {
           <div className="space-y-2">
             {Object.entries(breakdown).sort((a, b) => b[1] - a[1]).map(([method, amount]) => (
               <div key={method} className="flex justify-between items-center text-sm">
-                <span className="text-slate-500">{method === 'Unassigned' ? 'No Method' : method}</span>
-                <span className="font-medium font-mono text-slate-700">{formatCurrency(amount)}</span>
+                <span className="text-slate-500 dark:text-slate-400">{method === 'Unassigned' ? 'No Method' : method}</span>
+                <span className="font-medium font-mono text-slate-700 dark:text-slate-300">{formatCurrency(amount)}</span>
               </div>
             ))}
             <Separator className="my-2" />
             <div className="flex justify-between items-center font-bold">
-              <span className="text-slate-700">Total Remaining</span>
-              <span className="font-mono text-red-600">{formatCurrency(totalRemaining)}</span>
+              <span className="text-slate-700 dark:text-slate-300">Total Remaining</span>
+              <span className="font-mono text-red-600 dark:text-red-400">{formatCurrency(totalRemaining)}</span>
             </div>
           </div>
         </CollapsibleContent>
@@ -260,13 +260,13 @@ function MonthlyEstimatesSection({ overheadRows, summaryData, onSummaryChange, v
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <Separator />
-      <CardContent className="pt-4 pb-2 bg-white">
+      <CardContent className="pt-4 pb-2 bg-white dark:bg-slate-900">
         <CollapsibleTrigger asChild>
           <div className="flex items-center justify-between cursor-pointer group">
-            <h3 className="font-semibold text-slate-700 group-hover:text-blue-600 transition-colors">Remaining Overhead</h3>
+            <h3 className="font-semibold text-slate-700 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Remaining Overhead</h3>
             <div className="flex items-center gap-2">
-              {!isOpen && <span className="font-mono text-slate-700 text-sm font-bold">{formatCurrency(includedTotal)}</span>}
-              <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+              {!isOpen && <span className="font-mono text-slate-700 dark:text-slate-300 text-sm font-bold">{formatCurrency(includedTotal)}</span>}
+              <ChevronDown className={`w-4 h-4 text-slate-500 dark:text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
             </div>
           </div>
         </CollapsibleTrigger>
@@ -275,16 +275,16 @@ function MonthlyEstimatesSection({ overheadRows, summaryData, onSummaryChange, v
           <div className="space-y-2 mb-4">
             {dateOrder.filter((date) => groupedOverhead[date] > 0).map((date) => (
               <div key={date} className="flex justify-between items-center text-sm">
-                <span className="text-slate-500">{date}</span>
-                <span className="font-medium font-mono text-slate-700">{formatCurrency(groupedOverhead[date])}</span>
+                <span className="text-slate-500 dark:text-slate-400">{date}</span>
+                <span className="font-medium font-mono text-slate-700 dark:text-slate-300">{formatCurrency(groupedOverhead[date])}</span>
               </div>
             ))}
             {Object.keys(groupedOverhead)
               .filter((date) => !dateOrder.includes(date) && groupedOverhead[date] > 0)
               .map((date) => (
                 <div key={date} className="flex justify-between items-center text-sm">
-                  <span className="text-slate-500">{date}</span>
-                  <span className="font-medium font-mono text-slate-700">{formatCurrency(groupedOverhead[date])}</span>
+                  <span className="text-slate-500 dark:text-slate-400">{date}</span>
+                  <span className="font-medium font-mono text-slate-700 dark:text-slate-300">{formatCurrency(groupedOverhead[date])}</span>
                 </div>
               ))}
             {includedRows.length === 0 && (
@@ -300,8 +300,8 @@ function MonthlyEstimatesSection({ overheadRows, summaryData, onSummaryChange, v
 
           <Separator className="my-2" />
           <div className="flex justify-between items-center font-bold">
-            <span className="text-slate-700">Total Remaining Overhead</span>
-            <span className="font-mono text-red-600">{formatCurrency(includedTotal)}</span>
+            <span className="text-slate-700 dark:text-slate-300">Total Remaining Overhead</span>
+            <span className="font-mono text-red-600 dark:text-red-400">{formatCurrency(includedTotal)}</span>
           </div>
         </CollapsibleContent>
       </CardContent>
@@ -331,12 +331,12 @@ function CashFlowTimelineSection({ rows, val, formatCurrency }) {
   };
 
   const buckets = [
-    { key: 'overdue', label: 'Overdue (incl today)', min: null, max: 0, className: 'bg-red-100 text-red-700' },
-    { key: 'due1to5', label: 'Due 1-5', min: 1, max: 5, className: 'bg-yellow-100 text-yellow-800' },
-    { key: 'due6to10', label: 'Due 6-10', min: 6, max: 10, className: 'bg-yellow-100 text-yellow-800' },
-    { key: 'due11to15', label: 'Due 11-15', min: 11, max: 15, className: 'bg-blue-100 text-blue-700' },
-    { key: 'due16to20', label: 'Due 16-20', min: 16, max: 20, className: 'bg-blue-100 text-blue-700' },
-    { key: 'due21plus', label: 'Due 21+', min: 21, max: null, className: 'bg-blue-100 text-blue-700' }
+    { key: 'overdue', label: 'Overdue (incl today)', min: null, max: 0, className: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300' },
+    { key: 'due1to5', label: 'Due 1-5', min: 1, max: 5, className: 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300' },
+    { key: 'due6to10', label: 'Due 6-10', min: 6, max: 10, className: 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300' },
+    { key: 'due11to15', label: 'Due 11-15', min: 11, max: 15, className: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' },
+    { key: 'due16to20', label: 'Due 16-20', min: 16, max: 20, className: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' },
+    { key: 'due21plus', label: 'Due 21+', min: 21, max: null, className: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' }
   ];
 
   const timelineTotals = buckets.reduce((acc, bucket) => {
@@ -370,13 +370,13 @@ function CashFlowTimelineSection({ rows, val, formatCurrency }) {
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
       <Separator />
-      <CardContent className="pt-4 pb-2 bg-white">
+      <CardContent className="pt-4 pb-2 bg-white dark:bg-slate-900">
         <CollapsibleTrigger asChild>
           <div className="flex items-center justify-between cursor-pointer group">
-            <h3 className="font-semibold text-slate-700 group-hover:text-blue-600 transition-colors">Cash Flow Timeline</h3>
+            <h3 className="font-semibold text-slate-700 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Cash Flow Timeline</h3>
             <div className="flex items-center gap-2">
-              {!isOpen && <span className="font-mono text-slate-700 text-sm font-bold">{formatCurrency(totalTimeline)}</span>}
-              <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+              {!isOpen && <span className="font-mono text-slate-700 dark:text-slate-300 text-sm font-bold">{formatCurrency(totalTimeline)}</span>}
+              <ChevronDown className={`w-4 h-4 text-slate-500 dark:text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
             </div>
           </div>
         </CollapsibleTrigger>
@@ -391,8 +391,8 @@ function CashFlowTimelineSection({ rows, val, formatCurrency }) {
             ))}
             <Separator className="my-2" />
             <div className="flex justify-between items-center font-bold">
-              <span className="text-slate-700">Total Timeline Due</span>
-              <span className="font-mono text-red-600">{formatCurrency(totalTimeline)}</span>
+              <span className="text-slate-700 dark:text-slate-300">Total Timeline Due</span>
+              <span className="font-mono text-red-600 dark:text-red-400">{formatCurrency(totalTimeline)}</span>
             </div>
           </div>
         </CollapsibleContent>
@@ -410,8 +410,8 @@ function EtransferLimitsSection({ summaryData, onSummaryChange, renderEditableRo
       <CardContent className="pt-4 pb-2">
         <CollapsibleTrigger asChild>
           <div className="flex items-center justify-between cursor-pointer group">
-            <h3 className="font-semibold text-slate-700 group-hover:text-blue-600 transition-colors">Etransfer Limits</h3>
-            <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+            <h3 className="font-semibold text-slate-700 dark:text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Etransfer Limits</h3>
+            <ChevronDown className={`w-4 h-4 text-slate-500 dark:text-slate-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
           </div>
         </CollapsibleTrigger>
 

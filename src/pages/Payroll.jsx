@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import moment from 'moment-timezone';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -20,6 +21,7 @@ import AddAdjustmentModal from '../components/payroll/AddAdjustmentModal';
 import MarkPaidModal from '../components/payroll/MarkPaidModal';
 
 export default function PayrollPage() {
+  const { employee } = useAuth();
   const [dateRange, setDateRange] = useState({
     from: startOfMonth(subMonths(new Date(), 2)),
     to: endOfMonth(new Date())
@@ -54,12 +56,13 @@ export default function PayrollPage() {
   const loadTransactions = async () => {
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('SupabaseProxy', {
-        action: 'list',
-        table: 'PayrollTransaction'
-      });
+      const { data, error } = await supabase.from('PayrollTransaction').select('*');
+      if (error) {
+        console.error('Error loading payroll transactions:', error);
+        return;
+      }
 
-      const allTransactions = (response.data?.data || []).map((transaction) => ({
+      const allTransactions = (data || []).map((transaction) => ({
         ...transaction,
         amount: transaction.amount === null || transaction.amount === undefined || transaction.amount === '' ? 0 : parseFloat(transaction.amount) || 0,
         gross_pay: transaction.gross_pay || 0,
@@ -123,27 +126,25 @@ export default function PayrollPage() {
           reversalDescription = `Reversal of Adjustment: ${transaction.adjustment_reason || ''} dated ${formatMountainDate(transaction.pay_date)}`;
         }
 
-        const currentUser = await base44.auth.me();
+        const currentUser = employee;
         const currentTimestamp = getCurrentMountainTimestamp();
 
         // Create reversal adjustment
-        await base44.functions.invoke('SupabaseProxy', {
-          action: 'create',
-          table: 'PayrollTransaction',
-          data: {
-            transaction_type: 'Adjustment',
-            pay_date: format(new Date(), 'yyyy-MM-dd'),
-            amount: String(reversalAmount),
-            adjustment_reason: reversalDescription,
-            gl_account: transaction.transaction_type === 'Adjustment' ? (transaction.gl_account || '5005') : '5005',
-            notes: `Original transaction ID: ${transaction.id}`,
-            is_paid: false,
-            created_date: currentTimestamp,
-            updated_date: currentTimestamp,
-            created_by_id: currentUser?.id || null,
-            created_by: currentUser?.User_name || currentUser?.full_name || currentUser?.email || null
-          }
+        const { error: reversalError } = await supabase.from('PayrollTransaction').insert({
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+          transaction_type: 'Adjustment',
+          pay_date: format(new Date(), 'yyyy-MM-dd'),
+          amount: String(reversalAmount),
+          adjustment_reason: reversalDescription,
+          gl_account: transaction.transaction_type === 'Adjustment' ? (transaction.gl_account || '5005') : '5005',
+          notes: `Original transaction ID: ${transaction.id}`,
+          is_paid: false,
+          created_date: currentTimestamp,
+          updated_date: currentTimestamp,
+          created_by_id: currentUser?.id || null,
+          created_by: currentUser?.User_name || currentUser?.full_name || currentUser?.email || null
         });
+        if (reversalError) throw reversalError;
 
         alert('Reversal adjustment created successfully. The original transaction remains for audit purposes.');
         
@@ -213,13 +214,13 @@ export default function PayrollPage() {
   const getTransactionBadgeColor = (type) => {
     switch (type) {
       case 'Paycheque':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300';
       case 'Remittance':
         return 'bg-slate-900 text-white';
       case 'Adjustment':
-        return 'bg-red-100 text-red-800';
+        return 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300';
       default:
-        return 'bg-gray-100 text-gray-800';
+        return 'bg-gray-100 text-gray-800 dark:bg-slate-700/60 dark:text-slate-300';
     }
   };
 
@@ -315,8 +316,8 @@ export default function PayrollPage() {
           {/* Header */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">Payroll Management</h1>
-              <p className="text-slate-600 mt-1">Manage all payroll transactions in one place</p>
+              <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Payroll Management</h1>
+              <p className="text-slate-600 mt-1 dark:text-slate-400">Manage all payroll transactions in one place</p>
             </div>
             
             <div className="flex flex-wrap items-center gap-2">
@@ -358,7 +359,7 @@ export default function PayrollPage() {
 
               {/* Transaction Type Filter */}
               <Select value={transactionTypeFilter} onValueChange={setTransactionTypeFilter}>
-                <SelectTrigger className="w-[160px] bg-white">
+                <SelectTrigger className="w-[160px] bg-white dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600">
                   <SelectValue placeholder="All Transactions" />
                 </SelectTrigger>
                 <SelectContent>
@@ -374,13 +375,6 @@ export default function PayrollPage() {
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               </Button>
 
-              <Button 
-                onClick={() => window.location.href = createPageUrl("WorkPro")}
-                className="bg-indigo-600 hover:bg-indigo-700 ml-2"
-              >
-                <Briefcase className="w-4 h-4 mr-2" />
-                WorkPRO
-              </Button>
             </div>
           </div>
 
@@ -454,12 +448,12 @@ export default function PayrollPage() {
                 {loading ? (
                   <div className="text-center py-12">
                     <RefreshCw className="w-8 h-8 mx-auto text-slate-400 animate-spin mb-4" />
-                    <p className="text-slate-600">Loading transactions...</p>
+                    <p className="text-slate-600 dark:text-slate-400">Loading transactions...</p>
                   </div>
                 ) : transactions.length > 0 ? (
-                  <div className="border rounded-lg overflow-hidden">
+                  <div className="border rounded-lg overflow-hidden dark:border-slate-700">
                     <Table className="print-table">
-                      <TableHeader className="bg-slate-50">
+                      <TableHeader className="bg-slate-50 dark:bg-slate-800">
                         <TableRow>
                           <TableHead className="w-10 no-print">
                             <input
@@ -472,7 +466,7 @@ export default function PayrollPage() {
                                 }
                               }}
                               checked={selectedTransactions.length > 0 && selectedTransactions.length === transactions.filter(t => !t.is_paid).length}
-                              className="rounded border-gray-300"
+                              className="rounded border-gray-300 dark:border-slate-600"
                             />
                           </TableHead>
                           <TableHead>Type</TableHead>
@@ -486,14 +480,14 @@ export default function PayrollPage() {
                       </TableHeader>
                       <TableBody>
                         {transactions.map((transaction) => (
-                          <TableRow key={transaction.id} className="hover:bg-slate-50">
+                          <TableRow key={transaction.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
                             <TableCell className="no-print">
                               {!transaction.is_paid && (
                                 <input
                                   type="checkbox"
                                   checked={selectedTransactions.includes(transaction.id)}
                                   onChange={() => handleToggleSelection(transaction.id)}
-                                  className="rounded border-gray-300"
+                                  className="rounded border-gray-300 dark:border-slate-600"
                                 />
                               )}
                             </TableCell>
@@ -514,9 +508,9 @@ export default function PayrollPage() {
                             </TableCell>
                             <TableCell className="text-right">
                               {transaction.transaction_type === 'Paycheque' ? (
-                                <span className="font-bold text-green-600">${calculateNetPay(transaction).toFixed(2)}</span>
+                                <span className="font-bold text-green-600 dark:text-green-400">${calculateNetPay(transaction).toFixed(2)}</span>
                               ) : transaction.amount ? (
-                                <span className="font-bold text-blue-600">${transaction.amount.toFixed(2)}</span>
+                                <span className="font-bold text-blue-600 dark:text-blue-400">${transaction.amount.toFixed(2)}</span>
                               ) : (
                                 <span className="text-slate-400">-</span>
                               )}
@@ -536,25 +530,25 @@ export default function PayrollPage() {
                                       <div className="text-xs">EI: ${((transaction.ei_premium || 0) + (transaction.ei_employer || 0)).toFixed(2)}</div>
                                     )}
                                     {transaction.paycheque_numbers_included && (
-                                      <div className="text-xs text-slate-500">Paycheques: {transaction.paycheque_numbers_included}</div>
+                                      <div className="text-xs text-slate-500 dark:text-slate-400">Paycheques: {transaction.paycheque_numbers_included}</div>
                                     )}
                                   </div>
                                 )}
                                 {transaction.transaction_type === 'Adjustment' && transaction.adjustment_reason && (
-                                  <div className="text-xs text-slate-600">{transaction.adjustment_reason}</div>
+                                  <div className="text-xs text-slate-600 dark:text-slate-400">{transaction.adjustment_reason}</div>
                                 )}
                                 {transaction.notes && (
-                                  <div className="text-xs text-slate-600 italic">{transaction.notes}</div>
+                                  <div className="text-xs text-slate-600 dark:text-slate-400 italic">{transaction.notes}</div>
                                 )}
                               </div>
                             </TableCell>
                             <TableCell>
                               {transaction.is_paid ? (
-                                <Badge className="bg-green-100 text-green-800 border-green-200">
+                                <Badge className="bg-green-100 text-green-800 border-green-200 dark:bg-green-900/40 dark:text-green-300 dark:border-green-900/60">
                                   Paid
                                 </Badge>
                               ) : (
-                                <Badge variant="outline" className="border-orange-300 text-orange-700">
+                                <Badge variant="outline" className="border-orange-300 text-orange-700 dark:border-orange-900/60 dark:text-orange-400">
                                   Unpaid
                                 </Badge>
                               )}
@@ -566,8 +560,8 @@ export default function PayrollPage() {
                                 onClick={() => handleDelete(transaction)}
                                 disabled={transaction.is_paid}
                                 className={cn(
-                                  "text-red-600 hover:text-red-700 hover:bg-red-50",
-                                  transaction.is_paid && "opacity-50 cursor-not-allowed text-gray-400 hover:text-gray-400 hover:bg-transparent"
+                                  "text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/20",
+                                  transaction.is_paid && "opacity-50 cursor-not-allowed text-gray-400 hover:text-gray-400 hover:bg-transparent dark:text-slate-600 dark:hover:text-slate-600"
                                 )}
                                 title={transaction.is_paid ? "Cannot delete paid transaction" : "Delete transaction"}
                               >
@@ -619,8 +613,8 @@ export default function PayrollPage() {
                 ) : (
                   <div className="text-center py-12 no-print">
                     <FileText className="w-12 h-12 mx-auto text-slate-400 mb-4" />
-                    <h3 className="text-lg font-semibold text-slate-900 mb-2">No Transactions Found</h3>
-                    <p className="text-slate-600 mb-4">
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">No Transactions Found</h3>
+                    <p className="text-slate-600 dark:text-slate-400 mb-4">
                       {transactionTypeFilter !== 'all' 
                         ? `No ${transactionTypeFilter} transactions found for the selected date range.` 
                         : 'Get started by adding your first payroll transaction using the buttons above.'}

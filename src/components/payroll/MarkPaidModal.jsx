@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import moment from 'moment-timezone';
-import { base44 } from '@/api/base44Client';
-import { GLTransaction } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 
 const getCurrentMountainTimestamp = () => moment.tz('America/Edmonton').format();
 const formatMountainDate = (value) => moment.tz(value, 'America/Edmonton').format('MMM D, YYYY');
@@ -33,12 +32,10 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
 
   const loadBankAccounts = async () => {
     try {
-      const response = await base44.functions.invoke('SupabaseProxy', {
-        action: 'list',
-        table: 'BankAccount'
-      });
+      const { data, error: fetchError } = await supabase.from('BankAccount').select('*');
+      if (fetchError) throw fetchError;
 
-      const accounts = (response.data?.data || []).filter((account) => account.is_active !== false);
+      const accounts = (data || []).filter((account) => account.is_active !== false);
       setBankAccounts(accounts);
       setSelectedBankAccount('');
     } catch (err) {
@@ -154,14 +151,11 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
 
       for (const transaction of transactions) {
         // Update transaction as paid
-        await base44.functions.invoke('SupabaseProxy', {
-          action: 'update',
-          table: 'PayrollTransaction',
-          id: transaction.id,
-          data: {
-            is_paid: true
-          }
-        });
+        const { error: markPaidError } = await supabase
+          .from('PayrollTransaction')
+          .update({ is_paid: true })
+          .eq('id', transaction.id);
+        if (markPaidError) throw markPaidError;
 
         // Create GL transactions based on transaction type
         const paymentDate = transaction.pay_date;
@@ -172,44 +166,40 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
         if (transaction.transaction_type === 'Paycheque') {
           const netPay = getNetPay(transaction);
           const mountainTimestamp = getCurrentMountainTimestamp();
-          await base44.functions.invoke('SupabaseProxy', {
-            action: 'create',
-            table: 'BankTransaction',
-            data: {
-              bank_account_id: selectedAccount.id,
-              transaction_date: paymentDate,
-              description: `Paycheque ${transaction.paycheque_number || ''}`,
-              reference: reference,
-              debit_amount: netPay,
-              credit_amount: 0,
-              cleared: false,
-              source_type: 'payment',
-              source_id: transaction.id,
-              gl_account: 'Split',
-              created_date: mountainTimestamp,
-              updated_date: mountainTimestamp
-            }
+          const { error: bankTxError } = await supabase.from('BankTransaction').insert({
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+            bank_account_id: selectedAccount.id,
+            transaction_date: paymentDate,
+            description: `Paycheque ${transaction.paycheque_number || ''}`,
+            reference: reference,
+            debit_amount: netPay,
+            credit_amount: 0,
+            cleared: false,
+            source_type: 'payment',
+            source_id: transaction.id,
+            gl_account: 'Split',
+            created_date: mountainTimestamp,
+            updated_date: mountainTimestamp
           });
+          if (bankTxError) throw bankTxError;
         } else if (transaction.transaction_type === 'Remittance') {
           const mountainTimestamp = getCurrentMountainTimestamp();
-          await base44.functions.invoke('SupabaseProxy', {
-            action: 'create',
-            table: 'BankTransaction',
-            data: {
-              bank_account_id: selectedAccount.id,
-              transaction_date: paymentDate,
-              description: `Remittance ${reference}`,
-              reference: reference,
-              debit_amount: transaction.amount || 0,
-              credit_amount: 0,
-              cleared: false,
-              source_type: 'payment',
-              source_id: transaction.id,
-              gl_account: '2050',
-              created_date: mountainTimestamp,
-              updated_date: mountainTimestamp
-            }
+          const { error: bankTxError } = await supabase.from('BankTransaction').insert({
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+            bank_account_id: selectedAccount.id,
+            transaction_date: paymentDate,
+            description: `Remittance ${reference}`,
+            reference: reference,
+            debit_amount: transaction.amount || 0,
+            credit_amount: 0,
+            cleared: false,
+            source_type: 'payment',
+            source_id: transaction.id,
+            gl_account: '2050',
+            created_date: mountainTimestamp,
+            updated_date: mountainTimestamp
           });
+          if (bankTxError) throw bankTxError;
         } else if (transaction.transaction_type === 'Adjustment') {
           const amount = Math.abs(transaction.amount || 0);
           const isPositive = (transaction.amount || 0) >= 0;
@@ -217,24 +207,22 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
           const mountainTimestamp = getCurrentMountainTimestamp();
           // If positive (cost to company/payment out): Debit BankTransaction (Withdrawal)
           // If negative (refund/money in): Credit BankTransaction (Deposit)
-          await base44.functions.invoke('SupabaseProxy', {
-            action: 'create',
-            table: 'BankTransaction',
-            data: {
-              bank_account_id: selectedAccount.id,
-              transaction_date: paymentDate,
-              description: `Payroll Adjustment - ${transaction.adjustment_reason || ''}`,
-              reference: reference,
-              debit_amount: isPositive ? amount : 0,
-              credit_amount: isPositive ? 0 : amount,
-              cleared: false,
-              source_type: isPositive ? 'payment' : 'deposit',
-              source_id: transaction.id,
-              gl_account: postingAccount,
-              created_date: mountainTimestamp,
-              updated_date: mountainTimestamp
-            }
+          const { error: bankTxError } = await supabase.from('BankTransaction').insert({
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+            bank_account_id: selectedAccount.id,
+            transaction_date: paymentDate,
+            description: `Payroll Adjustment - ${transaction.adjustment_reason || ''}`,
+            reference: reference,
+            debit_amount: isPositive ? amount : 0,
+            credit_amount: isPositive ? 0 : amount,
+            cleared: false,
+            source_type: isPositive ? 'payment' : 'deposit',
+            source_id: transaction.id,
+            gl_account: postingAccount,
+            created_date: mountainTimestamp,
+            updated_date: mountainTimestamp
           });
+          if (bankTxError) throw bankTxError;
         }
 
         if (transaction.transaction_type === 'Paycheque') {
@@ -486,15 +474,20 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
       }
 
       if (glTransactionsToInsert.length > 0) {
-        await base44.functions.invoke('SupabaseProxy', {
-          action: 'create',
-          table: 'GLTransaction',
-          data: glTransactionsToInsert
-        });
+        const glRowsWithIds = glTransactionsToInsert.map((row) => ({
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+          ...row
+        }));
+        const { error: glError } = await supabase.from('GLTransaction').insert(glRowsWithIds);
+        if (glError) throw glError;
       }
 
       // Recalculate bank balance
-      await base44.functions.invoke('calculateBankBalances', { bankAccountId: selectedAccount.id });
+      const { data: balanceData, error: balanceError } = await supabase.functions.invoke('autopro-calculateBankBalances', {
+        body: { bankAccountId: selectedAccount.id }
+      });
+      if (balanceError) throw balanceError;
+      if (balanceData?.error) throw new Error(balanceData.error);
 
       onSuccess();
       onClose();
@@ -512,8 +505,8 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-              <CheckCircle className="w-5 h-5 text-green-600" />
+            <div className="w-10 h-10 bg-green-100 dark:bg-green-900/40 rounded-full flex items-center justify-center">
+              <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
             </div>
             <div>
               <DialogTitle>Mark Transactions as Paid</DialogTitle>
@@ -525,8 +518,8 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
         </DialogHeader>
 
         <div className="space-y-4">
-          <div className="bg-slate-50 p-4 rounded-lg">
-            <div className="text-sm text-slate-600 mb-2">Transactions to mark as paid:</div>
+          <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg">
+            <div className="text-sm text-slate-600 dark:text-slate-400 mb-2">Transactions to mark as paid:</div>
             <ul className="space-y-2">
               {transactions.map((t) => (
                 <li key={t.id} className="flex justify-between items-center">
@@ -539,9 +532,9 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
                 </li>
               ))}
             </ul>
-            <div className="border-t mt-3 pt-3 flex justify-between items-center">
+            <div className="border-t dark:border-slate-700 mt-3 pt-3 flex justify-between items-center">
               <span className="font-semibold">Total Amount:</span>
-              <span className="text-lg font-bold text-green-600">
+              <span className="text-lg font-bold text-green-600 dark:text-green-400">
                 ${totalAmount.toFixed(2)}
               </span>
             </div>
@@ -564,7 +557,7 @@ export default function MarkPaidModal({ open, onClose, transactions = [], onSucc
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded dark:bg-red-900/20 dark:border-red-900/40 dark:text-red-400">
               {error}
             </div>
           )}

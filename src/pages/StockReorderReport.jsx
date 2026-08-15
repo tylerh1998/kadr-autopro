@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,16 +31,15 @@ export default function StockReorderReport() {
 
     setIsUpdating(true);
     try {
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'InventoryItem',
-        ids: Array.from(selectedItems),
-        data: {
+      const { error } = await supabase
+        .from('InventoryItem')
+        .update({
           stocked_item: false,
           minimum_quantity: 0,
           maximum_quantity: 0
-        }
-      });
+        })
+        .in('id', Array.from(selectedItems));
+      if (error) throw error;
 
       setSelectedItems(new Set());
       loadReportData();
@@ -60,25 +59,26 @@ export default function StockReorderReport() {
     setLoading(true);
     try {
       // Fetch all active inventory items that are stocked
-      const inventoryResponse = await base44.functions.invoke('SupabaseProxy', {
-        action: 'read',
-        table: 'InventoryItem',
-        query: { is_active: true, stocked_item: true }
-      });
-      const inventoryItems = inventoryResponse.data?.data || [];
-      
+      const { data: inventoryItemsData, error: inventoryError } = await supabase
+        .from('InventoryItem')
+        .select('*')
+        .eq('is_active', true)
+        .eq('stocked_item', true);
+      if (inventoryError) throw inventoryError;
+      const inventoryItems = inventoryItemsData || [];
+
       // Filter items that truly need reordering
       const itemsNeedingReorder = inventoryItems.filter(item => {
         const reorderQty = Math.max(0, (item.maximum_quantity || 0) - (item.quantity_on_hand || 0));
         return (item.quantity_on_hand || 0) < (item.minimum_quantity || 0) && reorderQty > 0;
       });
 
-      // Fetch all suppliers via SupabaseProxy
-      const suppliersResponse = await base44.functions.invoke('SupabaseProxy', {
-        action: 'read',
-        table: 'Supplier'
-      });
-      const suppliersData = suppliersResponse.data?.data || [];
+      // Fetch all suppliers
+      const { data: suppliersResponseData, error: suppliersError } = await supabase
+        .from('Supplier')
+        .select('*');
+      if (suppliersError) throw suppliersError;
+      const suppliersData = suppliersResponseData || [];
       setSuppliers(suppliersData);
 
       // Group items by supplier
@@ -129,7 +129,7 @@ export default function StockReorderReport() {
     return (
       <div className="min-h-screen text-foreground flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <Loader2 className="w-12 h-12 animate-spin text-blue-600 dark:text-blue-400 mx-auto mb-4" />
           <p className="text-muted-foreground">Loading stock reorder report...</p>
         </div>
       </div>
@@ -146,12 +146,24 @@ export default function StockReorderReport() {
           body {
             print-color-adjust: exact;
             -webkit-print-color-adjust: exact;
+            background-color: white !important;
+            color: #000 !important;
           }
           .print-area {
             padding: 20px;
           }
           .page-break {
             page-break-after: always;
+          }
+
+          /* Force light/black output regardless of app dark mode — this page is
+             built almost entirely on theme-aware CSS-variable tokens (bg-card,
+             text-foreground) which are not reset by the class-based overrides above */
+          .bg-background, .bg-card, .bg-muted, [class*="bg-slate-"] {
+            background-color: white !important;
+          }
+          .text-foreground, .text-muted-foreground, [class*="text-slate-"] {
+            color: #000 !important;
           }
         }
       `}</style>
@@ -184,7 +196,7 @@ export default function StockReorderReport() {
             {reportData.length === 0 ? (
               <Card>
                 <CardContent className="p-12 text-center">
-                  <AlertTriangle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+                  <AlertTriangle className="w-12 h-12 text-green-500 dark:text-green-400 mx-auto mb-4" />
                   <h2 className="text-xl font-semibold text-foreground mb-2">All Stock Levels Good</h2>
                   <p className="text-muted-foreground">No items are currently below their minimum quantity threshold.</p>
                 </CardContent>
@@ -195,7 +207,7 @@ export default function StockReorderReport() {
                   <Card key={supplierGroup.supplierId} className={index < reportData.length - 1 ? 'page-break' : ''}>
                     <CardHeader className="bg-muted/40">
                       <CardTitle className="text-lg flex items-center gap-2">
-                        <AlertTriangle className="w-5 h-5 text-orange-600" />
+                        <AlertTriangle className="w-5 h-5 text-orange-600 dark:text-orange-400" />
                         {supplierGroup.supplierName}
                         <span className="text-sm font-normal text-muted-foreground ml-2">
                           ({supplierGroup.items.length} {supplierGroup.items.length === 1 ? 'item' : 'items'})
@@ -212,7 +224,7 @@ export default function StockReorderReport() {
                             <TableHead className="text-center font-semibold">QOH</TableHead>
                             <TableHead className="text-center font-semibold">Min</TableHead>
                             <TableHead className="text-center font-semibold">Max</TableHead>
-                            <TableHead className="text-center font-semibold text-orange-700">Reorder Qty</TableHead>
+                            <TableHead className="text-center font-semibold text-orange-700 dark:text-orange-400">Reorder Qty</TableHead>
                             <TableHead className="text-right font-semibold">Cost</TableHead>
                             <TableHead className="text-right font-semibold">Total Cost</TableHead>
                           </TableRow>
@@ -233,12 +245,12 @@ export default function StockReorderReport() {
                               </TableCell>
                               <TableCell className="font-medium">{item.part_number}</TableCell>
                               <TableCell>{item.description || '-'}</TableCell>
-                              <TableCell className="text-center text-red-600 font-semibold">
+                              <TableCell className="text-center text-red-600 dark:text-red-400 font-semibold">
                                 {item.quantity_on_hand || 0}
                               </TableCell>
                               <TableCell className="text-center">{item.minimum_quantity || 0}</TableCell>
                               <TableCell className="text-center">{item.maximum_quantity || 0}</TableCell>
-                              <TableCell className="text-center font-bold text-orange-700">
+                              <TableCell className="text-center font-bold text-orange-700 dark:text-orange-400">
                                 {item.reorder_qty}
                               </TableCell>
                               <TableCell className="text-right">
@@ -277,8 +289,8 @@ export default function StockReorderReport() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm text-muted-foreground">Estimated Total Reorder Cost</p>
-                        <p className="text-2xl font-bold text-blue-700">
-                          ${reportData.reduce((sum, group) => 
+                        <p className="text-2xl font-bold text-blue-700 dark:text-blue-400">
+                          ${reportData.reduce((sum, group) =>
                             sum + group.items.reduce((itemSum, item) => 
                               itemSum + ((item.cost || 0) * item.reorder_qty), 0
                             ), 0

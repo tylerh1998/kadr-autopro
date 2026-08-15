@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -38,7 +38,7 @@ function NoteCell({ cheque, onUpdate }) {
                 }
             }}
             autoFocus
-            className="h-7 text-xs bg-white"
+            className="h-7 text-xs bg-white dark:bg-slate-800"
             onClick={(e) => e.stopPropagation()}
         />
     );
@@ -46,14 +46,14 @@ function NoteCell({ cheque, onUpdate }) {
 
   return (
     <div 
-        className="cursor-pointer hover:bg-slate-200 p-1 rounded min-h-[20px] transition-colors border border-transparent hover:border-slate-300"
+        className="cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 p-1 rounded min-h-[20px] transition-colors border border-transparent hover:border-slate-300 dark:hover:border-slate-600"
         onClick={(e) => {
             e.stopPropagation();
             setIsEditing(true);
         }}
         title="Click to edit note"
     >
-        {cheque.notes || <span className="text-slate-400 italic text-[10px]">Add note...</span>}
+        {cheque.notes || <span className="text-slate-400 dark:text-slate-500 italic text-[10px]">Add note...</span>}
     </div>
   );
 }
@@ -73,25 +73,15 @@ export default function IssuedChequesTable() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [paymentsResponse, suppliersResponse, bankAccountsData] = await Promise.all([
-        base44.functions.invoke('SupabaseProxy', {
-          action: 'read',
-          table: 'SupplierPayment',
-          match: { payment_method: 'Cheque' }
-        }),
-        base44.functions.invoke('SupabaseProxy', {
-          action: 'read',
-          table: 'Supplier'
-        }),
-        base44.functions.invoke('SupabaseProxy', {
-          action: 'list',
-          table: 'BankAccount'
-        })
+      const [paymentsResponse, suppliersResponse, bankAccountsResponse] = await Promise.all([
+        supabase.from('SupplierPayment').select('*').eq('payment_method', 'Cheque'),
+        supabase.from('Supplier').select('*'),
+        supabase.from('BankAccount').select('*')
       ]);
 
-      const paymentsData = paymentsResponse.data?.data || [];
-      const suppliersData = suppliersResponse.data?.data || [];
-      const bankAccountsList = bankAccountsData.data?.data || [];
+      const paymentsData = paymentsResponse.data || [];
+      const suppliersData = suppliersResponse.data || [];
+      const bankAccountsList = bankAccountsResponse.data || [];
 
       // Sort by cheque number (numeric if possible, otherwise alphabetic)
       const sortedPayments = paymentsData.sort((a, b) => {
@@ -132,12 +122,7 @@ export default function IssuedChequesTable() {
     // Optimistic UI update
     setCheques(prev => prev.map(c => c.id === id ? { ...c, notes: newNote } : c));
     try {
-        await base44.functions.invoke('SupabaseProxy', {
-          action: 'update',
-          table: 'SupplierPayment',
-          id,
-          data: { notes: newNote }
-        });
+        await supabase.from('SupplierPayment').update({ notes: newNote }).eq('id', id);
     } catch (error) {
         console.error("Failed to update note:", error);
         // Could reload data or revert optimistic update here if needed
@@ -177,7 +162,7 @@ export default function IssuedChequesTable() {
       <style>{`
         @media print {
           body * { visibility: hidden; }
-          .print-area, .print-area * { visibility: visible; }
+          .print-area, .print-area * { visibility: visible; color: #000 !important; background: none !important; }
           .print-area { position: absolute; left: 0; top: 0; width: 100%; padding: 2rem; }
           .no-print { display: none !important; }
           .print-title { display: block !important; font-size: 16px; font-weight: bold; margin-bottom: 1rem; }
@@ -202,7 +187,7 @@ export default function IssuedChequesTable() {
       <Card className="no-print">
         <CardContent className="p-6">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500 w-4 h-4" />
             <Input
               placeholder="Search by cheque number, supplier, amount, or notes..."
               value={searchTerm}
@@ -219,10 +204,10 @@ export default function IssuedChequesTable() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-600">Total Cheques</p>
-                <p className="text-2xl font-bold text-slate-900">{filteredCheques.length}</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Total Cheques</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{filteredCheques.length}</p>
               </div>
-              <FileText className="w-8 h-8 text-blue-600" />
+              <FileText className="w-8 h-8 text-blue-600 dark:text-blue-400" />
             </div>
           </CardContent>
         </Card>
@@ -231,10 +216,10 @@ export default function IssuedChequesTable() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-600">Total Amount</p>
-                <p className="text-2xl font-bold text-slate-900">${totalAmount.toFixed(2)}</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Total Amount</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">${totalAmount.toFixed(2)}</p>
               </div>
-              <Calendar className="w-8 h-8 text-green-600" />
+              <Calendar className="w-8 h-8 text-green-600 dark:text-green-400" />
             </div>
           </CardContent>
         </Card>
@@ -243,14 +228,14 @@ export default function IssuedChequesTable() {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-slate-600">Last Cheque Date</p>
-                <p className="text-lg font-semibold text-slate-900">
-                  {filteredCheques.length > 0 
+                <p className="text-sm text-slate-600 dark:text-slate-400">Last Cheque Date</p>
+                <p className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+                  {filteredCheques.length > 0
                     ? format(new Date(filteredCheques[0].payment_date), 'MMM d, yyyy')
                     : 'N/A'}
                 </p>
               </div>
-              <Calendar className="w-8 h-8 text-purple-600" />
+              <Calendar className="w-8 h-8 text-purple-600 dark:text-purple-400" />
             </div>
           </CardContent>
         </Card>
@@ -272,50 +257,50 @@ export default function IssuedChequesTable() {
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 border-b">
+                <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
                   <tr>
-                    <th className="text-left p-3 font-semibold text-slate-700">Cheque #</th>
-                    <th className="text-left p-3 font-semibold text-slate-700">Date</th>
-                    <th className="text-left p-3 font-semibold text-slate-700">Payable To</th>
-                    <th className="text-right p-3 font-semibold text-slate-700">Amount</th>
-                    <th className="text-left p-3 font-semibold text-slate-700">Source</th>
-                    <th className="text-left p-3 font-semibold text-slate-700">Notes</th>
-                    <th className="text-center p-3 font-semibold text-slate-700 no-print">Actions</th>
+                    <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Cheque #</th>
+                    <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Date</th>
+                    <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Payable To</th>
+                    <th className="text-right p-3 font-semibold text-slate-700 dark:text-slate-300">Amount</th>
+                    <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Source</th>
+                    <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Notes</th>
+                    <th className="text-center p-3 font-semibold text-slate-700 dark:text-slate-300 no-print">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     Array(5).fill(0).map((_, i) => (
-                      <tr key={i} className="border-b animate-pulse">
-                        <td className="p-3"><div className="h-4 bg-slate-200 rounded w-20"></div></td>
-                        <td className="p-3"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
-                        <td className="p-3"><div className="h-4 bg-slate-200 rounded w-32"></div></td>
-                        <td className="p-3"><div className="h-4 bg-slate-200 rounded w-20"></div></td>
-                        <td className="p-3"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
-                        <td className="p-3"><div className="h-4 bg-slate-200 rounded w-40"></div></td>
-                        <td className="p-3"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
+                      <tr key={i} className="border-b dark:border-slate-700 animate-pulse">
+                        <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20"></div></td>
+                        <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-24"></div></td>
+                        <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-32"></div></td>
+                        <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20"></div></td>
+                        <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-24"></div></td>
+                        <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-40"></div></td>
+                        <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16"></div></td>
                       </tr>
                     ))
                   ) : filteredCheques.length > 0 ? (
                     filteredCheques.map((cheque) => (
-                      <tr key={cheque.id} className="border-b hover:bg-slate-50">
+                      <tr key={cheque.id} className="border-b dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/60">
                         <td className="p-3">
-                          <span className="font-mono font-semibold text-slate-900">
+                          <span className="font-mono font-semibold text-slate-900 dark:text-slate-100">
                             {cheque.cheque_number}
                           </span>
                         </td>
-                        <td className="p-3">
+                        <td className="p-3 dark:text-slate-300">
                           {format(new Date(cheque.payment_date), 'MMM d, yyyy')}
                         </td>
                         <td className="p-3">
                           <button
                             onClick={() => handleViewSupplier(cheque.supplier_id)}
-                            className="font-medium text-slate-900 hover:text-blue-700 hover:underline"
+                            className="font-medium text-slate-900 dark:text-slate-100 hover:text-blue-700 dark:hover:text-blue-400 hover:underline"
                           >
                             {getSupplierName(cheque.supplier_id)}
                           </button>
                         </td>
-                        <td className="p-3 text-right font-semibold text-slate-900">
+                        <td className="p-3 text-right font-semibold text-slate-900 dark:text-slate-100">
                           ${cheque.amount.toFixed(2)}
                         </td>
                         <td className="p-3">
@@ -323,7 +308,7 @@ export default function IssuedChequesTable() {
                             {getBankAccountName(cheque.source)}
                           </Badge>
                         </td>
-                        <td className="p-3 text-slate-600 text-xs">
+                        <td className="p-3 text-slate-600 dark:text-slate-400 text-xs">
                           <NoteCell 
                             cheque={cheque}
                             onUpdate={handleUpdateNote}
@@ -346,21 +331,21 @@ export default function IssuedChequesTable() {
                   ) : (
                     <tr>
                       <td colSpan="7" className="p-12 text-center">
-                        <div className="text-slate-400 mb-4">
+                        <div className="text-slate-400 dark:text-slate-500 mb-4">
                           <FileText className="w-12 h-12 mx-auto" />
                         </div>
-                        <h3 className="text-lg font-semibold text-slate-900 mb-2">No Cheques Found</h3>
-                        <p className="text-slate-600">
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">No Cheques Found</h3>
+                        <p className="text-slate-600 dark:text-slate-400">
                           {searchTerm ? 'No cheques match your search criteria.' : 'No cheques have been issued yet.'}
                         </p>
                       </td>
                     </tr>
                   )}
                 </tbody>
-                <tfoot className="bg-slate-100 font-bold">
+                <tfoot className="bg-slate-100 dark:bg-slate-800 font-bold">
                   <tr>
-                    <td colSpan="3" className="p-3 text-right">Total:</td>
-                    <td className="p-3 text-right text-blue-700">${totalAmount.toFixed(2)}</td>
+                    <td colSpan="3" className="p-3 text-right dark:text-slate-100">Total:</td>
+                    <td className="p-3 text-right text-blue-700 dark:text-blue-400">${totalAmount.toFixed(2)}</td>
                     <td colSpan="3"></td>
                   </tr>
                 </tfoot>

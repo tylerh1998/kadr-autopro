@@ -6,11 +6,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Search, User, Car, Phone, Mail, Plus } from "lucide-react";
-import { SystemSettings } from "@/entities/all";
-import { base44 } from "@/api/base44Client";
 import CustomerForm from "../customers/CustomerForm";
 import VehicleForm from "../vehicles/VehicleForm";
 import { format } from "date-fns";
+import { supabase } from "@/lib/supabase";
 
 export default function NewWorkOrderModal({
   open,
@@ -36,11 +35,9 @@ export default function NewWorkOrderModal({
       const fetchData = async () => {
         setLoading(true);
         try {
-          const vehiclesResponse = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'Vehicle'
-          });
-          setLocalVehicles(vehiclesResponse.data?.data || []);
+          const { data, error } = await supabase.from('Vehicle').select('*');
+          if (error) throw error;
+          setLocalVehicles(data || []);
           
           // Do not load customers initially, let the user search
           setLocalCustomers([]);
@@ -69,12 +66,16 @@ export default function NewWorkOrderModal({
       const searchCustomers = async () => {
         setLoading(true);
         try {
-          const response = await base44.functions.invoke('searchCustomers', { 
-            searchTerm: activeSearchTerm,
-            includeInactive 
+          const { data, error } = await supabase.rpc('search_customers_ranked', {
+            p_search_term: activeSearchTerm,
+            p_include_inactive: includeInactive,
+            p_limit: 50,
+            p_offset: 0
           });
-          if (response.data.success) {
-            setLocalCustomers(response.data.customers || []);
+          if (!error && data) {
+            setLocalCustomers(data.map(({ total_count, match_rank, ...item }) => item) || []);
+          } else if (error) {
+            console.error("Supabase RPC error:", error);
           }
         } catch (error) {
           console.error("Failed to search customers:", error);
@@ -115,14 +116,13 @@ export default function NewWorkOrderModal({
     
     // Check for open work orders or estimates for this vehicle
     try {
-      const response = await base44.functions.invoke('SupabaseProxy', {
-        action: 'read',
-        table: 'WorkOrder',
-        match: { vehicle_id: vehicle.id }
-      });
+      const { data, error } = await supabase
+        .from('WorkOrder')
+        .select('*')
+        .eq('vehicle_id', vehicle.id)
+        .in('stage', ['estimate', 'work_order']);
       
-      const openWOs = response.data?.data?.filter(wo => wo.stage === 'estimate' || wo.stage === 'work_order') || [];
-      if (openWOs && openWOs.length > 0) {
+      if (!error && data && data.length > 0) {
         setHasOpenWO(true);
       }
     } catch (error) {
@@ -141,20 +141,17 @@ export default function NewWorkOrderModal({
 
   const generateNumbers = async (stage) => {
     // Fetch next RO number from SystemSettings
-    const settings = await SystemSettings.list();
+    const { data: settings, error: settingsError } = await supabase.from('SystemSettings').select('*');
+    if (settingsError) console.error('Error loading system settings:', settingsError);
     const systemSettings = settings && settings.length > 0 ? settings[0] : null;
-    
+
     const nextRo = systemSettings?.next_ro_number || 1001;
-    
+
     // Increment and save back to SystemSettings
     if (systemSettings) {
-      await SystemSettings.update(systemSettings.id, {
-        next_ro_number: nextRo + 1
-      });
+      await supabase.from('SystemSettings').update({ next_ro_number: nextRo + 1 }).eq('id', systemSettings.id);
     } else {
-      await SystemSettings.create({
-        next_ro_number: nextRo + 1
-      });
+      await supabase.from('SystemSettings').insert([{ id: crypto.randomUUID(), next_ro_number: nextRo + 1 }]);
     }
 
     const numbers = {
@@ -185,20 +182,10 @@ export default function NewWorkOrderModal({
 
     // Reactivate customer or vehicle if they are inactive
     if (selectedCustomer.is_active === false) {
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'Customer',
-        id: selectedCustomer.id,
-        data: { is_active: true }
-      });
+      await supabase.from('Customer').update({ is_active: true }).eq('id', selectedCustomer.id);
     }
     if (selectedVehicle.is_active === false) {
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'Vehicle',
-        id: selectedVehicle.id,
-        data: { is_active: true }
-      });
+      await supabase.from('Vehicle').update({ is_active: true }).eq('id', selectedVehicle.id);
     }
 
     const numbers = await generateNumbers(stage);
@@ -217,10 +204,10 @@ export default function NewWorkOrderModal({
       internal_notes: "",
       labor_rate: 120,
       total_amount: 0,
-      line_items: "[]",
+      line_items: [],
       notes_to_customer: "",
       amount_paid: 0,
-      payments: "[]",
+      payments: [],
       approval: 'pending',
       est_date: stage === 'estimate' ? format(new Date(), 'yyyy-MM-dd') : null,
       wo_date: stage === 'work_order' ? format(new Date(), 'yyyy-MM-dd') : null,
@@ -250,12 +237,13 @@ export default function NewWorkOrderModal({
 
   const handleNewCustomerSubmit = async (customerData) => {
     try {
-      const response = await base44.functions.invoke('SupabaseProxy', {
-        action: 'create',
-        table: 'Customer',
-        data: customerData
-      });
-      const newCustomer = response.data?.data?.[0];
+      const customerWithId = {
+        id: crypto.randomUUID(),
+        ...customerData
+      };
+      const { data, error } = await supabase.from('Customer').insert(customerWithId).select();
+      if (error) throw error;
+      const newCustomer = data?.[0];
       if (!newCustomer) throw new Error("Failed to create customer");
 
       setLocalCustomers(prev => [newCustomer, ...prev]);
@@ -269,12 +257,13 @@ export default function NewWorkOrderModal({
 
   const handleNewVehicleSubmit = async (vehicleData) => {
     try {
-      const response = await base44.functions.invoke('SupabaseProxy', {
-        action: 'create',
-        table: 'Vehicle',
-        data: vehicleData
-      });
-      const newVehicle = response.data?.data?.[0];
+      const vehicleWithId = {
+        id: crypto.randomUUID(),
+        ...vehicleData
+      };
+      const { data, error } = await supabase.from('Vehicle').insert(vehicleWithId).select();
+      if (error) throw error;
+      const newVehicle = data?.[0];
       if (!newVehicle) throw new Error("Failed to create vehicle");
       
       setLocalVehicles(prev => [newVehicle, ...prev]);
@@ -337,11 +326,11 @@ export default function NewWorkOrderModal({
             </DialogTitle>
           </DialogHeader>
           <div className="flex items-center gap-4 my-6 flex-shrink-0">
-              <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${step >= 1 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500'}`}>
+              <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${step >= 1 ? 'bg-blue-100 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}`}>
                   <User className="w-4 h-4" />1. Select Customer
               </div>
-              <div className="flex-1 h-px bg-gray-200"></div>
-              <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${step >= 2 ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-500'}`}>
+              <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+              <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-sm ${step >= 2 ? 'bg-blue-100 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}`}>
                   <Car className="w-4 h-4" />2. Select Vehicle
               </div>
           </div>
@@ -350,13 +339,13 @@ export default function NewWorkOrderModal({
           {step === 1 && (
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-slate-900">Select Customer</h3>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Select Customer</h3>
                 <Button variant="outline" onClick={() => setShowCustomerForm(true)}>
                   <Plus className="w-4 h-4 mr-2" /> New Customer
                 </Button>
               </div>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500 w-4 h-4" />
                 <Input 
                   ref={searchInputRef} 
                   placeholder="Search customers (Press Enter)..." 
@@ -372,13 +361,13 @@ export default function NewWorkOrderModal({
               </div>
               
               {!activeSearchTerm && !loading && (
-                <div className="text-center p-8 text-slate-500 bg-slate-50 rounded-lg border border-dashed border-slate-200 mt-4">
-                  <Search className="w-8 h-8 mx-auto mb-2 text-slate-400" />
+                <div className="text-center p-8 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 rounded-lg border border-dashed border-slate-200 dark:border-slate-700 mt-4">
+                  <Search className="w-8 h-8 mx-auto mb-2 text-slate-400 dark:text-slate-500" />
                   <p>Search to select a customer</p>
                 </div>
               )}
               {activeSearchTerm && filteredCustomers.length === 0 && !loading && (
-                <div className="text-center p-8 text-slate-500 bg-slate-50 rounded-lg border border-dashed border-slate-200 mt-4">
+                <div className="text-center p-8 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 rounded-lg border border-dashed border-slate-200 dark:border-slate-700 mt-4">
                   <p>No customers found matching "{activeSearchTerm}"</p>
                 </div>
               )}
@@ -400,10 +389,10 @@ export default function NewWorkOrderModal({
                     <CardContent className="p-4">
                         <h4 className="font-semibold">{getCustomerDisplayName(customer)}</h4>
                         {customer.org_name && customer.first_name && (
-                          <p className="text-xs text-slate-500">Contact: {customer.first_name} {customer.last_name}</p>
+                          <p className="text-xs text-slate-500 dark:text-slate-400">Contact: {customer.first_name} {customer.last_name}</p>
                         )}
-                        <p className="text-sm text-slate-500 flex items-center gap-1"><Phone className="w-3 h-3"/>{customer.phone}</p>
-                        <p className="text-sm text-slate-500 flex items-center gap-1"><Mail className="w-3 h-3"/>{customer.email}</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1"><Phone className="w-3 h-3"/>{customer.phone}</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400 flex items-center gap-1"><Mail className="w-3 h-3"/>{customer.email}</p>
                     </CardContent>
                   </Card>
                 ))}
@@ -415,8 +404,8 @@ export default function NewWorkOrderModal({
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-lg font-semibold text-slate-900">Select Vehicle</h3>
-                  <p className="text-sm text-slate-600">Customer: {getCustomerDisplayName(selectedCustomer)}</p>
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Select Vehicle</h3>
+                  <p className="text-sm text-slate-600 dark:text-slate-300">Customer: {getCustomerDisplayName(selectedCustomer)}</p>
                 </div>
                 <div className="flex gap-2">
                     <Button variant="outline" onClick={goBack}>Change Customer</Button>
@@ -427,7 +416,7 @@ export default function NewWorkOrderModal({
                 {customerVehicles.map((vehicle) => (
                   <Card 
                     key={vehicle.id} 
-                    className={`cursor-pointer transition-all border-2 outline-none focus:ring-2 focus:ring-blue-500 ${selectedVehicle?.id === vehicle.id ? 'border-blue-500 bg-blue-50' : 'hover:border-blue-200'}`} 
+                    className={`cursor-pointer transition-all border-2 outline-none focus:ring-2 focus:ring-blue-500 ${selectedVehicle?.id === vehicle.id ? 'border-blue-500 dark:border-blue-600 bg-blue-50 dark:bg-blue-950/40' : 'hover:border-blue-200 dark:hover:border-blue-800'}`}
                     onClick={() => handleVehicleSelect(vehicle)}
                     tabIndex={0}
                     onKeyDown={(e) => {
@@ -439,9 +428,9 @@ export default function NewWorkOrderModal({
                   >
                     <CardContent className="p-4">
                       <h4 className="font-semibold">{vehicle.year} {vehicle.make} {vehicle.model}</h4>
-                      <p className="text-sm text-slate-500">VIN: {vehicle.vin}</p>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">VIN: {vehicle.vin}</p>
                       {vehicle.unit_number && (
-                        <p className="text-sm text-slate-500">Unit #: {vehicle.unit_number}</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">Unit #: {vehicle.unit_number}</p>
                       )}
                     </CardContent>
                   </Card>
@@ -456,7 +445,7 @@ export default function NewWorkOrderModal({
             
             <div>
               {hasOpenWO && (
-                <div className="bg-orange-100 text-orange-700 px-3 py-1 rounded-md text-sm font-normal flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
+                <div className="bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-300 px-3 py-1 rounded-md text-sm font-normal flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
                   <span className="font-semibold">⚠</span>
                   A work order or estimate is already open for this vehicle.
                 </div>

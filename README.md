@@ -1,1 +1,2 @@
-# Base44 App
+# Read master\_context.md under Plans and Context directory.
+

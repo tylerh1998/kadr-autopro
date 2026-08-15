@@ -24,21 +24,27 @@ function formatDisplayValue(value) {
   return String(value);
 }
 
-function getRowState(currentRow, previousRow, columns) {
+function getRowState(currentRow, previousRow, columns, extraTrackedKeys = []) {
   if (currentRow && !previousRow) return 'added';
   if (!currentRow && previousRow) return 'deleted';
-  const hasChanges = columns.some((column) => {
+  
+  const hasColumnChanges = columns.some((column) => {
     const previousValue = column.getValue ? column.getValue(previousRow) : previousRow?.[column.key];
     const currentValue = column.getValue ? column.getValue(currentRow) : currentRow?.[column.key];
     return !valuesEqual(previousValue, currentValue);
   });
-  return hasChanges ? 'changed' : 'unchanged';
+  if (hasColumnChanges) return 'changed';
+
+  const hasExtraChanges = extraTrackedKeys.some((key) => {
+    return !valuesEqual(previousRow?.[key], currentRow?.[key]);
+  });
+  return hasExtraChanges ? 'changed' : 'unchanged';
 }
 
 function getRowClasses(rowState) {
-  if (rowState === 'added') return 'bg-emerald-50 hover:bg-emerald-50';
-  if (rowState === 'changed') return 'bg-amber-50 hover:bg-amber-50';
-  if (rowState === 'deleted') return 'bg-rose-50 hover:bg-rose-50';
+  if (rowState === 'added') return 'bg-emerald-50 hover:bg-emerald-50 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/40 text-emerald-900 dark:text-emerald-100';
+  if (rowState === 'changed') return 'bg-amber-50 hover:bg-amber-50 dark:bg-amber-900/30 dark:hover:bg-amber-900/40 text-amber-900 dark:text-amber-100';
+  if (rowState === 'deleted') return 'bg-rose-50 hover:bg-rose-50 dark:bg-rose-900/30 dark:hover:bg-rose-900/40 text-rose-900 dark:text-rose-100';
   return '';
 }
 
@@ -50,6 +56,7 @@ export default function HistoryComparisonTable({
   getRowKey,
   showAllCurrentRows = false,
   showLegend = false,
+  extraTrackedKeys = [],
 }) {
   const displayRows = useMemo(() => {
     const previousMap = new Map();
@@ -67,7 +74,7 @@ export default function HistoryComparisonTable({
         rowKey,
         currentRow,
         previousRow,
-        rowState: getRowState(currentRow, previousRow, columns),
+        rowState: getRowState(currentRow, previousRow, columns, extraTrackedKeys),
       };
     });
 
@@ -82,19 +89,19 @@ export default function HistoryComparisonTable({
 
     const rows = [...activeRows, ...removedRows];
     return showAllCurrentRows ? rows : rows.filter((row) => row.rowState !== 'unchanged');
-  }, [currentRows, previousRows, getRowKey, columns, showAllCurrentRows]);
+  }, [currentRows, previousRows, getRowKey, columns, showAllCurrentRows, extraTrackedKeys]);
 
   if (!displayRows.length) return null;
 
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">{title}</h3>
+        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 uppercase tracking-wide">{title}</h3>
         {showLegend && (
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">Added</Badge>
-            <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">Changed</Badge>
-            <Badge variant="outline" className="border-rose-200 bg-rose-50 text-rose-700">Deleted</Badge>
+            <Badge variant="outline" className="border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400">Added</Badge>
+            <Badge variant="outline" className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400">Changed</Badge>
+            <Badge variant="outline" className="border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400">Deleted</Badge>
           </div>
         )}
       </div>
@@ -124,7 +131,7 @@ export default function HistoryComparisonTable({
                   return (
                     <TableCell
                       key={column.key}
-                      className={`align-top whitespace-pre-wrap break-words ${rowState === 'deleted' ? 'line-through text-slate-500' : ''} ${column.cellClassName || ''}`}
+                      className={`align-top whitespace-pre-wrap break-words ${rowState === 'deleted' ? 'line-through text-slate-500 dark:text-slate-500' : ''} ${column.cellClassName || ''}`}
                     >
                       {displayValue}
                     </TableCell>

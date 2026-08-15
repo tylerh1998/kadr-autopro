@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -74,10 +74,12 @@ export default function FinancialDashboard() {
   const loadDashboardData = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('getFinancialDashboardData', {
-        dateRange: {
-          from: appliedFromDate,
-          to: appliedToDate
+      const response = await supabase.functions.invoke('autopro-getFinancialDashboardData', {
+        body: {
+          dateRange: {
+            from: appliedFromDate,
+            to: appliedToDate
+          }
         }
       });
 
@@ -105,8 +107,8 @@ export default function FinancialDashboard() {
 
     setThreeMonthPLLoading(true);
     try {
-      const response = await base44.functions.invoke('getThreeMonthPLReport', {
-        endDate: appliedToDate
+      const response = await supabase.functions.invoke('autopro-getThreeMonthPLReport', {
+        body: { endDate: appliedToDate }
       });
 
       if (response.data.success) {
@@ -136,8 +138,8 @@ export default function FinancialDashboard() {
 
     setThreeMonthAPLoading(true);
     try {
-      const response = await base44.functions.invoke('getThreeMonthAPReport', {
-        endDate: appliedToDate
+      const response = await supabase.functions.invoke('autopro-getThreeMonthAPReport', {
+        body: { endDate: appliedToDate }
       });
 
       if (response.data.success) {
@@ -253,7 +255,7 @@ export default function FinancialDashboard() {
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
               <RefreshCw className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-              <p className="text-slate-600">Loading financial dashboard...</p>
+              <p className="text-slate-600 dark:text-slate-400">Loading financial dashboard...</p>
             </div>
           </div>
         </div>
@@ -266,7 +268,7 @@ export default function FinancialDashboard() {
       <div className="p-6 min-h-screen">
         <div className="max-w-7xl mx-auto">
           <div className="flex items-center justify-center h-64">
-            <p className="text-slate-600">No data available</p>
+            <p className="text-slate-600 dark:text-slate-400">No data available</p>
           </div>
         </div>
       </div>
@@ -306,6 +308,12 @@ export default function FinancialDashboard() {
         >
           Chart of Accounts
         </button>
+        <button 
+          className={`px-4 py-2 font-medium text-sm transition-colors rounded-md text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-slate-800`}
+          onClick={() => navigate('/GLJournal')}
+        >
+          GL Journal
+        </button>
       </div>
     </div>
   );
@@ -337,33 +345,30 @@ export default function FinancialDashboard() {
             margin-bottom: 20px;
             text-align: center;
           }
+
+          /* Force light/black output regardless of app dark mode */
+          body { background-color: white !important; }
+          [class*="bg-slate-"], [class*="bg-white"], .bg-card, .bg-background {
+            background-color: white !important;
+          }
+          .text-slate-900, .text-slate-700, .text-slate-600, .text-slate-500, .text-slate-400,
+          .text-card-foreground, .text-foreground, .text-muted-foreground {
+            color: #000 !important;
+          }
+          .text-yellow-600, .text-yellow-700 {
+            color: #a16207 !important;
+          }
+          .text-red-600, .text-red-700 {
+            color: #dc2626 !important;
+          }
+          .text-green-600, .text-green-700 {
+            color: #16a34a !important;
+          }
         }
       `}</style>
 
       <div className="p-6 min-h-screen">
         <div className="max-w-7xl mx-auto space-y-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 no-print">
-            <div className="flex items-center gap-4">
-              <Button variant="outline" onClick={() => navigate(-1)}>
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back
-              </Button>
-              <div>
-                <h1 className="text-3xl font-bold text-slate-900">Financial Dashboard</h1>
-                <p className="text-slate-600 mt-1">Comprehensive overview of financial metrics</p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <Button onClick={handleRefresh} variant="outline" disabled={loading || threeMonthPLLoading}>
-                <RefreshCw className={`w-4 h-4 mr-2 ${(loading || threeMonthPLLoading) ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
-              <Button onClick={handlePrint} variant="outline">
-                <Printer className="w-4 h-4 mr-2" />
-                Print
-              </Button>
-            </div>
-          </div>
 
           <Card className="no-print">
             <CardContent className="p-6 space-y-4">
@@ -418,7 +423,8 @@ export default function FinancialDashboard() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap justify-between items-center gap-4">
+                <div className="flex flex-wrap gap-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -515,8 +521,19 @@ export default function FinancialDashboard() {
                   Last Year
                 </Button>
               </div>
-            </CardContent>
-          </Card>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handleRefresh} className="whitespace-nowrap">
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Refresh
+                </Button>
+                <Button variant="outline" onClick={handlePrint} className="whitespace-nowrap">
+                  <Printer className="w-4 h-4 mr-2" />
+                  Print
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
           <div className="print-area">
             <div className="print-title" style={{ display: 'none' }}>

@@ -1,29 +1,30 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import CustomerForm from './CustomerForm';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function NewCustomerModal({ open, onClose, onCustomerCreated }) {
-  
+  const { employee: user } = useAuth();
+
   const handleSubmit = async (customerData) => {
     try {
-      const user = await base44.auth.me();
       const payload = {
         ...customerData,
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
         created_date: new Date().toISOString(),
         created_by: user?.email || '',
       };
-      const response = await base44.functions.invoke('SupabaseProxy', { 
-        action: 'create', 
-        table: 'Customer',
-        data: payload 
-      });
-      
-      const newCustomer = response.data?.data?.[0];
+      const { data: newCustomer, error } = await supabase
+        .from('Customer')
+        .insert(payload)
+        .select()
+        .single();
+      if (error) throw error;
       if (!newCustomer) {
           throw new Error('Failed to create customer: No data returned');
       }
-      
+
       alert('Customer created successfully!');
       if (onCustomerCreated) {
         onCustomerCreated(newCustomer);

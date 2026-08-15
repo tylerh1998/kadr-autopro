@@ -1,9 +1,10 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
-import { Clock, MapPin, Wrench } from 'lucide-react';
+import { Clock, MapPin, Wrench, Plus } from 'lucide-react';
 
-export default function CellAppointmentsModal({ open, onClose, appointments, slotInfo, onSelectAppointment }) {
+export default function CellAppointmentsModal({ open, onClose, appointments, slotInfo, onSelectAppointment, onNewAppointment }) {
   if (!appointments || appointments.length === 0) return null;
 
   const getCustomerDisplayName = (customer) => {
@@ -21,11 +22,23 @@ export default function CellAppointmentsModal({ open, onClose, appointments, slo
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>
-            Appointments at {slotTimeDisplay}
-            {slotInfo?.bay && ` - ${slotInfo.bay}`}
-            {slotInfo?.techName && ` - ${slotInfo.techName}`}
-          </DialogTitle>
+          <div className="flex items-center justify-between pr-6">
+            <DialogTitle>
+              Appointments at {slotTimeDisplay}
+              {slotInfo?.bay && ` - ${slotInfo.bay}`}
+              {slotInfo?.techName && ` - ${slotInfo.techName}`}
+            </DialogTitle>
+            {onNewAppointment && (
+              <Button 
+                onClick={onNewAppointment}
+                size="sm"
+                className="bg-black hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-slate-100 dark:text-black font-medium shadow-sm transition-all"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                New Appointment
+              </Button>
+            )}
+          </div>
         </DialogHeader>
         
         <div className="space-y-3 max-h-[60vh] overflow-y-auto">
@@ -41,28 +54,28 @@ export default function CellAppointmentsModal({ open, onClose, appointments, slo
                   onSelectAppointment(appointment);
                   onClose();
                 }}
-                className="w-full p-4 border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 transition-all text-left"
+                className="w-full p-4 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-700 transition-all text-left bg-white dark:bg-slate-900"
               >
                 <div className="space-y-2">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="font-semibold text-slate-900 text-lg">
+                      <div className="font-semibold text-slate-900 dark:text-slate-100 text-lg">
                         {customerName}
                       </div>
-                      {appointment.title && appointment.title !== customerName && (
-                        <div className="text-sm text-slate-600 mt-1">
-                          {appointment.title}
+                      {appointment.notes && !appointment.customer && (
+                        <div className="text-sm text-slate-600 dark:text-slate-400 mt-1">
+                          {appointment.notes.length > 60 ? `${appointment.notes.substring(0, 57)}...` : appointment.notes}
                         </div>
                       )}
                     </div>
-                    <div className="ml-4 px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700">
+                    <div className="ml-4 px-3 py-1 rounded-full text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border dark:border-slate-700">
                       {appointment.status}
                     </div>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-3 text-sm text-slate-600">
+                  <div className="grid grid-cols-2 gap-3 text-sm text-slate-600 dark:text-slate-400">
                     <div className="flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-slate-400" />
+                      <Clock className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                       <span>
                         {format(appointment.start, 'h:mm a')} - {format(appointment.end, 'h:mm a')}
                       </span>
@@ -70,7 +83,7 @@ export default function CellAppointmentsModal({ open, onClose, appointments, slo
                     
                     {appointment.tech && (
                       <div className="flex items-center gap-2">
-                        <Wrench className="w-4 h-4 text-slate-400" />
+                        <Wrench className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                         <span>
                           {appointment.tech.first_name} {appointment.tech.last_name}
                         </span>
@@ -79,14 +92,14 @@ export default function CellAppointmentsModal({ open, onClose, appointments, slo
                     
                     {appointment.bayId && (
                       <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-slate-400" />
+                        <MapPin className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                         <span>{appointment.bayId}</span>
                       </div>
                     )}
                   </div>
                   
                   {appointment.notes && (
-                    <div className="text-sm text-slate-500 border-t border-slate-100 pt-2 mt-2">
+                    <div className="text-sm text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-2 mt-2">
                       {appointment.notes.length > 100 
                         ? `${appointment.notes.substring(0, 100)}...` 
                         : appointment.notes

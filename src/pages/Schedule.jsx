@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Appointment, Employee } from '@/entities/all';
-import { getworkorderlist } from '@/functions/getworkorderlist';
-import { base44 } from '@/api/base44Client';
+import { getworkorderlist } from '@/api/workOrderFunctions';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 import AppointmentForm from '../components/appointments/AppointmentForm';
 import CustomCalendar from '../components/appointments/CustomCalendar';
 import { Button } from '@/components/ui/button';
@@ -10,6 +10,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 
 export default function SchedulePage() {
+  const { employee: currentEmployee } = useAuth();
   const [events, setEvents] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [workOrders, setWorkOrders] = useState([]);
@@ -19,42 +20,9 @@ export default function SchedulePage() {
   const [showModal, setShowModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [slotInfo, setSlotInfo] = useState(null);
-  const [techColors, setTechColors] = useState({});
 
   const location = useLocation();
   const navigate = useNavigate();
-
-  // Color mappings
-  const bayColors = {
-    'Main Floor': '#3B82F6', // Blue
-    'Main Hoist': '#10B981', // Green
-    'North Floor': '#06b6d4', // Cyan
-    'North Hoist': '#F59E0B', // Amber
-    'Other': '#EF4444', // Red
-  };
-
-  // Generate tech colors dynamically with more distinct, vibrant colors
-  const generateTechColors = (techs) => {
-    const colors = [
-      '#DC2626', // Red
-      '#059669', // Emerald  
-      '#7C3AED', // Violet
-      '#EA580C', // Orange
-      '#0284C7', // Sky Blue
-      '#DB2777', // Pink
-      '#65A30D', // Lime
-      '#0891B2', // Cyan
-      '#7C2D12', // Brown
-      '#4338CA', // Indigo
-      '#BE185D', // Rose
-      '#166534', // Dark Green
-    ];
-    const colorMap = {};
-    techs.forEach((tech, index) => {
-      colorMap[tech.id] = colors[index % colors.length];
-    });
-    return colorMap;
-  };
 
   // Helper function to get customer display name
   const getCustomerDisplayName = (customer) => {
@@ -68,29 +36,33 @@ export default function SchedulePage() {
 
   const loadCustomersAndVehicles = useCallback(async () => {
     const [custRes, vehRes, workOrdersResponse] = await Promise.all([
-      base44.functions.invoke('supabaseCustomer', { action: 'list' }),
-      base44.functions.invoke('supabaseVehicle', { action: 'list' }),
+      supabase.from('Customer').select('*').order('org_name', { ascending: true }),
+      supabase.from('Vehicle').select('*').order('year', { ascending: false }),
       getworkorderlist({}),
     ]);
     const workOrdersData = workOrdersResponse?.data?.data || [];
-    setCustomers(custRes.data?.data || []);
-    setVehicles(vehRes.data?.data || []);
+    setCustomers(custRes.data || []);
+    setVehicles(vehRes.data || []);
     setWorkOrders(workOrdersData);
   }, []);
 
   const loadData = useCallback(async (appointmentIdToSelect = null) => {
     setLoading(true);
     try {
-      const [appointmentsData, employeesData, workOrdersResponse, custRes, vehRes] = await Promise.all([
-        Appointment.list(),
-        Employee.list(),
+      const [apptRes, empRes, workOrdersResponse, custRes, vehRes] = await Promise.all([
+        supabase.from('Appointment').select('*'),
+        supabase.from('Employee').select('*'),
         getworkorderlist({}),
-        base44.functions.invoke('supabaseCustomer', { action: 'list' }),
-        base44.functions.invoke('supabaseVehicle', { action: 'list' }),
+        supabase.from('Customer').select('*').order('org_name', { ascending: true }),
+        supabase.from('Vehicle').select('*').order('year', { ascending: false }),
       ]);
+      if (apptRes.error) throw apptRes.error;
+      if (empRes.error) throw empRes.error;
+      const appointmentsData = apptRes.data || [];
+      const employeesData = empRes.data || [];
       const workOrdersData = workOrdersResponse?.data?.data || [];
-      const customersList = custRes.data?.data || [];
-      const vehiclesList = vehRes.data?.data || [];
+      const customersList = custRes.data || [];
+      const vehiclesList = vehRes.data || [];
 
       const techMap = new Map(employeesData.map(e => [e.id, e]));
       const workOrderMap = new Map(workOrdersData.map(wo => [wo.id, wo]));
@@ -154,8 +126,6 @@ export default function SchedulePage() {
       });
 
       const availableTechs = employeesData.filter(e => e.position === 'technician' || e.position === 'apprentice');
-      const generatedTechColors = generateTechColors(availableTechs);
-      setTechColors(generatedTechColors);
 
       setEvents(formattedEvents);
       setEmployees(availableTechs);
@@ -256,8 +226,12 @@ export default function SchedulePage() {
         updatedAppointment.employee_id = newSlot.employee_id;
       }
 
-      await Appointment.update(event.id, updatedAppointment);
-      
+      const { error } = await supabase
+        .from('Appointment')
+        .update({ ...updatedAppointment, updated_date: new Date().toISOString() })
+        .eq('id', event.id);
+      if (error) throw error;
+
     } catch (error) {
       console.error('Error updating appointment:', error);
       alert('Failed to move appointment. Please try again.');
@@ -327,9 +301,18 @@ export default function SchedulePage() {
       }
 
       if (selectedAppointment) {
-        await Appointment.update(selectedAppointment.id, formData);
+        const { error } = await supabase
+          .from('Appointment')
+          .update({ ...formData, updated_date: new Date().toISOString() })
+          .eq('id', selectedAppointment.id);
+        if (error) throw error;
       } else {
-        await Appointment.create(formData);
+        const { error } = await supabase.from('Appointment').insert({
+          ...formData,
+          created_by: currentEmployee?.email || '',
+          created_by_id: currentEmployee?.autopro_user_id,
+        });
+        if (error) throw error;
       }
       setShowModal(false);
       loadData();
@@ -342,7 +325,8 @@ export default function SchedulePage() {
   const handleDelete = async (id) => {
     if (window.confirm("Are you sure you want to delete this appointment?")) {
       try {
-        await Appointment.delete(id);
+        const { error } = await supabase.from('Appointment').delete().eq('id', id);
+        if (error) throw error;
         setShowModal(false);
         loadData();
       } catch (error) {
@@ -362,7 +346,8 @@ export default function SchedulePage() {
   const handleDeleteAppointment = async (appointmentId) => {
     if (window.confirm("Are you sure you want to delete this appointment?")) {
       try {
-        await Appointment.delete(appointmentId);
+        const { error } = await supabase.from('Appointment').delete().eq('id', appointmentId);
+        if (error) throw error;
         loadData();
       } catch (error) {
         console.error('Error deleting appointment:', error);
@@ -372,22 +357,8 @@ export default function SchedulePage() {
   };
 
   return (
-    <div className="p-6 min-h-screen">
+    <div className="p-6 min-h-screen bg-slate-100 dark:bg-slate-900 text-slate-900 dark:text-slate-100">
       <div className="max-w-7xl mx-auto">
-        <header className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-slate-900">Scheduling</h1>
-          <div className="flex items-center gap-4">
-            <Button onClick={() => {
-              setSelectedAppointment(null); // Clear selected appointment
-              setSlotInfo(null); // Clear slot info
-              setShowModal(true);
-            }}>
-              <Plus className="w-4 h-4 mr-2" />
-              New Appointment
-            </Button>
-          </div>
-        </header>
-
         <AppointmentForm
           open={showModal}
           onClose={() => {
@@ -414,9 +385,12 @@ export default function SchedulePage() {
           loading={loading}
           onOpenWorkOrder={handleOpenWorkOrder}
           onDeleteAppointment={handleDeleteAppointment}
-          bayColors={bayColors}
-          techColors={techColors}
           employees={employees}
+          onNewAppointment={() => {
+            setSelectedAppointment(null);
+            setSlotInfo(null);
+            setShowModal(true);
+          }}
         />
       </div>
     </div>

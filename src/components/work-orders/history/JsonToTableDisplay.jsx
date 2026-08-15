@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ChartOfAccount } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
 import HistoryComparisonTable from './HistoryComparisonTable';
@@ -122,9 +123,9 @@ function formatCurrency(value) {
 
 function HistoryFinancialItem({ label, currentValue, previousValue }) {
   return (
-    <div className="text-center px-4 py-3 rounded-lg min-w-[160px] bg-slate-50">
-      <p className="text-xs font-medium uppercase tracking-wider text-slate-500">{label}</p>
-      <p className="text-sm md:text-base font-bold whitespace-pre-wrap break-words text-slate-800">
+    <div className="text-center px-4 py-3 rounded-lg min-w-[160px] bg-slate-50 dark:bg-slate-900">
+      <p className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="text-sm md:text-base font-bold whitespace-pre-wrap break-words text-slate-800 dark:text-slate-100">
         {`${formatCurrency(previousValue)} --> ${formatCurrency(currentValue)}`}
       </p>
     </div>
@@ -136,7 +137,8 @@ export default function JsonToTableDisplay({ data, compareData }) {
 
   useEffect(() => {
     const loadChartOfAccounts = async () => {
-      const accounts = await ChartOfAccount.list();
+      const { data: accounts, error } = await supabase.from('ChartOfAccount').select('*');
+      if (error) console.error('Error loading chart of accounts:', error);
       setChartOfAccounts(accounts || []);
     };
 
@@ -174,14 +176,14 @@ export default function JsonToTableDisplay({ data, compareData }) {
   const hasAnyDetails = changedFieldKeys.length > 0 || hasLineItems || hasPaymentChanges || hasAccountingChanges || changedFinancialKeys.length > 0;
 
   if (!hasAnyDetails) {
-    return <p className="text-sm text-slate-500">No details available for this change.</p>;
+    return <p className="text-sm text-slate-500 dark:text-slate-400">No details available for this change.</p>;
   }
 
   return (
     <div className="space-y-6">
       {changedFieldKeys.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">Fields</h3>
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 uppercase tracking-wide">Fields</h3>
           <div className="border rounded-lg overflow-hidden">
             <Table>
               <TableHeader>
@@ -213,8 +215,41 @@ export default function JsonToTableDisplay({ data, compareData }) {
           getRowKey={(line, index) => String(line?.line_uuid || line?.uuid || line?.id || line?.line_id || line?.selection_id || `line-${index}`)}
           showAllCurrentRows
           showLegend
+          extraTrackedKeys={['qty_on_order', 'Core_num', 'core_ret', 'core_cost']}
           columns={[
-            { key: 'description', label: 'Description', formatValue: (value) => formatValue('description', value) },
+            {
+              key: 'description',
+              label: 'Description',
+              formatValue: (value, row) => {
+                const hasPartNumber = !!row?.part_number;
+                const coreNum = parseFloat(row?.Core_num) || 0;
+                const coreRet = parseFloat(row?.core_ret) || 0;
+                const coreCost = parseFloat(row?.core_cost) || 0;
+                const coreOutstanding = coreNum - coreRet;
+                const coreOsamt = coreOutstanding * coreCost;
+
+                return (
+                  <div className="space-y-1">
+                    <p className="text-sm">{value || '—'}</p>
+                    {hasPartNumber && (
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                        <span className="font-mono">{row.part_number}</span>
+                        {coreOutstanding > 0 && (
+                          <Badge variant="outline" className="px-1 py-0 text-xs bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-800 whitespace-nowrap">
+                            Cores ({coreOutstanding}) - ${coreOsamt.toFixed(2)}
+                          </Badge>
+                        )}
+                        {row.qty_on_order > 0 && (
+                          <Badge variant="outline" className="px-1 py-0 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800">
+                            On Order {row.qty_on_order}
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+            },
             { key: 'part_number', label: 'Part #', formatValue: (value) => formatValue('part_number', value) },
             { key: 'qty', label: 'Qty', formatValue: (value) => formatValue('qty', value), cellClassName: 'text-center' },
             { key: 'hrs', label: 'Hrs', formatValue: (value) => formatValue('hrs', value), cellClassName: 'text-center' },
@@ -227,7 +262,7 @@ export default function JsonToTableDisplay({ data, compareData }) {
 
       {changedFinancialKeys.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-sm font-semibold text-slate-900 uppercase tracking-wide">Financial Summary</h3>
+          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 uppercase tracking-wide">Financial Summary</h3>
           <Card>
             <CardContent className="p-3 flex flex-wrap justify-around items-center gap-x-4 gap-y-3">
               {changedFinancialKeys.includes('parts_total') && <HistoryFinancialItem label="Parts Total" currentValue={currentData.parts_total} previousValue={previousData.parts_total} />}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -46,13 +46,13 @@ export default function ReconcileReportPage() {
   const loadReconciliationData = async () => {
     setLoading(true);
     try {
-      const reconciliationResponse = await base44.functions.invoke('SupabaseProxy', {
-        action: 'filter',
-        table: 'BankReconciliation',
-        params: { reconciliation_id: reconciliationId }
-      });
+      const { data: reconciliationData, error: reconciliationError } = await supabase
+        .from('BankReconciliation')
+        .select('*')
+        .eq('reconciliation_id', reconciliationId);
+      if (reconciliationError) throw reconciliationError;
 
-      const reconRecord = reconciliationResponse.data?.data?.[0] || null;
+      const reconRecord = reconciliationData?.[0] || null;
 
       if (!reconRecord) {
         alert('No reconciliation record found for this reconciliation');
@@ -63,23 +63,17 @@ export default function ReconcileReportPage() {
       setReconciliationRecord(reconRecord);
       setStartingBalance(parseFloat(reconRecord.starting_balance) || 0);
 
-      const [accountResponse, transactionsResponse] = await Promise.all([
-        base44.functions.invoke('SupabaseProxy', {
-          action: 'filter',
-          table: 'BankAccount',
-          params: { id: reconRecord.bank_account_id }
-        }),
-        base44.functions.invoke('SupabaseProxy', {
-          action: 'filter',
-          table: 'BankTransaction',
-          params: { reconciliation_id: reconciliationId }
-        })
+      const [accountResult, transactionsResult] = await Promise.all([
+        supabase.from('BankAccount').select('*').eq('id', reconRecord.bank_account_id),
+        supabase.from('BankTransaction').select('*').eq('reconciliation_id', reconciliationId)
       ]);
+      if (accountResult.error) throw accountResult.error;
+      if (transactionsResult.error) throw transactionsResult.error;
 
-      const account = accountResponse.data?.data?.[0] || null;
+      const account = accountResult.data?.[0] || null;
       setBankAccount(account);
 
-      const reconTransactions = (transactionsResponse.data?.data || [])
+      const reconTransactions = (transactionsResult.data || [])
         .map((tx) => ({
           ...tx,
           debit_amount: parseFloat(tx.debit_amount) || 0,
@@ -154,7 +148,7 @@ export default function ReconcileReportPage() {
       <div className="p-6 min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-slate-600">Loading reconciliation report...</p>
+          <p className="text-slate-600 dark:text-slate-400">Loading reconciliation report...</p>
         </div>
       </div>
     );
@@ -232,7 +226,30 @@ export default function ReconcileReportPage() {
           }
           table { border-collapse: collapse; width: 100%; font-size: 11px; margin-top: 20px; }
           th, td { border: 1px solid #000; padding: 4px 6px; text-align: left; }
-          th { background-color: #f0f0f0; font-weight: bold; }
+          th { background-color: #f0f0f0 !important; font-weight: bold; color: #000 !important; }
+
+          /* Force light/black output regardless of app dark mode */
+          body {
+            background-color: white !important;
+          }
+          div[class*="bg-slate-"], div[class*="bg-blue-"] {
+            background-color: white !important;
+          }
+          .text-slate-900, .text-slate-700, .text-slate-600, .text-slate-500, .text-slate-400 {
+            color: #000 !important;
+          }
+          .text-green-600 {
+            color: #166534 !important;
+          }
+          .text-red-600 {
+            color: #dc2626 !important;
+          }
+          .text-blue-600 {
+            color: #1e40af !important;
+          }
+          .text-amber-600 {
+            color: #92400e !important;
+          }
           .totals-row {
             display: flex;
             justify-content: space-between;
@@ -264,8 +281,8 @@ export default function ReconcileReportPage() {
         <div className="max-w-7xl mx-auto space-y-6">
           <div className="flex justify-between items-center no-print">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">Reconciliation Report</h1>
-              <p className="text-slate-600 mt-1">ID: {reconciliationId}</p>
+              <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Reconciliation Report</h1>
+              <p className="text-slate-600 dark:text-slate-400 mt-1">ID: {reconciliationId}</p>
             </div>
             <div className="flex gap-3">
               <Button onClick={handleExit} variant="outline">
@@ -281,7 +298,7 @@ export default function ReconcileReportPage() {
 
           <div className="print-area">
             <img 
-              src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b90236f4d7e6ac0de4a262/fd8c6d187_KensAutoDieselRepair12.jpg"
+              src="https://hbcrwkmgsazqrvsrmxyr.supabase.co/storage/v1/object/public/KADR/KADRLogoAddress.jpg"
               alt="Ken's Auto & Diesel Repair"
               className="print-logo"
               style={{ display: 'none' }}
@@ -323,50 +340,50 @@ export default function ReconcileReportPage() {
                 <CardContent className="space-y-4">
                   <div className="flex justify-between items-center pb-3 border-b totals-row">
                     <div className="flex items-center gap-2">
-                      <Wallet className="w-4 h-4 text-blue-600 no-print" />
-                      <span className="text-slate-700 totals-label">Starting Balance</span>
+                      <Wallet className="w-4 h-4 text-blue-600 dark:text-blue-400 no-print" />
+                      <span className="text-slate-700 dark:text-slate-300 totals-label">Starting Balance</span>
                     </div>
-                    <span className="text-lg font-bold text-slate-900 totals-value">
+                    <span className="text-lg font-bold text-slate-900 dark:text-slate-100 totals-value">
                       ${(startingBalance || 0).toFixed(2)}
                     </span>
                   </div>
 
                   <div className="flex justify-between items-center pb-3 border-b totals-row">
                     <div className="flex items-center gap-2">
-                      <TrendingUp className="w-4 h-4 text-green-600 no-print" />
-                      <span className="text-slate-700 totals-label">Total Credits</span>
+                      <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-400 no-print" />
+                      <span className="text-slate-700 dark:text-slate-300 totals-label">Total Credits</span>
                     </div>
-                    <span className="text-lg font-bold text-green-600 totals-value">
+                    <span className="text-lg font-bold text-green-600 dark:text-green-400 totals-value">
                       ${(totalCredits || 0).toFixed(2)}
                     </span>
                   </div>
 
                   <div className="flex justify-between items-center pb-3 border-b totals-row">
                     <div className="flex items-center gap-2">
-                      <TrendingDown className="w-4 h-4 text-red-600 no-print" />
-                      <span className="text-slate-700 totals-label">Total Debits</span>
+                      <TrendingDown className="w-4 h-4 text-red-600 dark:text-red-400 no-print" />
+                      <span className="text-slate-700 dark:text-slate-300 totals-label">Total Debits</span>
                     </div>
-                    <span className="text-lg font-bold text-red-600 totals-value">
+                    <span className="text-lg font-bold text-red-600 dark:text-red-400 totals-value">
                       ${(totalDebits || 0).toFixed(2)}
                     </span>
                   </div>
 
                   <div className="flex justify-between items-center pb-3 border-b totals-row">
                     <div className="flex items-center gap-2">
-                      <DollarSign className="w-4 h-4 text-blue-600 no-print" />
-                      <span className="text-slate-700 totals-label">Ending Balance</span>
+                      <DollarSign className="w-4 h-4 text-blue-600 dark:text-blue-400 no-print" />
+                      <span className="text-slate-700 dark:text-slate-300 totals-label">Ending Balance</span>
                     </div>
-                    <span className="text-lg font-bold text-blue-600 totals-value">
+                    <span className="text-lg font-bold text-blue-600 dark:text-blue-400 totals-value">
                       ${(endingBalance || 0).toFixed(2)}
                     </span>
                   </div>
 
                   <div className="flex justify-between items-center totals-row">
                     <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-amber-600 no-print" />
-                      <span className="text-slate-700 totals-label">Uncleared Balance</span>
+                      <CheckCircle2 className="w-4 h-4 text-amber-600 dark:text-amber-400 no-print" />
+                      <span className="text-slate-700 dark:text-slate-300 totals-label">Uncleared Balance</span>
                     </div>
-                    <span className="text-lg font-bold text-amber-600 totals-value">
+                    <span className="text-lg font-bold text-amber-600 dark:text-amber-400 totals-value">
                       ${(unclearedBalance || 0).toFixed(2)}
                     </span>
                   </div>
@@ -384,23 +401,23 @@ export default function ReconcileReportPage() {
                   {Object.entries(transactionsBySourceType).map(([sourceType, data]) => (
                     <div key={sourceType} className="flex justify-between items-center pb-3 border-b last:border-b-0 totals-row">
                       <div>
-                        <span className="text-slate-700 capitalize totals-label">
+                        <span className="text-slate-700 dark:text-slate-300 capitalize totals-label">
                           {sourceType.replace('_', ' ')}
                         </span>
-                        <span className="text-xs text-slate-500 ml-2">
+                        <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">
                           ({data.count})
                         </span>
                       </div>
                       <span className={`text-lg font-bold totals-value ${
-                        data.netAmount >= 0 ? 'text-green-600' : 'text-red-600'
+                        data.netAmount >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                       }`}>
                         ${data.netAmount.toFixed(2)}
                       </span>
                     </div>
                   ))}
-                  
+
                   {Object.keys(transactionsBySourceType).length === 0 && (
-                    <p className="text-slate-500 text-center py-4">No transactions to display</p>
+                    <p className="text-slate-500 dark:text-slate-400 text-center py-4">No transactions to display</p>
                   )}
                 </CardContent>
               </Card>
@@ -421,7 +438,7 @@ export default function ReconcileReportPage() {
                 <CardContent className="p-0">
                   <div className="overflow-x-auto">
                     <table className="w-full" style={{ fontSize: '11px' }}>
-                      <thead className="bg-slate-100">
+                      <thead className="bg-slate-100 dark:bg-slate-800">
                         <tr>
                           <th className="p-2 text-left">Date</th>
                           <th className="p-2 text-left">Description</th>
@@ -435,17 +452,17 @@ export default function ReconcileReportPage() {
                       </thead>
                       <tbody>
                         {transactionsWithBalance.map((tx) => (
-                          <tr key={tx.id} className="border-b hover:bg-slate-50">
+                          <tr key={tx.id} className="border-b hover:bg-slate-50 dark:hover:bg-slate-800/60">
                             <td className="p-2 whitespace-nowrap">{tx.transaction_date ? format(parseLocalDate(tx.transaction_date), 'MMM d, yyyy') : '-'}</td>
                             <td className="p-2">{tx.description}</td>
-                            <td className="p-2 text-slate-600">{tx.reference || '-'}</td>
+                            <td className="p-2 text-slate-600 dark:text-slate-400">{tx.reference || '-'}</td>
                             <td className="p-2 capitalize whitespace-nowrap">
                               {tx.source_type ? tx.source_type.replace('_', ' ') : 'manual'}
                             </td>
-                            <td className="p-2 text-right text-green-600 font-medium">
+                            <td className="p-2 text-right text-green-600 dark:text-green-400 font-medium">
                               {tx.credit_amount ? `$${tx.credit_amount.toFixed(2)}` : '-'}
                             </td>
-                            <td className="p-2 text-right text-red-600 font-medium">
+                            <td className="p-2 text-right text-red-600 dark:text-red-400 font-medium">
                               {tx.debit_amount ? `$${tx.debit_amount.toFixed(2)}` : '-'}
                             </td>
                             <td className="p-2 text-right font-medium">
@@ -453,7 +470,7 @@ export default function ReconcileReportPage() {
                             </td>
                             <td className="p-2 text-center no-print">
                               {tx.cleared ? (
-                                <CheckCircle2 className="w-4 h-4 text-green-600 inline" />
+                                <CheckCircle2 className="w-4 h-4 text-green-600 dark:text-green-400 inline" />
                               ) : (
                                 <span className="text-slate-400">-</span>
                               )}

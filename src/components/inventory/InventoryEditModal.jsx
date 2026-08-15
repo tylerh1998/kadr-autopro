@@ -6,10 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { InventoryItem, InventoryCategory } from '@/entities/all';
-import { TagAlong } from "@/entities/TagAlong";
-import { base44 } from '@/api/base44Client';
-import { inventoryUpdate } from '@/functions/inventoryUpdate';
+import { supabase } from '@/lib/supabase';
 import { Save, Loader2, Search, Check, AlertCircle, Merge } from "lucide-react";
 import MergeInventoryModal from './MergeInventoryModal';
 
@@ -107,13 +104,15 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
             const loadData = async () => {
                 try {
                     // Always load tag alongs
-                    const tagAlongsData = await TagAlong.list();
-                    setTagAlongs(tagAlongsData);
+                    const { data: tagAlongsData, error: tagAlongsError } = await supabase.from('TagAlong').select('*');
+                    if (tagAlongsError) throw tagAlongsError;
+                    setTagAlongs(tagAlongsData || []);
         
                     // Only load categories if not provided via props
                     if (!propInventoryCategories || propInventoryCategories.length === 0) {
-                        const categoriesData = await InventoryCategory.list();
-                        setInternalCategories(categoriesData);
+                        const { data: categoriesData, error: categoriesError } = await supabase.from('InventoryCategory').select('*');
+                        if (categoriesError) throw categoriesError;
+                        setInternalCategories(categoriesData || []);
                     }
                 } catch (error) {
                     console.error('Error loading data:', error);
@@ -287,8 +286,13 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                 category: formData.category === "none" || formData.category === "" ? null : formData.category,
             };
 
-            const response = await inventoryUpdate({ itemId: item.id, updates: dataToSubmit });
-            const updatedItem = response.data?.data;
+            const { data: updatedItem, error: updateError } = await supabase
+                .from('InventoryItem')
+                .update(dataToSubmit)
+                .eq('id', item.id)
+                .select()
+                .single();
+            if (updateError) throw updateError;
 
             // Create GL entry if cost changed and QOH > 0
             if (newCost !== oldCost && qoh > 0) {
@@ -302,6 +306,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
 
                 if (costDifference > 0) {
                     glTransactions.push({
+                        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
                         transaction_date: today,
                         account_number: '1200',
                         description: description,
@@ -312,6 +317,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                         source_id: item.id
                     });
                     glTransactions.push({
+                        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
                         transaction_date: today,
                         account_number: '5004',
                         description: description,
@@ -323,6 +329,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                     });
                 } else {
                     glTransactions.push({
+                        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
                         transaction_date: today,
                         account_number: '1200',
                         description: description,
@@ -333,6 +340,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                         source_id: item.id
                     });
                     glTransactions.push({
+                        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
                         transaction_date: today,
                         account_number: '5004',
                         description: description,
@@ -344,11 +352,8 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                     });
                 }
 
-                await base44.functions.invoke('SupabaseProxy', {
-                    action: 'create',
-                    table: 'GLTransaction',
-                    data: glTransactions
-                });
+                const { error: glError } = await supabase.from('GLTransaction').insert(glTransactions);
+                if (glError) throw glError;
             }
 
             onUpdate(updatedItem);
@@ -453,7 +458,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                                 type="number"
                                 value={formData.quantity_on_hand}
                                 disabled
-                                className="bg-gray-100"
+                                className="bg-slate-100 dark:bg-slate-800"
                             />
                         </div>
                         <div className="space-y-2">
@@ -521,7 +526,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                                     required
                                 />
                                 {calculatedMargin && (
-                                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-green-600">
+                                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-green-600 dark:text-green-400">
                                         {calculatedMargin}%
                                     </div>
                                 )}
@@ -576,7 +581,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
 
                     {/* Conditional Fields: Stocked Item Details */}
                     {formData.stocked_item && (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4 bg-gray-50 p-4 rounded-md">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4 bg-slate-50 dark:bg-slate-900 p-4 rounded-md">
                             <div className="space-y-2">
                                 <Label htmlFor="minimum_quantity">Minimum</Label>
                                 <Input
@@ -624,13 +629,13 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                                                         handleInputChange('location', '');
                                                         setSearchOpen(false);
                                                     }}
-                                                    className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100"
+                                                    className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
                                                 >
-                                                    <span className="text-slate-500 italic">No Location</span>
+                                                    <span className="text-slate-500 dark:text-slate-400 italic">No Location</span>
                                                     {(!formData.location || formData.location === '') && <Check className="ml-auto h-4 w-4" />}
                                                 </div>
                                                 {filteredLocations.length === 0 ? (
-                                                    <div className="py-2 text-center text-sm text-slate-500">No locations found.</div>
+                                                    <div className="py-2 text-center text-sm text-slate-500 dark:text-slate-400">No locations found.</div>
                                                 ) : (
                                                     filteredLocations.map((loc) => (
                                                         <div
@@ -639,7 +644,7 @@ export default function InventoryEditModal({ open, onClose, item, onUpdate, supp
                                                                 handleInputChange('location', loc.location_name);
                                                                 setSearchOpen(false);
                                                             }}
-                                                            className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100"
+                                                            className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
                                                         >
                                                             <span>{loc.location_name}</span>
                                                             {formData.location === loc.location_name && (

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiscalPeriod } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -21,8 +21,12 @@ export default function FiscalPeriodsPage() {
   const loadPeriods = async () => {
     setLoading(true);
     try {
-      const periodsData = await FiscalPeriod.list('-start_date');
-      setPeriods(periodsData);
+      const { data: periodsData, error } = await supabase
+        .from('FiscalPeriod')
+        .select('*')
+        .order('start_date', { ascending: false });
+      if (error) throw error;
+      setPeriods(periodsData || []);
     } catch (error) {
       console.error('Error loading fiscal periods:', error);
     } finally {
@@ -32,7 +36,7 @@ export default function FiscalPeriodsPage() {
 
   const handleToggleStatus = async (period) => {
     try {
-      await FiscalPeriod.update(period.id, { is_closed: !period.is_closed });
+      await supabase.from('FiscalPeriod').update({ is_closed: !period.is_closed, updated_date: new Date().toISOString() }).eq('id', period.id);
       loadPeriods();
     } catch (error) {
       console.error('Error updating period status:', error);
@@ -42,10 +46,12 @@ export default function FiscalPeriodsPage() {
 
   const handleSubmit = async (periodData) => {
     try {
+      const now = new Date().toISOString();
       if (editingPeriod) {
-        await FiscalPeriod.update(editingPeriod.id, periodData);
+        await supabase.from('FiscalPeriod').update({ ...periodData, updated_date: now }).eq('id', editingPeriod.id);
       } else {
-        await FiscalPeriod.create(periodData);
+        const id = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
+        await supabase.from('FiscalPeriod').insert([{ id, ...periodData, created_date: now, updated_date: now }]);
       }
       setShowForm(false);
       setEditingPeriod(null);
@@ -79,8 +85,8 @@ export default function FiscalPeriodsPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Fiscal Periods</h1>
-            <p className="text-slate-600 mt-1">Manage your company's fiscal periods to control transactions.</p>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Fiscal Periods</h1>
+            <p className="text-slate-600 dark:text-slate-400 mt-1">Manage your company's fiscal periods to control transactions.</p>
           </div>
           {!showForm && (
             <Button 
@@ -128,10 +134,10 @@ export default function FiscalPeriodsPage() {
                     {loading ? (
                       Array(5).fill(0).map((_, i) => (
                         <TableRow key={i} className="animate-pulse">
-                          <TableCell><div className="h-4 bg-slate-200 rounded w-32"></div></TableCell>
-                          <TableCell><div className="h-4 bg-slate-200 rounded w-32"></div></TableCell>
-                          <TableCell className="text-center"><div className="h-6 w-16 bg-slate-200 rounded-full mx-auto"></div></TableCell>
-                          <TableCell className="text-center"><div className="h-6 w-12 bg-slate-200 rounded-full mx-auto"></div></TableCell>
+                          <TableCell><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-32"></div></TableCell>
+                          <TableCell><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-32"></div></TableCell>
+                          <TableCell className="text-center"><div className="h-6 w-16 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto"></div></TableCell>
+                          <TableCell className="text-center"><div className="h-6 w-12 bg-slate-200 dark:bg-slate-700 rounded-full mx-auto"></div></TableCell>
                         </TableRow>
                       ))
                     ) : periods.length > 0 ? (
@@ -157,7 +163,7 @@ export default function FiscalPeriodsPage() {
                       ))
                     ) : (
                       <TableRow>
-                        <TableCell colSpan="4" className="p-12 text-center text-slate-500">
+                        <TableCell colSpan="4" className="p-12 text-center text-slate-500 dark:text-slate-400">
                           <p>No fiscal periods have been created yet.</p>
                           <p className="text-sm mt-2">Click "Create New Period" to get started.</p>
                         </TableCell>

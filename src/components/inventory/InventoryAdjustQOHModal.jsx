@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { base44 } from "@/api/base44Client";
+import { supabase } from "@/lib/supabase";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,11 +46,13 @@ export default function InventoryAdjustQOHModal({ open, onClose, item, onUpdate 
     try {
       const targetQOH = parseFloat(newQOH);
       
-      const response = await base44.functions.invoke('processQOHAdjustment', {
-        inventory_item_id: item.id,
-        new_quantity_on_hand: targetQOH,
-        notes: notes || '',
-        system_issue: systemIssue
+      const response = await supabase.functions.invoke('autopro-processQOHAdjustment', {
+        body: {
+          inventory_item_id: item.id,
+          new_quantity_on_hand: targetQOH,
+          notes: notes || '',
+          system_issue: systemIssue
+        }
       });
 
       if (!response.data.success) {
@@ -87,11 +89,13 @@ export default function InventoryAdjustQOHModal({ open, onClose, item, onUpdate 
     try {
       const targetQOH = parseFloat(newQOH);
       
-      const response = await base44.functions.invoke('processQOHAdjustment', {
-        inventory_item_id: item.id,
-        new_quantity_on_hand: targetQOH,
-        notes: notes || '',
-        system_issue: systemIssue
+      const response = await supabase.functions.invoke('autopro-processQOHAdjustment', {
+        body: {
+          inventory_item_id: item.id,
+          new_quantity_on_hand: targetQOH,
+          notes: notes || '',
+          system_issue: systemIssue
+        }
       });
 
       if (!response.data.success) {
@@ -130,11 +134,11 @@ export default function InventoryAdjustQOHModal({ open, onClose, item, onUpdate 
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md dark:bg-slate-950 dark:border-slate-800">
         <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
+          <DialogTitle className="flex items-center justify-between dark:text-slate-100">
             Adjust QOH - {item?.part_number}
-            <Button variant="ghost" size="icon" onClick={onClose}>
+            <Button variant="ghost" size="icon" onClick={onClose} className="dark:text-slate-400 dark:hover:text-slate-100">
               <X className="w-4 h-4" />
             </Button>
           </DialogTitle>
@@ -142,15 +146,15 @@ export default function InventoryAdjustQOHModal({ open, onClose, item, onUpdate 
         
         {item && (
           <div className="space-y-6">
-            <div className="bg-slate-50 p-4 rounded-lg">
-              <h4 className="font-semibold text-slate-900">{item.part_number}</h4>
-              <p className="text-sm text-slate-600">{item.description}</p>
-              <p className="text-sm text-slate-500 mt-1">Current QOH: <span className="font-bold">{currentQOH}</span></p>
+            <div className="bg-slate-50 dark:bg-slate-900 border dark:border-slate-800 p-4 rounded-lg">
+              <h4 className="font-semibold text-slate-900 dark:text-slate-100">{item.part_number}</h4>
+              <p className="text-sm text-slate-600 dark:text-slate-400">{item.description}</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Current QOH: <span className="font-bold">{currentQOH}</span></p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="new_qoh">New QOH</Label>
+                <Label htmlFor="new_qoh" className="dark:text-slate-300">New QOH</Label>
                 <Input
                   ref={newQOHInputRef}
                   id="new_qoh"
@@ -160,16 +164,17 @@ export default function InventoryAdjustQOHModal({ open, onClose, item, onUpdate 
                   value={newQOH}
                   onChange={(e) => setNewQOH(e.target.value)}
                   placeholder="Enter new quantity on hand"
+                  className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
                   required
                   disabled={loading}
                 />
               </div>
 
               {newQOH && difference !== 0 && (
-                <div className={`p-3 rounded-lg ${difference > 0 ? 'bg-green-50' : 'bg-red-50'}`}>
+                <div className={`p-3 rounded-lg border ${difference > 0 ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-900 text-slate-800 dark:text-slate-200' : 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900 text-slate-800 dark:text-slate-200'}`}>
                   <p className="text-sm">
                     <span className="font-medium">Change:</span> {currentQOH} → {targetQOH} 
-                    <span className={difference > 0 ? "text-green-600" : "text-red-600"}>
+                    <span className={difference > 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
                       ({difference > 0 ? '+' : ''}{difference})
                     </span>
                   </p>
@@ -177,48 +182,50 @@ export default function InventoryAdjustQOHModal({ open, onClose, item, onUpdate 
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="notes">Notes (Optional)</Label>
+                <Label htmlFor="notes" className="dark:text-slate-300">Notes (Optional)</Label>
                 <Textarea
                   id="notes"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Reason for adjustment..."
                   rows={2}
+                  className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
                   disabled={loading}
                 />
               </div>
 
-              <div className="flex items-center space-x-2 rounded-lg border p-3">
+              <div className="flex items-center space-x-2 rounded-lg border dark:border-slate-800 p-3">
                 <Checkbox
                   id="system_issue"
                   checked={systemIssue}
                   onCheckedChange={(checked) => setSystemIssue(checked === true)}
                   disabled={loading}
                 />
-                <Label htmlFor="system_issue" className="cursor-pointer">Adjustment Due to System Issue</Label>
+                <Label htmlFor="system_issue" className="cursor-pointer dark:text-slate-300">Adjustment Due to System Issue</Label>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="next_part">Next Part # (Optional)</Label>
+                <Label htmlFor="next_part" className="dark:text-slate-300">Next Part # (Optional)</Label>
                 <Input
                   id="next_part"
                   value={nextPartNumber}
                   onChange={(e) => setNextPartNumber(e.target.value)}
                   placeholder="Enter next part number for rapid entry"
+                  className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
                   disabled={loading}
                 />
               </div>
 
               <div className="flex gap-3 pt-4">
-                <Button type="button" variant="outline" onClick={onClose} className="flex-1" disabled={loading}>
+                <Button type="button" variant="outline" onClick={onClose} className="flex-1 dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800" disabled={loading}>
                   Cancel
                 </Button>
-                <Button type="submit" className="bg-blue-600 hover:bg-blue-700 flex-1" disabled={loading}>
+                <Button type="submit" className="bg-blue-600 hover:bg-blue-700 flex-1 dark:bg-blue-700 dark:hover:bg-blue-800 text-white" disabled={loading}>
                   {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
                   {loading ? 'Updating...' : 'Update'}
                 </Button>
                 {nextPartNumber && (
-                  <Button type="button" onClick={handleSaveAndNext} className="bg-green-600 hover:bg-green-700" disabled={loading}>
+                  <Button type="button" onClick={handleSaveAndNext} className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 text-white" disabled={loading}>
                     {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ChevronRight className="w-4 h-4" />}
                   </Button>
                 )}

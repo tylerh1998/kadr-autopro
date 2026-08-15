@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, DollarSign, TrendingUp, Users, Calendar, Download } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { startOfMonth, endOfMonth, subMonths, format, startOfYear, subDays } from 'date-fns';
 import {
   BarChart,
@@ -70,13 +70,14 @@ export default function SalesAnalysisReport() {
     
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('getSalesAnalysisReport', {
-        startDate: customStart,
-        endDate: customEnd
+      const response = await supabase.functions.invoke('autopro-getSalesAnalysisReport', {
+        body: { startDate: customStart, endDate: customEnd }
       });
 
-      if (response.data) {
+      if (response.data && !response.data.error) {
         setData(response.data);
+      } else {
+        console.error(response.data?.error || response.error);
       }
     } catch (error) {
       console.error('Failed to fetch sales report:', error);
@@ -100,9 +101,9 @@ export default function SalesAnalysisReport() {
           <Icon className={`w-6 h-6 ${color.replace('bg-', 'text-')}`} />
         </div>
         <div>
-          <p className="text-sm font-medium text-slate-500">{title}</p>
-          <h3 className="text-2xl font-bold text-slate-900">{value}</h3>
-          {subValue && <p className="text-sm text-slate-500">{subValue}</p>}
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{title}</p>
+          <h3 className="text-2xl font-bold text-slate-900 dark:text-slate-100">{value}</h3>
+          {subValue && <p className="text-sm text-slate-500 dark:text-slate-400">{subValue}</p>}
         </div>
       </CardContent>
     </Card>
@@ -111,7 +112,7 @@ export default function SalesAnalysisReport() {
   return (
     <div className="space-y-6">
       {/* Header & Filters */}
-      <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-200 flex flex-wrap gap-4 items-end justify-between">
+      <div className="bg-white dark:bg-slate-900 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-700 flex flex-wrap gap-4 items-end justify-between">
         <div className="flex gap-4 items-end">
           <div className="w-40">
             <Label>Date Range</Label>
@@ -160,7 +161,7 @@ export default function SalesAnalysisReport() {
 
       {loading ? (
         <div className="flex justify-center py-12">
-          <Loader2 className="w-12 h-12 text-blue-600 animate-spin" />
+          <Loader2 className="w-12 h-12 text-blue-600 dark:text-blue-400 animate-spin" />
         </div>
       ) : data ? (
         <>
@@ -217,14 +218,27 @@ export default function SalesAnalysisReport() {
                       fill="#8884d8"
                       paddingAngle={5}
                       dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      label={({ cx, cy, midAngle, outerRadius, percent, name }) => {
+                        const RADIAN = Math.PI / 180;
+                        const radius = outerRadius + 20;
+                        const x = cx + radius * Math.cos(-midAngle * RADIAN);
+                        const y = cy + radius * Math.sin(-midAngle * RADIAN);
+                        return (
+                          <text x={x} y={y} fill="hsl(var(--foreground))" textAnchor={x > cx ? 'start' : 'end'} dominantBaseline="central" fontSize={12}>
+                            {`${name} ${(percent * 100).toFixed(0)}%`}
+                          </text>
+                        );
+                      }}
                     >
                       {COLORS.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(val) => formatCurrency(val)} />
-                    <Legend />
+                    <Tooltip
+                      formatter={(val) => formatCurrency(val)}
+                      contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }}
+                    />
+                    <Legend wrapperStyle={{ color: 'hsl(var(--foreground))' }} />
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -237,18 +251,24 @@ export default function SalesAnalysisReport() {
               <CardContent className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={data.chartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                        dataKey="date" 
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis
+                        dataKey="date"
                         tickFormatter={(str) => format(new Date(str), 'MMM d')}
                         fontSize={12}
+                        stroke="hsl(var(--muted-foreground))"
                     />
-                    <YAxis 
+                    <YAxis
                         tickFormatter={(val) => `$${val}`}
                         fontSize={12}
+                        stroke="hsl(var(--muted-foreground))"
                     />
-                    <Tooltip formatter={(val) => formatCurrency(val)} labelFormatter={(label) => format(new Date(label), 'MMM d, yyyy')} />
-                    <Legend />
+                    <Tooltip
+                      formatter={(val) => formatCurrency(val)}
+                      labelFormatter={(label) => format(new Date(label), 'MMM d, yyyy')}
+                      contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', color: 'hsl(var(--foreground))' }}
+                    />
+                    <Legend wrapperStyle={{ color: 'hsl(var(--foreground))' }} />
                     <Bar dataKey="revenue" name="Revenue" fill="#3b82f6" />
                     <Bar dataKey="cost" name="Cost" fill="#ef4444" />
                   </BarChart>
@@ -265,16 +285,16 @@ export default function SalesAnalysisReport() {
             <CardContent>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-slate-50 border-b">
+                  <thead className="bg-slate-50 dark:bg-slate-800 border-b dark:border-slate-700">
                     <tr>
-                      <th className="text-left py-3 px-4 font-semibold text-slate-600">Category</th>
-                      <th className="text-right py-3 px-4 font-semibold text-slate-600">Revenue</th>
-                      <th className="text-right py-3 px-4 font-semibold text-slate-600">Cost</th>
-                      <th className="text-right py-3 px-4 font-semibold text-slate-600">Profit</th>
-                      <th className="text-right py-3 px-4 font-semibold text-slate-600">Margin</th>
+                      <th className="text-left py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Category</th>
+                      <th className="text-right py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Revenue</th>
+                      <th className="text-right py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Cost</th>
+                      <th className="text-right py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Profit</th>
+                      <th className="text-right py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">Margin</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y">
+                  <tbody className="divide-y dark:divide-slate-700">
                     <tr>
                       <td className="py-3 px-4 font-medium">Parts</td>
                       <td className="text-right py-3 px-4">{formatCurrency(data.summary.partsRevenue)}</td>
@@ -300,7 +320,7 @@ export default function SalesAnalysisReport() {
                       <td className="text-right py-3 px-4">{formatCurrency(data.summary.shopSuppliesRevenue)}</td>
                       <td className="text-right py-3 px-4">100%</td>
                     </tr>
-                    <tr className="bg-slate-50 font-bold">
+                    <tr className="bg-slate-50 dark:bg-slate-800 font-bold">
                       <td className="py-3 px-4">Totals</td>
                       <td className="text-right py-3 px-4">{formatCurrency(data.summary.totalRevenue)}</td>
                       <td className="text-right py-3 px-4">{formatCurrency(data.summary.totalCost)}</td>
@@ -314,7 +334,7 @@ export default function SalesAnalysisReport() {
           </Card>
         </>
       ) : (
-        <div className="text-center py-12 text-slate-500 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+        <div className="text-center py-12 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 rounded-lg border border-dashed border-slate-200 dark:border-slate-700">
           <p>Select a date range and click Run Report to view analysis</p>
         </div>
       )}

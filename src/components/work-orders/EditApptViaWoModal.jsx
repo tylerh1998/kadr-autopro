@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import AppointmentForm from '../appointments/AppointmentForm';
-import { Employee, WorkOrder, Appointment } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function EditApptViaWoModal({ open, onClose, appointment, workOrder, customer, vehicle, onAppointmentUpdated }) {
+  const { employee: currentEmployee } = useAuth();
   const [employees, setEmployees] = useState([]);
   const [workOrders, setWorkOrders] = useState([]);
   const [customers, setCustomers] = useState([]);
@@ -15,20 +16,21 @@ export default function EditApptViaWoModal({ open, onClose, appointment, workOrd
   const loadPrerequisites = useCallback(async () => {
     setLoading(true);
     try {
-      const [employeesData, custRes, vehRes] = await Promise.all([
-        Employee.list(),
-        base44.functions.invoke('supabaseCustomer', { action: 'list' }),
-        base44.functions.invoke('supabaseVehicle', { action: 'list' }),
+      const [empRes, custRes, vehRes] = await Promise.all([
+        supabase.from('Employee').select('*'),
+        supabase.from('Customer').select('*').order('org_name', { ascending: true }),
+        supabase.from('Vehicle').select('*').order('year', { ascending: false }),
       ]);
+      const employeesData = empRes.data || [];
       setEmployees(employeesData.filter(e => e.position === 'technician' || e.position === 'apprentice'));
-      
-      const fetchedCustomers = [...(custRes.data?.data || [])];
+
+      const fetchedCustomers = [...(custRes.data || [])];
       if (customer && !fetchedCustomers.some(c => c.id === customer.id)) {
         fetchedCustomers.push(customer);
       }
       setCustomers(fetchedCustomers);
 
-      const fetchedVehicles = [...(vehRes.data?.data || [])];
+      const fetchedVehicles = [...(vehRes.data || [])];
       if (vehicle && !fetchedVehicles.some(v => v.id === vehicle.id)) {
         fetchedVehicles.push(vehicle);
       }
@@ -70,11 +72,20 @@ export default function EditApptViaWoModal({ open, onClose, appointment, workOrd
       const appointmentId = appointmentData.id || formattedAppointment?.id;
       
       if (isEditing) {
-        await Appointment.update(appointmentId, appointmentData);
+        const { error } = await supabase
+          .from('Appointment')
+          .update({ ...appointmentData, updated_date: new Date().toISOString() })
+          .eq('id', appointmentId);
+        if (error) throw error;
       } else {
-        await Appointment.create(appointmentData);
+        const { error } = await supabase.from('Appointment').insert({
+          ...appointmentData,
+          created_by: currentEmployee?.email || '',
+          created_by_id: currentEmployee?.autopro_user_id,
+        });
+        if (error) throw error;
       }
-      
+
       onAppointmentUpdated();
       onClose();
     } catch (error) {
@@ -86,7 +97,8 @@ export default function EditApptViaWoModal({ open, onClose, appointment, workOrd
   const handleDelete = async (appointmentId) => {
     if (window.confirm("Are you sure you want to delete this appointment?")) {
       try {
-        await Appointment.delete(appointmentId);
+        const { error } = await supabase.from('Appointment').delete().eq('id', appointmentId);
+        if (error) throw error;
         onAppointmentUpdated();
         onClose();
       } catch (error) {
@@ -102,14 +114,14 @@ export default function EditApptViaWoModal({ open, onClose, appointment, workOrd
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto dark:bg-slate-950 dark:border-slate-800">
         <DialogHeader>
           <DialogTitle>{appointment ? 'Edit Appointment' : 'New Appointment'}</DialogTitle>
         </DialogHeader>
         <div className="py-4">
           {loading ? (
             <div className="text-center py-8">
-              <p>Loading form data...</p>
+              <p className="text-slate-500 dark:text-slate-400">Loading form data...</p>
             </div>
           ) : (
             <AppointmentForm

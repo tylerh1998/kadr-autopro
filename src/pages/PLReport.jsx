@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,9 +25,11 @@ export default function PLReport({ isEmbedded = false }) {
     try {
       console.log('Loading P&L report for:', startDate, 'to', endDate);
       
-      const response = await base44.functions.invoke('getPLReportData', {
-        startDate: startDate,
-        endDate: endDate
+      const response = await supabase.functions.invoke('autopro-getPLReportData', {
+        body: {
+          startDate: startDate,
+          endDate: endDate
+        }
       });
 
       console.log('Backend response:', response);
@@ -141,14 +143,14 @@ export default function PLReport({ isEmbedded = false }) {
   const AccountRow = ({ account, level = 0 }) => (
     <>
       <div
-        className="flex justify-between items-center p-4 border-b hover:bg-slate-50 cursor-pointer print-line-item"
+        className="flex justify-between items-center p-4 border-b hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer print-line-item"
         onClick={() => handleAccountClick(account.account_number)}
       >
         <div style={{ paddingLeft: `${level * 24}px` }}>
-          <span className={`text-slate-900 ${level === 0 ? 'font-semibold' : 'font-medium'}`}>
+          <span className={`text-slate-900 dark:text-slate-100 ${level === 0 ? 'font-semibold' : 'font-medium'}`}>
             {account.account_number}
           </span>
-          <span className={`text-slate-600 ml-2 ${account.is_synthetic ? 'italic' : ''}`}>
+          <span className={`text-slate-600 dark:text-slate-400 ml-2 ${account.is_synthetic ? 'italic' : ''}`}>
             {account.account_name}
           </span>
           {!account.is_synthetic && (
@@ -157,7 +159,7 @@ export default function PLReport({ isEmbedded = false }) {
             </span>
           )}
         </div>
-        <div className={`text-right ${level === 0 ? 'font-bold' : 'font-semibold'} ${account.amount >= 0 ? (account.account_type === 'Revenue' ? 'text-green-700' : 'text-red-700') : 'text-slate-600'}`}>
+        <div className={`text-right ${level === 0 ? 'font-bold' : 'font-semibold'} ${account.amount >= 0 ? (account.account_type === 'Revenue' ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400') : 'text-slate-600 dark:text-slate-400'}`}>
           {formatMoney(account.amount)}
         </div>
       </div>
@@ -359,7 +361,7 @@ export default function PLReport({ isEmbedded = false }) {
             <CardContent className="p-6">
               <div className="flex flex-wrap items-end gap-4">
                 <div className="space-y-1 w-[170px]">
-                  <Label htmlFor="start-date" className="text-xs text-slate-600">Start Date</Label>
+                  <Label htmlFor="start-date" className="text-xs text-slate-600 dark:text-slate-400">Start Date</Label>
                   <Input
                     id="start-date"
                     type="date"
@@ -369,7 +371,7 @@ export default function PLReport({ isEmbedded = false }) {
                   />
                 </div>
                 <div className="space-y-1 w-[170px]">
-                  <Label htmlFor="end-date" className="text-xs text-slate-600">End Date</Label>
+                  <Label htmlFor="end-date" className="text-xs text-slate-600 dark:text-slate-400">End Date</Label>
                   <Input
                     id="end-date"
                     type="date"
@@ -400,12 +402,12 @@ export default function PLReport({ isEmbedded = false }) {
           </Card>
 
           {warnings && (
-            <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4 no-print">
+            <div className="bg-red-50 dark:bg-red-950/30 border-l-4 border-red-500 dark:border-red-700 p-4 mb-4 no-print">
               <div className="flex items-center">
-                <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
-                <p className="text-red-700 font-bold">Data Integrity Warning</p>
+                <AlertTriangle className="h-5 w-5 text-red-500 dark:text-red-400 mr-2" />
+                <p className="text-red-700 dark:text-red-400 font-bold">Data Integrity Warning</p>
               </div>
-              <p className="text-red-600 mt-1 ml-7">{warnings}</p>
+              <p className="text-red-600 dark:text-red-400 mt-1 ml-7">{warnings}</p>
             </div>
           )}
 
@@ -413,7 +415,7 @@ export default function PLReport({ isEmbedded = false }) {
             <Card>
               <CardContent className="p-12 text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-slate-600">Loading report...</p>
+                <p className="text-slate-600 dark:text-slate-400">Loading report...</p>
               </CardContent>
             </Card>
           ) : reportData ? (
@@ -421,7 +423,7 @@ export default function PLReport({ isEmbedded = false }) {
               {/* Revenue Section */}
               <Card className="print-card">
                 <CardHeader className="no-print">
-                  <CardTitle className="flex items-center gap-2 text-green-700">
+                  <CardTitle className="flex items-center gap-2 text-green-700 dark:text-green-400">
                     <TrendingUp className="w-5 h-5" />
                     Revenue
                   </CardTitle>
@@ -433,15 +435,15 @@ export default function PLReport({ isEmbedded = false }) {
                       {reportData.revenue.map((account) => (
                         <AccountRow key={account.account_number} account={account} />
                       ))}
-                      <div className="flex justify-between items-center p-4 bg-green-50 border-t-2 border-green-600 print-line-item total">
-                        <span className="font-bold text-slate-900">Total Revenue</span>
-                        <span className="font-bold text-green-700 text-lg">
+                      <div className="flex justify-between items-center p-4 bg-green-50 dark:bg-green-950/30 border-t-2 border-green-600 dark:border-green-700 print-line-item total">
+                        <span className="font-bold text-slate-900 dark:text-slate-100">Total Revenue</span>
+                        <span className="font-bold text-green-700 dark:text-green-400 text-lg">
                           {formatMoney(reportData.summary.totalRevenue)}
                         </span>
                       </div>
                     </div>
                   ) : (
-                    <div className="p-12 text-center text-slate-500">
+                    <div className="p-12 text-center text-slate-500 dark:text-slate-400">
                       No revenue transactions in this period
                     </div>
                   )}
@@ -451,7 +453,7 @@ export default function PLReport({ isEmbedded = false }) {
               {/* Expenses Section */}
               <Card className="print-card">
                 <CardHeader className="no-print">
-                  <CardTitle className="flex items-center gap-2 text-red-700">
+                  <CardTitle className="flex items-center gap-2 text-red-700 dark:text-red-400">
                     <TrendingDown className="w-5 h-5" />
                     Expenses
                   </CardTitle>
@@ -463,15 +465,15 @@ export default function PLReport({ isEmbedded = false }) {
                       {reportData.expenses.map((account) => (
                         <AccountRow key={account.account_number} account={account} />
                       ))}
-                      <div className="flex justify-between items-center p-4 bg-red-50 border-t-2 border-red-600 print-line-item total">
-                        <span className="font-bold text-slate-900">Total Expenses</span>
-                        <span className="font-bold text-red-700 text-lg">
+                      <div className="flex justify-between items-center p-4 bg-red-50 dark:bg-red-950/30 border-t-2 border-red-600 dark:border-red-700 print-line-item total">
+                        <span className="font-bold text-slate-900 dark:text-slate-100">Total Expenses</span>
+                        <span className="font-bold text-red-700 dark:text-red-400 text-lg">
                           {formatMoney(reportData.summary.totalExpenses)}
                         </span>
                       </div>
                     </div>
                   ) : (
-                    <div className="p-12 text-center text-slate-500">
+                    <div className="p-12 text-center text-slate-500 dark:text-slate-400">
                       No expense transactions in this period
                     </div>
                   )}
@@ -483,12 +485,12 @@ export default function PLReport({ isEmbedded = false }) {
                 <CardContent className="p-6">
                   <div className={`flex justify-between items-center print-line-item ${reportData.summary.netIncome >= 0 ? 'net-income' : 'net-loss'}`}>
                     <div className="flex items-center gap-3">
-                      <DollarSign className={`w-8 h-8 ${reportData.summary.netIncome >= 0 ? 'text-green-700' : 'text-red-700'}`} />
-                      <span className="text-2xl font-bold text-slate-900">
+                      <DollarSign className={`w-8 h-8 ${reportData.summary.netIncome >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`} />
+                      <span className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                         {reportData.summary.netIncome >= 0 ? 'Net Income' : 'Net Loss'}
                       </span>
                     </div>
-                    <span className={`text-3xl font-bold ${reportData.summary.netIncome >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                    <span className={`text-3xl font-bold ${reportData.summary.netIncome >= 0 ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
                       {formatMoney(reportData.summary.netIncome)}
                     </span>
                   </div>
@@ -499,8 +501,8 @@ export default function PLReport({ isEmbedded = false }) {
             <Card>
               <CardContent className="p-12 text-center">
                 <Calendar className="w-12 h-12 mx-auto mb-4 text-slate-400" />
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">No Data Available</h3>
-                <p className="text-slate-600">Select a date range to generate the report.</p>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">No Data Available</h3>
+                <p className="text-slate-600 dark:text-slate-400">Select a date range to generate the report.</p>
               </CardContent>
             </Card>
           )}

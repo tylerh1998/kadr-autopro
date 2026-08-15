@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import ModalCloseButton from '@/components/ui/modal-close-button';
 import { format } from 'date-fns';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
@@ -38,9 +38,9 @@ async function resolveUserName(email, employees) {
   if (email.endsWith('@no-reply.base44.com')) return 'System';
   const employee = (employees || []).find((item) => item.email === email);
   if (employee) return employee.full_name || `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || email;
-  const users = await base44.entities.User.filter({ email });
-  const user = users?.[0];
-  return user?.User_name || user?.full_name || email;
+  const { data: matchedEmployees } = await supabase.from('Employee').select('full_name').eq('email', email);
+  const matched = matchedEmployees?.[0];
+  return matched?.full_name || email;
 }
 
 export default function WorkOrderHistoryModal({ open, onClose, workOrderId, employees = [] }) {
@@ -54,13 +54,13 @@ export default function WorkOrderHistoryModal({ open, onClose, workOrderId, empl
 
     const loadHistory = async () => {
       setLoading(true);
-      const response = await base44.functions.invoke('SupabaseProxy', {
-        action: 'read',
-        table: 'workorderversionhistory',
-        match: { workorder_id: workOrderId },
-        orderBy: { column: 'changed_at', ascending: false }
-      });
-      const rawRecords = response.data?.data || [];
+      const { data: rawRecordsData, error } = await supabase
+        .from('workorderversionhistory')
+        .select('*')
+        .eq('workorder_id', workOrderId)
+        .order('changed_at', { ascending: false });
+      if (error) console.error('Error loading work order history:', error);
+      const rawRecords = rawRecordsData || [];
       const enriched = await Promise.all(
         rawRecords.map(async (record) => ({
           ...record,
@@ -112,12 +112,12 @@ export default function WorkOrderHistoryModal({ open, onClose, workOrderId, empl
           </DialogHeader>
 
           {loading ? (
-            <div className="py-16 flex items-center justify-center gap-3 text-slate-600">
+            <div className="py-16 flex items-center justify-center gap-3 text-slate-600 dark:text-slate-400">
               <Loader2 className="w-5 h-5 animate-spin" />
               <span>Loading history...</span>
             </div>
           ) : visibleRecords.length === 0 ? (
-            <div className="py-16 text-center text-slate-500">No version history available for this work order.</div>
+            <div className="py-16 text-center text-slate-500 dark:text-slate-400">No version history available for this work order.</div>
           ) : (
             <div className="space-y-4">
               <div className="space-y-3">
@@ -132,7 +132,7 @@ export default function WorkOrderHistoryModal({ open, onClose, workOrderId, empl
               </div>
 
               <div className="flex items-center justify-between pt-2">
-                <p className="text-sm text-slate-500">Page {page + 1} of {totalPages}</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400">Page {page + 1} of {totalPages}</p>
                 <div className="flex gap-2">
                   <Button variant="outline" disabled={page === 0} onClick={() => setPage((prev) => prev - 1)}>Previous</Button>
                   <Button variant="outline" disabled={page >= totalPages - 1} onClick={() => setPage((prev) => prev + 1)}>Next</Button>

@@ -32,7 +32,7 @@ export default function CreditConfirmationModal({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-xl">
-            <CheckCircle className="w-6 h-6 text-green-500" />
+            <CheckCircle className="w-6 h-6 text-green-500 dark:text-green-400" />
             Credit Invoice Created
           </DialogTitle>
           <DialogDescription className="text-base mt-4">
@@ -42,8 +42,8 @@ export default function CreditConfirmationModal({
 
         <div className="space-y-6 py-4">
           {/* Success Summary */}
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <ul className="space-y-2 text-sm text-green-800">
+          <div className="bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 rounded-lg p-4">
+            <ul className="space-y-2 text-sm text-green-800 dark:text-green-300">
               <li className="flex items-start gap-2">
                 <CheckCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
                 <span>Credit invoice record created</span>
@@ -66,7 +66,7 @@ export default function CreditConfirmationModal({
           {/* Customer Portal URL */}
           <div className="space-y-3">
             <Label className="text-base font-semibold">Customer Portal URL</Label>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-slate-600 dark:text-slate-300">
               Share this link with the customer to view their credit invoice details
             </p>
             <div className="flex gap-2">
@@ -81,7 +81,7 @@ export default function CreditConfirmationModal({
                 onClick={handleCopyUrl}
                 className="flex-shrink-0"
               >
-                {copied ? <CheckCircle className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                {copied ? <CheckCircle className="w-4 h-4 text-green-600 dark:text-green-400" /> : <Copy className="w-4 h-4" />}
               </Button>
               <Button 
                 variant="outline" 
@@ -93,7 +93,7 @@ export default function CreditConfirmationModal({
               </Button>
             </div>
             {copied && (
-              <p className="text-sm text-green-600 animate-fade-in">
+              <p className="text-sm text-green-600 dark:text-green-400 animate-fade-in">
                 ✓ URL copied to clipboard!
               </p>
             )}

@@ -7,8 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
-import { ChartOfAccount, LinesOfCredit, GLTransaction } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { checkEntityLock } from '../utils/mountainTimeUtils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import GLAccountCombobox from '@/components/suppliers/GLAccountCombobox';
@@ -36,7 +35,12 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
       if (open && currentUser && lineOfCredit) {
         try {
           // Always fetch the latest account data to check lock status
-          const account = await LinesOfCredit.get(lineOfCredit.id);
+          const { data: account, error: accountError } = await supabase
+            .from('LinesOfCredit')
+            .select('*')
+            .eq('id', lineOfCredit.id)
+            .single();
+          if (accountError) throw accountError;
           const lockStatus = checkEntityLock(account, currentUser.email);
 
           if (lockStatus.isLocked) {
@@ -46,10 +50,10 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
           }
 
           // Acquire lock
-          await LinesOfCredit.update(lineOfCredit.id, {
+          await supabase.from('LinesOfCredit').update({
             locked_by_user: currentUser.email,
             locked_timestamp: new Date().toISOString()
-          });
+          }).eq('id', lineOfCredit.id);
           
           setLockAcquired(true);
           setIsLocked(false);
@@ -83,8 +87,8 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
         const fetchOffsetGL = async () => {
              // Find GL transaction where source_id = tx.id and account != loc.gl_account
              if (lineOfCredit?.gl_account) {
-                 const glTxs = await GLTransaction.filter({ source_id: transaction.id });
-                 const offsetTx = glTxs.find(tx => tx.account_number !== lineOfCredit.gl_account);
+                 const { data: glTxs } = await supabase.from('GLTransaction').select('*').eq('source_id', transaction.id);
+                 const offsetTx = (glTxs || []).find(tx => tx.account_number !== lineOfCredit.gl_account);
                  if (offsetTx) {
                      setFormData(prev => ({ ...prev, offset_gl_account: offsetTx.account_number }));
                  }
@@ -113,11 +117,11 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
     return () => {
       if (!open && lockAcquired && currentUser && lineOfCredit) {
         // Release lock when modal closes
-        LinesOfCredit.update(lineOfCredit.id, {
+        supabase.from('LinesOfCredit').update({
           locked_by_user: null,
           locked_timestamp: null
-        }).catch(error => {
-          console.error('Error releasing lock:', error);
+        }).eq('id', lineOfCredit.id).then(({ error }) => {
+          if (error) console.error('Error releasing lock:', error);
         });
         setLockAcquired(false);
       }
@@ -127,11 +131,11 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
   const handleClose = () => {
     // Release lock before closing
     if (lockAcquired && currentUser && lineOfCredit) {
-      LinesOfCredit.update(lineOfCredit.id, {
+      supabase.from('LinesOfCredit').update({
         locked_by_user: null,
         locked_timestamp: null
-      }).catch(error => {
-        console.error('Error releasing lock on close:', error);
+      }).eq('id', lineOfCredit.id).then(({ error }) => {
+        if (error) console.error('Error releasing lock on close:', error);
       });
       setLockAcquired(false);
     }
@@ -140,8 +144,13 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
 
   const loadChartOfAccounts = async () => {
     try {
-      const accounts = await ChartOfAccount.filter({ is_active: true }, 'account_number');
-      setChartOfAccounts(accounts);
+      const { data, error } = await supabase
+        .from('ChartOfAccount')
+        .select('*')
+        .eq('is_active', true)
+        .order('account_number');
+      if (error) throw error;
+      setChartOfAccounts(data || []);
     } catch (error) {
       console.error('Error loading chart of accounts:', error);
       setChartOfAccounts([]);
@@ -193,9 +202,11 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
 
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('processLineOfCreditTransaction', {
-        id: transaction.id,
-        action: 'delete'
+      const response = await supabase.functions.invoke('autopro-processLineOfCreditTransaction', {
+        body: {
+          id: transaction.id,
+          action: 'delete'
+        }
       });
 
       if (response.data && response.data.success) {
@@ -251,16 +262,18 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
       const creditAmt = parseFloat(formData.credit_amount || 0);
       const isCharge = chargeAmt > 0;
 
-      const response = await base44.functions.invoke('processLineOfCreditTransaction', {
-        id: transaction?.id, // Pass ID for edit
-        line_of_credit_id: lineOfCredit.id,
-        transaction_date: formData.transaction_date,
-        description: formData.description,
-        reference: formData.reference,
-        transaction_type: isCharge ? 'charge' : 'credit',
-        amount: isCharge ? chargeAmt : creditAmt,
-        offset_gl_account: formData.offset_gl_account,
-        source_type: formData.source_type
+      const response = await supabase.functions.invoke('autopro-processLineOfCreditTransaction', {
+        body: {
+          id: transaction?.id, // Pass ID for edit
+          line_of_credit_id: lineOfCredit.id,
+          transaction_date: formData.transaction_date,
+          description: formData.description,
+          reference: formData.reference,
+          transaction_type: isCharge ? 'charge' : 'credit',
+          amount: isCharge ? chargeAmt : creditAmt,
+          offset_gl_account: formData.offset_gl_account,
+          source_type: formData.source_type
+        }
       });
 
       if (response.data && response.data.success) {
@@ -299,11 +312,11 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
           <form onSubmit={handleSubmit} className="space-y-4 py-4">
           {/* Error Message */}
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3 flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-red-800">Error</p>
-                <p className="text-sm text-red-700 mt-1">{error}</p>
+                <p className="text-sm font-medium text-red-800 dark:text-red-300">Error</p>
+                <p className="text-sm text-red-700 dark:text-red-400 mt-1">{error}</p>
               </div>
             </div>
           )}
@@ -348,7 +361,7 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="charge_amount" className="text-red-600 font-medium">Charge Amount</Label>
+              <Label htmlFor="charge_amount" className="text-red-600 dark:text-red-400 font-medium">Charge Amount</Label>
               <Input
                 id="charge_amount"
                 type="number"
@@ -357,12 +370,12 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
                 value={formData.charge_amount}
                 onChange={(e) => handleChange('charge_amount', e.target.value)}
                 disabled={loading || (parseFloat(formData.credit_amount) > 0)}
-                className="border-red-200 focus:border-red-500 text-red-700 font-medium"
+                className="border-red-200 dark:border-red-800 focus:border-red-500 dark:focus:border-red-600 text-red-700 dark:text-red-400 font-medium"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="credit_amount" className="text-green-600 font-medium">Credit Amount</Label>
+              <Label htmlFor="credit_amount" className="text-green-600 dark:text-green-400 font-medium">Credit Amount</Label>
               <Input
                 id="credit_amount"
                 type="number"
@@ -371,7 +384,7 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
                 value={formData.credit_amount}
                 onChange={(e) => handleChange('credit_amount', e.target.value)}
                 disabled={loading || (parseFloat(formData.charge_amount) > 0)}
-                className="border-green-200 focus:border-green-500 text-green-700 font-medium"
+                className="border-green-200 dark:border-green-800 focus:border-green-500 dark:focus:border-green-600 text-green-700 dark:text-green-400 font-medium"
               />
             </div>
           </div>
@@ -404,28 +417,28 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
                 onChange={(value) => handleChange('offset_gl_account', value)}
                 disabled={loading}
                 placeholder="Select GL Account..."
-                className={!formData.offset_gl_account ? 'border-red-300' : ''}
+                className={!formData.offset_gl_account ? 'border-red-300 dark:border-red-700' : ''}
               />
             </div>
           </div>
 
           {/* Summary */}
-          <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-            <div className="text-sm text-slate-600 mb-2">Transaction Summary:</div>
+          <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-4">
+            <div className="text-sm text-slate-600 dark:text-slate-400 mb-2">Transaction Summary:</div>
             <div className="space-y-1">
               <div className="flex justify-between">
-                <span className="text-sm text-slate-700">Line of Credit:</span>
-                <span className="text-sm font-medium text-slate-900">{lineOfCredit?.name}</span>
+                <span className="text-sm text-slate-700 dark:text-slate-300">Line of Credit:</span>
+                <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{lineOfCredit?.name}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-slate-700">Type:</span>
-                <span className="text-sm font-medium text-slate-900">
+                <span className="text-sm text-slate-700 dark:text-slate-300">Type:</span>
+                <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
                   {parseFloat(formData.charge_amount) > 0 ? 'Charge (Draw)' : 'Credit (Refund)'}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-sm text-slate-700">Amount:</span>
-                <span className={`text-sm font-bold ${parseFloat(formData.charge_amount) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                <span className="text-sm text-slate-700 dark:text-slate-300">Amount:</span>
+                <span className={`text-sm font-bold ${parseFloat(formData.charge_amount) > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
                   {parseFloat(formData.charge_amount) > 0 ? '+' : '-'}${(parseFloat(formData.charge_amount || 0) + parseFloat(formData.credit_amount || 0)).toFixed(2)}
                 </span>
               </div>

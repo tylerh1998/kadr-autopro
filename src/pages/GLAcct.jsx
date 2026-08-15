@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { ChartOfAccount } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -46,14 +45,20 @@ export default function GLAcctPage() {
       console.log('Date range:', appliedStartDate, 'to', appliedEndDate);
       
       // Fetch account details
-      const accountData = await ChartOfAccount.filter({ account_number: accountNumber });
-      setAccount(accountData[0] || null);
+      const { data: accountData, error: accountError } = await supabase
+        .from('ChartOfAccount')
+        .select('*')
+        .eq('account_number', accountNumber);
+      if (accountError) throw accountError;
+      setAccount(accountData?.[0] || null);
 
       // Fetch transactions via backend function
-      const response = await base44.functions.invoke('getGLAccountTransactions', {
-        accountNumber: accountNumber,
-        appliedStartDate: appliedStartDate,
-        appliedEndDate: appliedEndDate
+      const response = await supabase.functions.invoke('autopro-getGLAccountTransactions', {
+        body: {
+          accountNumber: accountNumber,
+          appliedStartDate: appliedStartDate,
+          appliedEndDate: appliedEndDate
+        }
       });
 
       console.log('Backend response:', response);
@@ -118,11 +123,11 @@ export default function GLAcctPage() {
   const transactionsWithBalance = transactions;
 
   const accountTypeColors = {
-    'Asset': 'bg-blue-100 text-blue-800',
-    'Liability': 'bg-red-100 text-red-800',
-    'Equity': 'bg-purple-100 text-purple-800',
-    'Revenue': 'bg-green-100 text-green-800',
-    'Expense': 'bg-orange-100 text-orange-800'
+    'Asset': 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
+    'Liability': 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
+    'Equity': 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300',
+    'Revenue': 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
+    'Expense': 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300'
   };
 
   // Helper function to format date without timezone issues
@@ -158,7 +163,7 @@ export default function GLAcctPage() {
 
   if (!account && !loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 text-slate-700">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-300">
         <h1 className="text-4xl font-bold mb-4">Account Not Found</h1>
         <p className="text-lg mb-8">The account you are looking for does not exist.</p>
         <Button onClick={handleBack}>
@@ -404,7 +409,7 @@ export default function GLAcctPage() {
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="flex-1">
-              <h1 className="text-3xl font-bold text-slate-900">
+              <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">
                 Account {account?.account_number} - {account?.account_name || 'Loading...'}
               </h1>
               <div className="flex items-center gap-2 mt-1">
@@ -413,7 +418,7 @@ export default function GLAcctPage() {
                     {account.account_type}
                   </Badge>
                 )}
-                <p className="text-slate-600">General ledger transactions</p>
+                <p className="text-slate-600 dark:text-slate-400">General ledger transactions</p>
               </div>
             </div>
           </div>
@@ -421,34 +426,34 @@ export default function GLAcctPage() {
           {/* Right Side: Date Range Filters */}
           <div className="flex flex-wrap items-end gap-3 lg:ml-0 ml-14">
             <div className="space-y-1">
-              <Label htmlFor="days-back" className="text-xs text-slate-600">Days Back</Label>
+              <Label htmlFor="days-back" className="text-xs text-slate-600 dark:text-slate-400">Days Back</Label>
               <Input
                 id="days-back"
                 type="number"
                 value={daysBack}
                 onChange={(e) => handleDaysBackChange(e.target.value)}
                 placeholder="365"
-                className="w-24 bg-white"
+                className="w-24 bg-white dark:bg-slate-900"
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="start-date" className="text-xs text-slate-600">Start Date</Label>
+              <Label htmlFor="start-date" className="text-xs text-slate-600 dark:text-slate-400">Start Date</Label>
               <Input
                 id="start-date"
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-40 bg-white"
+                className="w-40 bg-white dark:bg-slate-900"
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="end-date" className="text-xs text-slate-600">End Date</Label>
+              <Label htmlFor="end-date" className="text-xs text-slate-600 dark:text-slate-400">End Date</Label>
               <Input
                 id="end-date"
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-40 bg-white"
+                className="w-40 bg-white dark:bg-slate-900"
               />
             </div>
             <Button onClick={handleApplyDateRange} className="bg-blue-600 hover:bg-blue-700" size="sm">
@@ -479,49 +484,49 @@ export default function GLAcctPage() {
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 border-b">
+                <thead className="bg-slate-50 dark:bg-slate-800 border-b">
                   <tr>
-                    <th className="text-left p-3 font-semibold text-slate-700">Date</th>
-                    <th className="text-left p-3 font-semibold text-slate-700">Description</th>
-                    <th className="text-right p-3 font-semibold text-slate-700">Debit</th>
-                    <th className="text-right p-3 font-semibold text-slate-700">Credit</th>
-                    <th className="text-right p-3 font-semibold text-slate-700">Balance</th>
+                    <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Date</th>
+                    <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Description</th>
+                    <th className="text-right p-3 font-semibold text-slate-700 dark:text-slate-300">Debit</th>
+                    <th className="text-right p-3 font-semibold text-slate-700 dark:text-slate-300">Credit</th>
+                    <th className="text-right p-3 font-semibold text-slate-700 dark:text-slate-300">Balance</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     Array(5).fill(0).map((_, i) => (
                       <tr key={i} className="border-b animate-pulse">
-                        <td className="p-3"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
-                        <td className="p-3"><div className="h-4 bg-slate-200 rounded w-48"></div></td>
-                        <td className="p-3"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
-                        <td className="p-3"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
-                        <td className="p-3"><div className="h-4 bg-slate-200 rounded w-20"></div></td>
+                        <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-24"></div></td>
+                        <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-48"></div></td>
+                        <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16"></div></td>
+                        <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16"></div></td>
+                        <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20"></div></td>
                       </tr>
                     ))
                   ) : transactionsWithBalance.length > 0 ? (
                     transactionsWithBalance.map((tx) => (
-                      <tr key={tx.id} className="border-b hover:bg-slate-50">
+                      <tr key={tx.id} className="border-b hover:bg-slate-50 dark:hover:bg-slate-800/60">
                         <td className="p-3">{formatTransactionDate(tx.transaction_date)}</td>
                         <td className="p-3">
                           <div>
-                            <span className="font-medium text-slate-900">{tx.description}</span>
+                            <span className="font-medium text-slate-900 dark:text-slate-100">{tx.description}</span>
                             {tx.reference && (
-                              <span className="text-slate-500 text-xs ml-2">Ref: {tx.reference}</span>
+                              <span className="text-slate-500 dark:text-slate-400 text-xs ml-2">Ref: {tx.reference}</span>
                             )}
                           </div>
                         </td>
                         <td className="p-3 text-right">
                           {tx.debit_amount > 0 && (
-                            <span className="font-medium text-red-600">${tx.debit_amount.toFixed(2)}</span>
+                            <span className="font-medium text-red-600 dark:text-red-400">${tx.debit_amount.toFixed(2)}</span>
                           )}
                         </td>
                         <td className="p-3 text-right">
                           {tx.credit_amount > 0 && (
-                            <span className="font-medium text-green-600">${tx.credit_amount.toFixed(2)}</span>
+                            <span className="font-medium text-green-600 dark:text-green-400">${tx.credit_amount.toFixed(2)}</span>
                           )}
                         </td>
-                        <td className="p-3 text-right font-semibold text-slate-900">
+                        <td className="p-3 text-right font-semibold text-slate-900 dark:text-slate-100">
                           ${tx.balance.toFixed(2)}
                         </td>
                       </tr>
@@ -532,8 +537,8 @@ export default function GLAcctPage() {
                         <div className="text-slate-400 mb-4">
                           <BookOpen className="w-12 h-12 mx-auto" />
                         </div>
-                        <h3 className="text-lg font-semibold text-slate-900 mb-2">No Transactions</h3>
-                        <p className="text-slate-600 mb-4">No transactions found in the selected date range.</p>
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">No Transactions</h3>
+                        <p className="text-slate-600 dark:text-slate-400 mb-4">No transactions found in the selected date range.</p>
                         <Link to={createPageUrl('JournalEntries')}>
                           <Button>Create Journal Entry</Button>
                         </Link>

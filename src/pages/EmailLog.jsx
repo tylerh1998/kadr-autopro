@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { SentEmailLog } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -31,30 +30,32 @@ export default function EmailLogPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const logsData = await SentEmailLog.list('-sent_date', 200); // Get latest 200 logs
-      setLogs(logsData);
-
-      // Fetch customers and work orders from Supabase Proxy
-      const [customersRes, workOrdersRes] = await Promise.all([
-        base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Customer' }),
-        base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'WorkOrder' })
+      const [
+        { data: logsData, error: logsError },
+        { data: customersData, error: customersError },
+        { data: workOrdersData, error: workOrdersError }
+      ] = await Promise.all([
+        supabase.from('SentEmailLog').select('*').order('sent_date', { ascending: false }).limit(200),
+        supabase.from('Customer').select('*'),
+        supabase.from('WorkOrder').select('*')
       ]);
 
-      if (customersRes.data?.data) {
-        const customerMap = customersRes.data.data.reduce((acc, customer) => {
-          acc[customer.id] = customer;
-          return acc;
-        }, {});
-        setCustomers(customerMap);
-      }
+      if (logsError) throw logsError;
+      setLogs(logsData || []);
 
-      if (workOrdersRes.data?.data) {
-        const woMap = workOrdersRes.data.data.reduce((acc, wo) => {
-          acc[wo.id] = wo;
-          return acc;
-        }, {});
-        setWorkOrders(woMap);
-      }
+      if (customersError) throw customersError;
+      const customerMap = (customersData || []).reduce((acc, customer) => {
+        acc[customer.id] = customer;
+        return acc;
+      }, {});
+      setCustomers(customerMap);
+
+      if (workOrdersError) throw workOrdersError;
+      const woMap = (workOrdersData || []).reduce((acc, wo) => {
+        acc[wo.id] = wo;
+        return acc;
+      }, {});
+      setWorkOrders(woMap);
 
     } catch (error) {
       console.error("Failed to load email logs:", error);
@@ -97,21 +98,21 @@ export default function EmailLogPage() {
   const StatusBadge = ({ status }) => {
     switch (status) {
       case 'sent':
-        return <Badge className="bg-blue-100 text-blue-800 border-blue-200"><CheckCircle className="w-3 h-3 mr-1" />Sent</Badge>;
+        return <Badge className="bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-900/60"><CheckCircle className="w-3 h-3 mr-1" />Sent</Badge>;
       case 'delivered':
-        return <Badge className="bg-green-100 text-green-800 border-green-200"><CheckCircle className="w-3 h-3 mr-1" />Delivered</Badge>;
+        return <Badge className="bg-green-100 text-green-800 border-green-200 dark:bg-green-900/40 dark:text-green-300 dark:border-green-900/60"><CheckCircle className="w-3 h-3 mr-1" />Delivered</Badge>;
       case 'opened':
-        return <Badge className="bg-cyan-100 text-cyan-800 border-cyan-200"><Eye className="w-3 h-3 mr-1" />Opened</Badge>;
+        return <Badge className="bg-cyan-100 text-cyan-800 border-cyan-200 dark:bg-cyan-900/40 dark:text-cyan-300 dark:border-cyan-900/60"><Eye className="w-3 h-3 mr-1" />Opened</Badge>;
       case 'clicked':
-        return <Badge className="bg-green-100 text-green-800 border-green-200"><MousePointerClick className="w-3 h-3 mr-1" />Clicked</Badge>;
+        return <Badge className="bg-green-100 text-green-800 border-green-200 dark:bg-green-900/40 dark:text-green-300 dark:border-green-900/60"><MousePointerClick className="w-3 h-3 mr-1" />Clicked</Badge>;
       case 'bounced':
-        return <Badge className="bg-red-100 text-red-800 border-red-200"><XCircle className="w-3 h-3 mr-1" />Bounced</Badge>;
+        return <Badge className="bg-red-100 text-red-800 border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-900/60"><XCircle className="w-3 h-3 mr-1" />Bounced</Badge>;
       case 'complained':
-        return <Badge className="bg-orange-100 text-orange-800 border-orange-200"><AlertTriangle className="w-3 h-3 mr-1" />Complained</Badge>;
+        return <Badge className="bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/40 dark:text-orange-300 dark:border-orange-900/60"><AlertTriangle className="w-3 h-3 mr-1" />Complained</Badge>;
       case 'delivery_delayed':
-        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200"><Clock className="w-3 h-3 mr-1" />Delayed</Badge>;
+        return <Badge className="bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/40 dark:text-yellow-300 dark:border-yellow-900/60"><Clock className="w-3 h-3 mr-1" />Delayed</Badge>;
       case 'failed':
-        return <Badge className="bg-red-100 text-red-800 border-red-200"><Ban className="w-3 h-3 mr-1" />Failed</Badge>;
+        return <Badge className="bg-red-100 text-red-800 border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-900/60"><Ban className="w-3 h-3 mr-1" />Failed</Badge>;
       case 'pending':
       default:
         return <Badge variant="outline"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
@@ -124,8 +125,8 @@ export default function EmailLogPage() {
     <div className="p-6 min-h-screen">
       <div className="max-w-7xl mx-auto space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Email/Text Log</h1>
-          <p className="text-slate-600 mt-1">History of all emails and text messages sent from the platform.</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Email/Text Log</h1>
+          <p className="text-slate-600 mt-1 dark:text-slate-400">History of all emails and text messages sent from the platform.</p>
         </div>
 
         <Card>
@@ -154,9 +155,9 @@ export default function EmailLogPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="border rounded-lg overflow-hidden">
+            <div className="border rounded-lg overflow-hidden dark:border-slate-700">
               <Table>
-                <TableHeader className="bg-slate-50">
+                <TableHeader className="bg-slate-50 dark:bg-slate-800">
                   <TableRow>
                     <TableHead>Status</TableHead>
                     <TableHead>Date</TableHead>
@@ -174,7 +175,7 @@ export default function EmailLogPage() {
                     ))
                   ) : paginatedLogs.length > 0 ? (
                     paginatedLogs.map(log => (
-                      <TableRow key={log.id} onClick={() => handleRowClick(log)} className="cursor-pointer hover:bg-slate-100 transition-colors">
+                      <TableRow key={log.id} onClick={() => handleRowClick(log)} className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700/50 transition-colors">
                         <TableCell><StatusBadge status={log.status} /></TableCell>
                         <TableCell>{format(new Date(log.sent_date), 'MMM d, yyyy h:mm a')}</TableCell>
                         <TableCell>{log.to_email}</TableCell>
@@ -184,7 +185,7 @@ export default function EmailLogPage() {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={5} className="text-center h-24 text-slate-500">
+                      <TableCell colSpan={5} className="text-center h-24 text-slate-500 dark:text-slate-400">
                         No email logs found.
                       </TableCell>
                     </TableRow>
@@ -193,8 +194,8 @@ export default function EmailLogPage() {
               </Table>
             </div>
             {filteredLogs.length > recordsPerPage && (
-              <div className="flex items-center justify-between px-4 py-4 border-t">
-                <div className="text-sm text-slate-600">
+              <div className="flex items-center justify-between px-4 py-4 border-t dark:border-slate-700">
+                <div className="text-sm text-slate-600 dark:text-slate-400">
                   Showing {startIndex + 1}-{Math.min(endIndex, filteredLogs.length)} of {filteredLogs.length} emails
                 </div>
                 <div className="flex gap-2">
@@ -207,7 +208,7 @@ export default function EmailLogPage() {
                     <ChevronLeft className="w-4 h-4 mr-1" />
                     Previous
                   </Button>
-                  <div className="flex items-center px-3 text-sm text-slate-600">
+                  <div className="flex items-center px-3 text-sm text-slate-600 dark:text-slate-400">
                     Page {currentPage} of {totalPages}
                   </div>
                   <Button

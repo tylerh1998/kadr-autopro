@@ -6,69 +6,69 @@ import NoteEditableContent from './note-card/NoteEditableContent';
 
 const cardThemes = {
   white: {
-    wrapper: 'overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white p-4 text-left text-slate-900 shadow-[0_12px_28px_rgba(15,23,42,0.08)]',
+    wrapper: 'overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white p-4 text-left text-slate-900 shadow-[0_12px_28px_rgba(15,23,42,0.08)] dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100',
     icon: 'text-slate-400',
-    body: 'mb-4 rounded-2xl border border-slate-200 bg-white p-4',
-    bodyText: 'text-slate-700',
-    divider: 'border-slate-200',
-    utilityButton: 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50',
-    shareActiveButton: 'border-slate-200 bg-slate-100 text-slate-600',
-    utilityIcon: 'text-slate-500',
-    headerTitle: 'text-sm font-semibold text-slate-900',
-    headerSubtitle: 'text-sm text-slate-600',
-    headerLink: 'hover:bg-slate-50'
+    body: 'mb-4 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800',
+    bodyText: 'text-slate-700 dark:text-slate-300',
+    divider: 'border-slate-200 dark:border-slate-700',
+    utilityButton: 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:bg-slate-800',
+    shareActiveButton: 'border-slate-200 bg-slate-100 text-slate-600 dark:border-slate-600 dark:bg-slate-700/60 dark:text-slate-300',
+    utilityIcon: 'text-slate-500 dark:text-slate-400',
+    headerTitle: 'text-sm font-semibold text-slate-900 dark:text-slate-100',
+    headerSubtitle: 'text-sm text-slate-600 dark:text-slate-400',
+    headerLink: 'hover:bg-slate-50 dark:hover:bg-slate-800'
   },
   blue: {
-    wrapper: 'overflow-hidden rounded-[1.75rem] border border-blue-200 bg-blue-50 p-4 text-left text-slate-900 shadow-[0_12px_28px_rgba(15,23,42,0.08)]',
-    icon: 'text-blue-400',
-    body: 'mb-4 rounded-2xl border border-blue-200 bg-white p-4',
-    bodyText: 'text-slate-700',
-    divider: 'border-blue-200',
-    utilityButton: 'border-blue-200 bg-white text-blue-600 hover:bg-blue-100',
-    shareActiveButton: 'border-blue-200 bg-blue-100 text-blue-700',
-    utilityIcon: 'text-blue-600',
-    headerTitle: 'text-sm font-semibold text-slate-900',
-    headerSubtitle: 'text-sm text-slate-700',
-    headerLink: 'hover:bg-blue-100/60'
+    wrapper: 'overflow-hidden rounded-[1.75rem] border border-blue-200 bg-blue-50 p-4 text-left text-slate-900 shadow-[0_12px_28px_rgba(15,23,42,0.08)] dark:border-blue-800 dark:bg-blue-950/30 dark:text-slate-100',
+    icon: 'text-blue-400 dark:text-blue-300',
+    body: 'mb-4 rounded-2xl border border-blue-200 bg-white p-4 dark:border-blue-800 dark:bg-slate-900',
+    bodyText: 'text-slate-700 dark:text-slate-300',
+    divider: 'border-blue-200 dark:border-blue-800',
+    utilityButton: 'border-blue-200 bg-white text-blue-600 hover:bg-blue-100 dark:border-blue-800 dark:bg-slate-900 dark:text-blue-300 dark:hover:bg-blue-900/40',
+    shareActiveButton: 'border-blue-200 bg-blue-100 text-blue-700 dark:border-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+    utilityIcon: 'text-blue-600 dark:text-blue-300',
+    headerTitle: 'text-sm font-semibold text-slate-900 dark:text-slate-100',
+    headerSubtitle: 'text-sm text-slate-700 dark:text-slate-300',
+    headerLink: 'hover:bg-blue-100/60 dark:hover:bg-blue-900/30'
   },
   green: {
-    wrapper: 'overflow-hidden rounded-[1.75rem] border border-green-200 bg-green-50 p-4 text-left text-slate-900 shadow-[0_12px_28px_rgba(15,23,42,0.08)]',
-    icon: 'text-green-400',
-    body: 'mb-4 rounded-2xl border border-green-200 bg-white p-4',
-    bodyText: 'text-slate-700',
-    divider: 'border-green-200',
-    utilityButton: 'border-green-200 bg-white text-green-700 hover:bg-green-100',
-    shareActiveButton: 'border-green-200 bg-green-100 text-green-800',
-    utilityIcon: 'text-green-700',
-    headerTitle: 'text-sm font-semibold text-slate-900',
-    headerSubtitle: 'text-sm text-green-800',
-    headerLink: 'hover:bg-green-100/70'
+    wrapper: 'overflow-hidden rounded-[1.75rem] border border-green-200 bg-green-50 p-4 text-left text-slate-900 shadow-[0_12px_28px_rgba(15,23,42,0.08)] dark:border-green-800 dark:bg-green-950/30 dark:text-slate-100',
+    icon: 'text-green-400 dark:text-green-300',
+    body: 'mb-4 rounded-2xl border border-green-200 bg-white p-4 dark:border-green-800 dark:bg-slate-900',
+    bodyText: 'text-slate-700 dark:text-slate-300',
+    divider: 'border-green-200 dark:border-green-800',
+    utilityButton: 'border-green-200 bg-white text-green-700 hover:bg-green-100 dark:border-green-800 dark:bg-slate-900 dark:text-green-300 dark:hover:bg-green-900/40',
+    shareActiveButton: 'border-green-200 bg-green-100 text-green-800 dark:border-green-700 dark:bg-green-900/40 dark:text-green-300',
+    utilityIcon: 'text-green-700 dark:text-green-300',
+    headerTitle: 'text-sm font-semibold text-slate-900 dark:text-slate-100',
+    headerSubtitle: 'text-sm text-green-800 dark:text-green-300',
+    headerLink: 'hover:bg-green-100/70 dark:hover:bg-green-900/30'
   },
   yellow: {
-    wrapper: 'overflow-hidden rounded-[1.75rem] border border-yellow-200 bg-yellow-50 p-4 text-left text-slate-900 shadow-[0_12px_28px_rgba(15,23,42,0.08)]',
-    icon: 'text-yellow-500',
-    body: 'mb-4 rounded-2xl border border-yellow-200 bg-white p-4',
-    bodyText: 'text-slate-700',
-    divider: 'border-yellow-200',
-    utilityButton: 'border-yellow-200 bg-white text-yellow-700 hover:bg-yellow-100',
-    shareActiveButton: 'border-yellow-200 bg-yellow-100 text-yellow-800',
-    utilityIcon: 'text-yellow-700',
-    headerTitle: 'text-sm font-semibold text-slate-900',
-    headerSubtitle: 'text-sm text-yellow-800',
-    headerLink: 'hover:bg-yellow-100/70'
+    wrapper: 'overflow-hidden rounded-[1.75rem] border border-yellow-200 bg-yellow-50 p-4 text-left text-slate-900 shadow-[0_12px_28px_rgba(15,23,42,0.08)] dark:border-yellow-800 dark:bg-yellow-950/30 dark:text-slate-100',
+    icon: 'text-yellow-500 dark:text-yellow-300',
+    body: 'mb-4 rounded-2xl border border-yellow-200 bg-white p-4 dark:border-yellow-800 dark:bg-slate-900',
+    bodyText: 'text-slate-700 dark:text-slate-300',
+    divider: 'border-yellow-200 dark:border-yellow-800',
+    utilityButton: 'border-yellow-200 bg-white text-yellow-700 hover:bg-yellow-100 dark:border-yellow-800 dark:bg-slate-900 dark:text-yellow-300 dark:hover:bg-yellow-900/40',
+    shareActiveButton: 'border-yellow-200 bg-yellow-100 text-yellow-800 dark:border-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
+    utilityIcon: 'text-yellow-700 dark:text-yellow-300',
+    headerTitle: 'text-sm font-semibold text-slate-900 dark:text-slate-100',
+    headerSubtitle: 'text-sm text-yellow-800 dark:text-yellow-300',
+    headerLink: 'hover:bg-yellow-100/70 dark:hover:bg-yellow-900/30'
   },
   pink: {
-    wrapper: 'overflow-hidden rounded-[1.75rem] border border-pink-200 bg-pink-50 p-4 text-left text-slate-900 shadow-[0_12px_28px_rgba(15,23,42,0.08)]',
-    icon: 'text-pink-400',
-    body: 'mb-4 rounded-2xl border border-pink-200 bg-white p-4',
-    bodyText: 'text-slate-700',
-    divider: 'border-pink-200',
-    utilityButton: 'border-pink-200 bg-white text-pink-700 hover:bg-pink-100',
-    shareActiveButton: 'border-pink-200 bg-pink-100 text-pink-800',
-    utilityIcon: 'text-pink-700',
-    headerTitle: 'text-sm font-semibold text-slate-900',
-    headerSubtitle: 'text-sm text-pink-800',
-    headerLink: 'hover:bg-pink-100/70'
+    wrapper: 'overflow-hidden rounded-[1.75rem] border border-pink-200 bg-pink-50 p-4 text-left text-slate-900 shadow-[0_12px_28px_rgba(15,23,42,0.08)] dark:border-pink-800 dark:bg-pink-950/30 dark:text-slate-100',
+    icon: 'text-pink-400 dark:text-pink-300',
+    body: 'mb-4 rounded-2xl border border-pink-200 bg-white p-4 dark:border-pink-800 dark:bg-slate-900',
+    bodyText: 'text-slate-700 dark:text-slate-300',
+    divider: 'border-pink-200 dark:border-pink-800',
+    utilityButton: 'border-pink-200 bg-white text-pink-700 hover:bg-pink-100 dark:border-pink-800 dark:bg-slate-900 dark:text-pink-300 dark:hover:bg-pink-900/40',
+    shareActiveButton: 'border-pink-200 bg-pink-100 text-pink-800 dark:border-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
+    utilityIcon: 'text-pink-700 dark:text-pink-300',
+    headerTitle: 'text-sm font-semibold text-slate-900 dark:text-slate-100',
+    headerSubtitle: 'text-sm text-pink-800 dark:text-pink-300',
+    headerLink: 'hover:bg-pink-100/70 dark:hover:bg-pink-900/30'
   }
 };
 
@@ -118,7 +118,7 @@ export default function NoteCard({ card, onSelect, onColourChange, onCommentSave
         onSave={(payload) => onCommentSave?.(card.noteId, payload)}
         editorTheme={card.colour || 'white'}
         containerClassName={cardTheme.body}
-        titleClassName="text-sm font-medium text-slate-700"
+        titleClassName="text-sm font-medium text-slate-700 dark:text-slate-300"
         contentClassName={`text-sm leading-6 ${cardTheme.bodyText}`}
       />
 

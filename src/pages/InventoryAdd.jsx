@@ -1,5 +1,5 @@
+import { supabase } from '@/lib/supabase';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { SalesClass, TagAlong, InventoryLocation, InventoryCategory } from '@/entities/all';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,16 +8,18 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent } from '@/components/ui/card';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Save, ArrowLeft, Plus, CalendarIcon, List, Trash2, Loader2, Lock, Truck, Check, Search, RotateCcw, X } from 'lucide-react';
+import { Save, ArrowLeft, Plus, CalendarIcon, List, Trash2, Pencil, Loader2, Lock, Truck, Check, Search, RotateCcw, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import { format, parseISO } from 'date-fns';
-import { base44 } from '@/api/base44Client';
-import { searchInventory } from '@/functions/searchInventory';
+import { searchInventory } from '@/lib/inventorySearch';
 import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
 import InventoryBatchResultDialog from '../components/inventory/InventoryBatchResultDialog';
+import PartsInvoiceOCRModal from '../components/inventory/PartsInvoiceOCRModal';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { AlertCircle, Upload, TriangleAlert } from 'lucide-react';
 
 // Helper function to format date for input field (MM/DD/YYYY)
 const formatDateForInput = (dateString) => {
@@ -151,6 +153,7 @@ export default function InventoryAddPage() {
     const [invoiceDateInput, setInvoiceDateInput] = useState(formatDateForInput(format(new Date(), 'yyyy-MM-dd')));
     const [dateError, setDateError] = useState(null);
     const [batchItems, setBatchItems] = useState([]);
+    const [processedSupplierIds, setProcessedSupplierIds] = useState([]);
     const [saving, setSaving] = useState(false);
     const [currentItem, setCurrentItem] = useState({
         part_number: '',
@@ -188,6 +191,8 @@ export default function InventoryAddPage() {
     const [flushing, setFlushing] = useState(false);
     const [showBatchResultDialog, setShowBatchResultDialog] = useState(false);
     const [batchResult, setBatchResult] = useState({ successfulInvoices: [], failedInvoices: [] });
+    const [ocrModalOpen, setOcrModalOpen] = useState(false);
+    const [duplicateInvoices, setDuplicateInvoices] = useState({});
 
     const filteredLocations = useMemo(() => {
         if (!currentItem.location) return inventoryLocations || [];
@@ -202,23 +207,46 @@ export default function InventoryAddPage() {
     useEffect(() => {
         const loadData = async () => {
             try {
-                const [suppliersData, salesClassesData, tagAlongsData, locationsData, categoriesData] = await Promise.all([
-                    base44.functions.invoke('SupabaseProxy', {
-                        action: 'read',
-                        table: 'Supplier',
-                        match: { inventory_supplier: true }
-                    }).then(res => res.data.data || []),
-                    base44.functions.invoke('SupabaseProxy', { action: 'read' }).then(res => res.data.data || []),
-                    TagAlong.list(),
-                    InventoryLocation.list(),
-                    InventoryCategory.list()
-                ]);
-                setSuppliers(suppliersData);
-                setSalesClasses(salesClassesData);
-                setTagAlongs(tagAlongsData);
-                setInventoryLocations(locationsData);
-                setInventoryCategories(categoriesData);
-                
+                try {
+                    const { data, error } = await supabase.from('Supplier').select('*').eq('inventory_supplier', true);
+                    if (error) throw error;
+                    setSuppliers(data || []);
+                } catch (error) {
+                    console.error('Error loading suppliers:', error);
+                }
+
+                try {
+                    const { data, error } = await supabase.from('SalesClass').select('*');
+                    if (error) throw error;
+                    setSalesClasses(data || []);
+                } catch (error) {
+                    console.error('Error loading sales classes:', error);
+                }
+
+                try {
+                    const { data, error } = await supabase.from('InventoryLocation').select('*');
+                    if (error) throw error;
+                    setInventoryLocations(data || []);
+                } catch (error) {
+                    console.error('Error loading inventory locations:', error);
+                }
+
+                try {
+                    const { data, error } = await supabase.from('InventoryCategory').select('*');
+                    if (error) throw error;
+                    setInventoryCategories(data || []);
+                } catch (error) {
+                    console.error('Error loading inventory categories:', error);
+                }
+
+                try {
+                    const { data: tagAlongsData, error: tagAlongsError } = await supabase.from('TagAlong').select('*');
+                    if (tagAlongsError) throw tagAlongsError;
+                    setTagAlongs(tagAlongsData || []);
+                } catch (error) {
+                    console.error('Error loading tag alongs:', error);
+                }
+
                 setTimeout(() => {
                     supplierTriggerRef.current?.focus();
                 }, 100);
@@ -303,13 +331,10 @@ export default function InventoryAddPage() {
         setSupplierLockStatus({ checking: true, locked: false, lockedBy: null });
         
         try {
-            const response = await base44.functions.invoke('SupabaseProxy', {
-                action: 'read',
-                table: 'Supplier',
-                match: { id: supplierId }
-            });
-            const supplierData = (response.data.data || [])[0];
-            
+            const { data, error } = await supabase.from('Supplier').select('*').eq('id', supplierId);
+            if (error) throw error;
+            const supplierData = (data || [])[0];
+
             if (supplierData?.LockedByUser) {
                 setSupplierLockStatus({ checking: false, locked: true, lockedBy: supplierData.LockedByUser });
                 return { locked: true, lockedBy: supplierData.LockedByUser };
@@ -474,6 +499,43 @@ export default function InventoryAddPage() {
         setDateError(null);
     };
 
+    useEffect(() => {
+        const checkDuplicates = async () => {
+            const newChecks = { ...duplicateInvoices };
+            let changed = false;
+            
+            for (const group of batchItems) {
+                if (group.supplier_id && group.invoice_number) {
+                    const key = `${group.supplier_id}-${group.invoice_number}`;
+                    if (newChecks[key] === undefined) {
+                        try {
+                            const { data, error } = await supabase
+                                .from('SupplierInvoiceLine')
+                                .select('id')
+                                .eq('supplier_id', group.supplier_id)
+                                .eq('invoice_number', group.invoice_number)
+                                .limit(1);
+                                
+                            if (!error) {
+                                newChecks[key] = data && data.length > 0;
+                                changed = true;
+                            }
+                        } catch (err) {
+                            console.error("Error checking duplicate invoice:", err);
+                        }
+                    }
+                }
+            }
+            if (changed) {
+                setDuplicateInvoices(newChecks);
+            }
+        };
+        
+        if (batchItems.length > 0) {
+            checkDuplicates();
+        }
+    }, [batchItems, duplicateInvoices]);
+
     const handleAddToBatch = async () => {
         setAddToBatchError('');
         setIsCategorySuggested(false);
@@ -528,16 +590,32 @@ export default function InventoryAddPage() {
             return;
         }
 
+        // Determine new-vs-existing fresh at the moment of adding, rather than trusting a flag
+        // carried over from an earlier step (dropdown selection / OCR import / edit) - those paths
+        // don't reliably preserve it, which was flagging real existing parts as "New".
+        const normalizedPartNumber = (currentItem.part_number || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+        const matchedExistingPart = inventorySearchResults.find(
+            (invItem) => (invItem.part_number || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === normalizedPartNumber
+        );
+
+        // Same tire / missing-tag-along detection the OCR import path runs (handleOCRSuccess) -
+        // keep the regex and condition identical so manual and OCR-added items warn consistently.
+        const tireSizeRegex = /\b(P|LT|ST|T)?\d{3}\/\d{2,3}[RDB]\d{2}\b/i;
+        const isTire = /\btire(s)?\b/i.test(normalizedPartNumber) || /\btire(s)?\b/i.test(currentItem.description) || (matchedExistingPart && /\btire(s)?\b/i.test(matchedExistingPart.category || '')) || tireSizeRegex.test(currentItem.description) || tireSizeRegex.test(normalizedPartNumber);
+        const missingTireTax = isTire && !currentItem.tag_along_id;
+
         const itemToAdd = {
             ...currentItem,
+            is_existing: !!matchedExistingPart,
             quantity_received: parseFloat(currentItem.quantity_received),
             cost: parseFloat(currentItem.cost),
             profit_margin: parseFloat(currentItem.profit_margin),
             selling_price: parseFloat(currentItem.selling_price),
-            core_cost: parseFloat(currentItem.core_cost),
+            core_cost: parseFloat(currentItem.core_cost || 0),
             minimum_quantity: parseInt(currentItem.minimum_quantity, 10) || 0,
             maximum_quantity: parseInt(currentItem.maximum_quantity, 10) || 0,
-            line_total: parseFloat(currentItem.cost) * parseFloat(currentItem.quantity_received),
+            line_total: (parseFloat(currentItem.cost) + (currentItem.core ? (parseFloat(currentItem.core_cost) || 0) : 0)) * parseFloat(currentItem.quantity_received),
+            missing_tire_tax: missingTireTax,
             id: Date.now() + Math.random() // Temporary client-side ID for batch management
         };
 
@@ -603,6 +681,45 @@ export default function InventoryAddPage() {
         });
     };
 
+    const handleEditItem = (groupIndex, item) => {
+        if (currentItem.part_number && currentItem.part_number.trim() !== '') {
+            const proceed = window.confirm("This will clear the current supplier, invoice, date, and parts info you have entered above. Do you want to proceed?");
+            if (!proceed) return;
+        }
+
+        const group = batchItems[groupIndex];
+
+        setSelectedSupplier(String(group.supplier_id));
+        setInvoiceNumber(group.invoice_number);
+        setInvoiceDate(group.invoice_date);
+        setInvoiceDateInput(formatDateForInput(group.invoice_date));
+
+        setCurrentItem({
+            part_number: item.part_number || '',
+            description: item.description || '',
+            unit: item.unit || '',
+            quantity_received: item.quantity_received !== undefined ? String(item.quantity_received) : '',
+            cost: item.cost !== undefined ? String(item.cost) : '',
+            profit_margin: item.profit_margin !== undefined ? String(item.profit_margin) : '',
+            selling_price: item.selling_price !== undefined ? String(item.selling_price) : '',
+            sales_class: item.sales_class || '',
+            tag_along_id: item.tag_along_id || '',
+            core: !!item.core,
+            core_cost: item.core_cost !== undefined ? String(item.core_cost) : '0.00',
+            stocked_item: !!item.stocked_item,
+            minimum_quantity: item.minimum_quantity !== undefined ? String(item.minimum_quantity) : '0',
+            maximum_quantity: item.maximum_quantity !== undefined ? String(item.maximum_quantity) : '0',
+            location: item.location || '',
+            category: item.category || '',
+        });
+
+        handleRemoveItem(groupIndex, item.id);
+
+        setTimeout(() => {
+            partNumberRef.current?.focus();
+        }, 100);
+    };
+
     const handleSaveAndFinish = async () => {
         if (saveInProgressRef.current) {
             return;
@@ -621,6 +738,85 @@ export default function InventoryAddPage() {
             saveInProgressRef.current = false;
             return;
         }
+
+        // --- VALIDATION ---
+        let hasHardErrors = false;
+        let subtotalMismatchInvoices = [];
+        let totalMismatchInvoices = [];
+
+        let missingTireTaxItems = [];
+
+        for (const group of batchItems) {
+            const isMissingGroupInfo = !group.supplier_id || !group.invoice_number || !group.invoice_date;
+            const hasRowErrors = group.partItems.some(item => !item.part_number || !item.description || !item.quantity_received || !item.cost || !item.sales_class || !item.selling_price);
+            
+            group.partItems.forEach(item => {
+                if (item.missing_tire_tax) {
+                    missingTireTaxItems.push(item.part_number || item.description || 'Unknown Part');
+                }
+            });
+
+            if (isMissingGroupInfo || hasRowErrors) {
+                hasHardErrors = true;
+            }
+
+            const actualSubtotal = group.partItems.reduce((sum, item) => sum + (item.line_total || 0), 0);
+            const actualTotalForMismatch = actualSubtotal + (group.freight_amount || 0); // legacy variable name
+            const subtotalMismatch = group.ocr_expected_subtotal !== undefined && group.ocr_expected_subtotal !== null && Math.abs(group.ocr_expected_subtotal - actualTotalForMismatch) > 0.01;
+            
+            const calculatedGrandTotal = actualTotalForMismatch + (group.invoice_gst || 0);
+            const totalMismatch = group.invoice_total !== undefined && group.invoice_total !== null && group.invoice_total > 0 && Math.abs(group.invoice_total - calculatedGrandTotal) > 0.01;
+
+            if (subtotalMismatch) {
+                const supplierName = suppliers.find(s => String(s.id) === String(group.supplier_id))?.name || 'Unknown Supplier';
+                subtotalMismatchInvoices.push(`${supplierName} - Invoice #${group.invoice_number || 'Unknown'}`);
+            }
+            if (totalMismatch) {
+                const supplierName = suppliers.find(s => String(s.id) === String(group.supplier_id))?.name || 'Unknown Supplier';
+                totalMismatchInvoices.push(`${supplierName} - Invoice #${group.invoice_number || 'Unknown'}`);
+            }
+        }
+
+        if (hasHardErrors) {
+            alert('Cannot save batch: One or more invoices have missing mandatory fields (Supplier, Invoice #, Date, Part #, Description, Cost, Sales Class, or Selling Price). Please fix them before saving.');
+            saveInProgressRef.current = false;
+            return;
+        }
+
+        if (subtotalMismatchInvoices.length > 0) {
+            const proceed = window.confirm(`WARNING: The following invoices have a subtotal mismatch (the OCR expected subtotal does not match the sum of the line items):\n\n${subtotalMismatchInvoices.join('\n')}\n\nDo you want to proceed anyway?`);
+            if (!proceed) {
+                saveInProgressRef.current = false;
+                return;
+            }
+        }
+
+        if (totalMismatchInvoices.length > 0) {
+            const proceed = window.confirm(`WARNING: The following invoices have a grand total mismatch (the OCR expected invoice total does not match your subtotal + freight + GST):\n\n${totalMismatchInvoices.join('\n')}\n\nDo you want to proceed anyway?`);
+            if (!proceed) {
+                saveInProgressRef.current = false;
+                return;
+            }
+        }
+
+        if (missingTireTaxItems.length > 0) {
+            const proceed = window.confirm(`WARNING: The following parts appear to be tires but are missing a tire tax / enviro fee tag-along:\n\n${missingTireTaxItems.join('\n')}\n\nDo you want to proceed without adding the tax?`);
+            if (!proceed) {
+                saveInProgressRef.current = false;
+                return;
+            }
+        }
+
+        const duplicateErrors = batchItems.filter(group => duplicateInvoices[`${group.supplier_id}-${group.invoice_number}`]);
+        if (duplicateErrors.length > 0) {
+            const supplierName = suppliers.find(s => String(s.id) === String(duplicateErrors[0].supplier_id))?.name || 'Unknown Supplier';
+            const proceed = window.confirm(`WARNING: Invoice #${duplicateErrors[0].invoice_number} for ${supplierName} (and potentially others) appears to be a duplicate already in the system. Are you sure you want to proceed and save duplicate invoices?`);
+            if (!proceed) {
+                saveInProgressRef.current = false;
+                return;
+            }
+        }
+        // ------------------
 
         // Check all suppliers in the batch for locks
         const uniqueSupplierIds = [...new Set(batchItems.map(group => group.supplier_id))];
@@ -642,23 +838,70 @@ export default function InventoryAddPage() {
 
         setSaving(true);
         const results = []; // Array to store results of each invoice processing
+        
+        let digitalPdfMapping = {};
+        try {
+            const pdfGroups = batchItems.filter(g => g.storagePath && g.page_numbers && g.page_numbers.length > 0);
+            const storagePaths = [...new Set(pdfGroups.map(g => g.storagePath))];
+            
+            for (const path of storagePaths) {
+                const mappings = pdfGroups
+                    .filter(g => g.storagePath === path)
+                    .map(g => ({
+                        supplier_id: g.supplier_id,
+                        invoice_number: g.invoice_number,
+                        page_numbers: g.page_numbers
+                    }));
+                    
+                if (mappings.length > 0) {
+                    const response = await supabase.functions.invoke('autopro-splitInvoicePDF', {
+                        body: {
+                            storagePath: path,
+                            mappings: mappings
+                        }
+                    });
+                    
+                    if (response.data && response.data.success && response.data.mapping) {
+                        digitalPdfMapping = { ...digitalPdfMapping, ...response.data.mapping };
+                    }
+                }
+            }
+        } catch (err) {
+            console.error("Error splitting PDFs", err);
+        }
+
         try {
             // Process each invoice group
             for (const invoiceGroup of batchItems) {
                 const invoiceIdentifier = `${getSupplierName(invoiceGroup.supplier_id)} - Invoice #${invoiceGroup.invoice_number}`;
                 try {
-                    const response = await base44.functions.invoke('processInventoryReceipt', {
+                    console.log('Sending receipt payload to autopro-processInventoryReceipt:', {
                         supplier_id: invoiceGroup.supplier_id,
                         invoice_number: invoiceGroup.invoice_number,
                         invoice_date: invoiceGroup.invoice_date,
                         items: invoiceGroup.partItems,
-                        action: 'create'
+                        action: 'create',
+                        freight_amount: invoiceGroup.freight_amount
                     });
+                    const response = await supabase.functions.invoke('autopro-processInventoryReceipt', {
+                        body: {
+                            supplier_id: invoiceGroup.supplier_id,
+                            invoice_number: invoiceGroup.invoice_number,
+                            invoice_date: invoiceGroup.invoice_date,
+                            items: invoiceGroup.partItems,
+                            action: 'create',
+                            freight_amount: invoiceGroup.freight_amount,
+                            invoice_gst: invoiceGroup.invoice_gst,
+                            digital_pdf: digitalPdfMapping[`${invoiceGroup.supplier_id}-${invoiceGroup.invoice_number}`] || null
+                        }
+                    });
+                    console.log('Response from autopro-processInventoryReceipt:', response);
 
-                    if (!response.data.success) {
-                        const errorMessages = response.data.errors && response.data.errors.length > 0
-                            ? response.data.errors.map(err => err.error || JSON.stringify(err)).join('\n')
-                            : (response.data.message || 'Unknown error');
+                    if (!response.data || !response.data.success) {
+                        const data = response.data || {};
+                        const errorMessages = data.errors && data.errors.length > 0
+                            ? data.errors.map(err => err.error || JSON.stringify(err)).join('\n')
+                            : (data.message || data.error || 'Unknown error');
                         results.push({ success: false, invoice: invoiceIdentifier, message: errorMessages });
                     } else {
                         results.push({ success: true, invoice: invoiceIdentifier });
@@ -677,6 +920,7 @@ export default function InventoryAddPage() {
                 bypassUnsavedWarningRef.current = true;
             }
 
+            setProcessedSupplierIds(uniqueSupplierIds);
             setBatchResult({ successfulInvoices, failedInvoices });
             setShowBatchResultDialog(true);
 
@@ -686,6 +930,204 @@ export default function InventoryAddPage() {
         } finally {
             setSaving(false);
             saveInProgressRef.current = false;
+        }
+    };
+
+    const handleOCRSuccess = async (ocrResults) => {
+        if (!ocrResults || ocrResults.length === 0) return;
+        
+        let regularSalesClass = salesClasses.find(sc => sc.name.toLowerCase() === 'regular');
+        const regularSalesClassId = regularSalesClass ? String(regularSalesClass.id) : '';
+
+        // Collect all part numbers
+        const partNumbersToFetch = [];
+        ocrResults.forEach(result => {
+            (result.data?.items || []).forEach(item => {
+                if (item.part_number) {
+                    partNumbersToFetch.push(item.part_number.toUpperCase());
+                }
+            });
+        });
+
+        // Fetch existing inventory items
+        let existingItemsMap = new Map();
+        if (partNumbersToFetch.length > 0) {
+            try {
+                // Supabase limits .in() to 1000 items usually, but typical invoice is small
+                const { data: existingItems, error } = await supabase
+                    .from('InventoryItem')
+                    .select('*')
+                    .in('part_number', partNumbersToFetch);
+                    
+                if (!error && existingItems) {
+                    existingItems.forEach(item => {
+                        existingItemsMap.set(item.part_number.toUpperCase(), item);
+                    });
+                }
+            } catch (err) {
+                console.error("Error fetching existing items for OCR:", err);
+            }
+        }
+
+        const newBatchGroups = [];
+        let rejectedCreditInvoices = 0;
+
+        ocrResults.forEach(result => {
+            const data = result.data;
+            const storagePath = result.storagePath;
+            
+            // --- NEGATIVE AMOUNT CHECK (CREDIT INVOICES) ---
+            const expectedSubtotal = parseFloat(data.subtotal) || 0;
+            let hasNegative = expectedSubtotal < 0;
+            if (!hasNegative && data.items) {
+                hasNegative = data.items.some(item => 
+                    (parseFloat(item.cost) < 0) || 
+                    (parseFloat(item.quantity) < 0) || 
+                    (parseFloat(item.core_cost) < 0)
+                );
+            }
+
+            if (hasNegative) {
+                rejectedCreditInvoices++;
+                return; // Skip this invoice entirely
+            }
+            // -----------------------------------------------
+            let matchedSupplierId = '';
+            
+            if (data.supplier_name) {
+                const searchName = data.supplier_name.toLowerCase();
+                const exactMatch = suppliers.find(s => s.name.toLowerCase() === searchName);
+                if (exactMatch) {
+                    matchedSupplierId = String(exactMatch.id);
+                } else {
+                    const fuzzyMatch = suppliers.find(s => s.name.toLowerCase().includes(searchName) || searchName.includes(s.name.toLowerCase()));
+                    if (fuzzyMatch) {
+                        matchedSupplierId = String(fuzzyMatch.id);
+                    }
+                }
+            }
+
+            const invoiceNumber = data.invoice_number || '';
+            const invoiceDate = data.invoice_date || ''; // Should be YYYY-MM-DD
+
+
+            const parsedItems = (data.items || []).map(item => {
+                const partNumber = (item.part_number || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+                const existingPart = existingItemsMap.get(partNumber);
+
+                const cost = parseFloat(item.cost) || 0;
+                let isCore = !!item.core;
+                let coreCost = parseFloat(item.core_cost) || 0;
+                let sellingPrice = 0;
+                let margin = 0;
+                let salesClass = regularSalesClassId;
+                let description = item.description || '';
+                let enviroFee = parseFloat(item.enviro_fee) || 0;
+                let matchedTagAlongId = '';
+
+                if (existingPart) {
+                    salesClass = existingPart.sales_class || regularSalesClassId;
+                    description = existingPart.description || description;
+                    matchedTagAlongId = existingPart.tag_along_id || '';
+                    
+                    if (!isCore && existingPart.core) {
+                        isCore = true;
+                        coreCost = parseFloat(existingPart.core_cost) || 0;
+                    }
+                }
+                
+                if (enviroFee > 0 && !matchedTagAlongId) {
+                    let bestMatch = null;
+                    let minDiff = Infinity;
+                    tagAlongs.forEach(ta => {
+                        const str = (ta.name + ' ' + (ta.description || '')).replace(/\s/g, '');
+                        const match = str.match(/\$?(?:[0-9]+\.[0-9]+|[0-9]+)/);
+                        if (match) {
+                            const taPrice = parseFloat(match[0].replace('$', ''));
+                            if (taPrice >= enviroFee) {
+                                const diff = taPrice - enviroFee;
+                                if (diff < minDiff) {
+                                    minDiff = diff;
+                                    bestMatch = ta;
+                                }
+                            }
+                        }
+                    });
+                    if (bestMatch) {
+                        matchedTagAlongId = bestMatch.id;
+                    }
+                }
+                
+                const tireSizeRegex = /\b(P|LT|ST|T)?\d{3}\/\d{2,3}[RDB]\d{2}\b/i;
+                const isTire = /\btire(s)?\b/i.test(partNumber) || /\btire(s)?\b/i.test(description) || (existingPart && /\btire(s)?\b/i.test(existingPart.category || '')) || tireSizeRegex.test(description) || tireSizeRegex.test(partNumber);
+                if (!existingPart && isTire) {
+                    const tireSalesClass = salesClasses.find(sc => sc.name && sc.name.toLowerCase().includes('tire'));
+                    if (tireSalesClass) {
+                        salesClass = String(tireSalesClass.id);
+                    }
+                }
+                
+                let missingTireTax = false;
+                if (isTire && !matchedTagAlongId) {
+                    missingTireTax = true;
+                }
+
+                if (cost > 0 && salesClass) {
+                    const calc = calculatePriceFromSalesClass(cost, salesClass);
+                    if (calc) {
+                        sellingPrice = parseFloat(calc.sellingPrice);
+                        margin = parseFloat(calc.margin);
+                    }
+                } else if (existingPart) {
+                    sellingPrice = parseFloat(existingPart.selling_price) || 0;
+                    margin = parseFloat(existingPart.profit_margin) || 0;
+                }
+
+                return {
+                    id: Date.now() + Math.random(),
+                    part_number: partNumber,
+                    description: description,
+                    unit: existingPart ? (existingPart.unit || '') : '',
+                    quantity_received: parseFloat(item.quantity) || 0,
+                    cost: cost,
+                    selling_price: sellingPrice,
+                    profit_margin: margin,
+                    sales_class: salesClass,
+                    tag_along_id: matchedTagAlongId,
+                    core: isCore,
+                    core_cost: coreCost,
+                    enviro_fee: enviroFee,
+                    missing_tire_tax: missingTireTax,
+                    stocked_item: existingPart ? !!existingPart.stocked_item : false,
+                    minimum_quantity: existingPart ? (parseInt(existingPart.minimum_quantity) || 0) : 0,
+                    maximum_quantity: existingPart ? (parseInt(existingPart.maximum_quantity) || 0) : 0,
+                    location: existingPart ? (existingPart.location || '') : '',
+                    category: existingPart ? (existingPart.category || '') : '',
+                    is_existing: !!existingPart,
+                    line_total: (cost + (isCore ? coreCost : 0) + enviroFee) * (parseFloat(item.quantity) || 0)
+                };
+            });
+
+            newBatchGroups.push({
+                supplier_id: matchedSupplierId,
+                invoice_number: invoiceNumber,
+                invoice_date: invoiceDate,
+                partItems: parsedItems,
+                ocr_expected_subtotal: expectedSubtotal,
+                freight_amount: parseFloat(data.freight) || 0,
+                invoice_gst: parseFloat(data.gst_amount) || 0,
+                invoice_total: parseFloat(data.invoice_total) || 0,
+                storagePath: storagePath,
+                page_numbers: data.page_numbers || []
+            });
+        });
+
+        setBatchItems(prev => [...newBatchGroups, ...prev]);
+        
+        if (rejectedCreditInvoices > 0) {
+            setTimeout(() => {
+                alert(`WARNING: ${rejectedCreditInvoices} invoice(s) were identified as credit invoices (containing negative amounts) and have been skipped. Please enter credit invoices manually on the Inventory Returns page.`);
+            }, 100);
         }
     };
 
@@ -756,12 +1198,19 @@ export default function InventoryAddPage() {
                 setSuggestingCategory(true);
                 try {
                     const supplierName = getSupplierName(selectedSupplier);
-                    const response = await base44.functions.invoke('suggestInventoryCategory', {
-                        part_number: currentItem.part_number,
-                        description: currentItem.description,
-                        supplier_name: supplierName
+                    const response = await supabase.functions.invoke('autopro-suggestInventoryCategory', {
+                        body: {
+                            part_number: currentItem.part_number,
+                            description: currentItem.description,
+                            supplier_name: supplierName
+                        }
                     });
-                    
+
+                    if (response.error) {
+                        console.error('Category suggestion error:', response.error);
+                        return;
+                    }
+
                     if (response.data && response.data.category) {
                         // Only update if user hasn't selected a category in the meantime
                         setCurrentItem(prev => {
@@ -813,13 +1262,10 @@ export default function InventoryAddPage() {
     const handleFlushLocks = async () => {
         setFlushing(true);
         try {
-            const response = await base44.functions.invoke('SupabaseProxy', {
-                action: 'read',
-                table: 'Supplier'
-            });
-            const allSuppliers = response.data.data || [];
-            const lockedSuppliers = allSuppliers.filter(s => s.LockedByUser);
-            
+            const { data: allSuppliers, error: readError } = await supabase.from('Supplier').select('*');
+            if (readError) throw readError;
+            const lockedSuppliers = (allSuppliers || []).filter(s => s.LockedByUser);
+
             if (lockedSuppliers.length === 0) {
                 alert('No locked suppliers found.');
                 setShowFlushConfirm(false);
@@ -827,26 +1273,21 @@ export default function InventoryAddPage() {
                 return;
             }
 
-            const updatePromises = lockedSuppliers.map(supplier => 
-                base44.functions.invoke('SupabaseProxy', {
-                    action: 'update',
-                    table: 'Supplier',
-                    id: supplier.id,
-                    data: { LockedByUser: null }
-                })
+            const updatePromises = lockedSuppliers.map(supplier =>
+                supabase.from('Supplier').update({ LockedByUser: null }).eq('id', supplier.id)
             );
 
             await Promise.all(updatePromises);
-            
+
             alert(`Successfully unlocked ${lockedSuppliers.length} supplier(s).`);
-            
+
             // Refresh suppliers list
-            const suppliersResponse = await base44.functions.invoke('SupabaseProxy', {
-                action: 'read',
-                table: 'Supplier',
-                match: { inventory_supplier: true }
-            });
-            setSuppliers(suppliersResponse.data.data || []);
+            const { data: refreshedSuppliers, error: refreshError } = await supabase
+                .from('Supplier')
+                .select('*')
+                .eq('inventory_supplier', true);
+            if (refreshError) throw refreshError;
+            setSuppliers(refreshedSuppliers || []);
             
             // Re-check current supplier lock status
             if (selectedSupplier) {
@@ -869,7 +1310,7 @@ export default function InventoryAddPage() {
                         <ArrowLeft className="w-4 h-4 mr-2" />
                         Back to Inventory
                     </Button>
-                    <h1 className="text-2xl font-bold">Receive Inventory / Parts Entry</h1>
+                    <h1 className="text-2xl font-bold">Receive Parts</h1>
                 </div>
                 <div className="flex gap-2">
                     <Button 
@@ -880,9 +1321,9 @@ export default function InventoryAddPage() {
                         <RotateCcw className="w-4 h-4 mr-2" />
                         Flush Supplier
                     </Button>
-                    <Button variant="outline" onClick={() => handleNavigateAway(createPageUrl('Suppliers'))}>
-                        <Truck className="w-4 h-4 mr-2" />
-                        Suppliers
+                    <Button variant="outline" onClick={() => setOcrModalOpen(true)}>
+                        <Upload className="w-4 h-4 mr-2" />
+                        Upload Invoices
                     </Button>
                 </div>
             </div>
@@ -912,7 +1353,7 @@ export default function InventoryAddPage() {
                                 </SelectContent>
                             </Select>
                             {supplierLockStatus.locked && (
-                                <p className="text-xs text-red-600">Locked by: {supplierLockStatus.lockedBy}</p>
+                                <p className="text-xs text-red-600 dark:text-red-400">Locked by: {supplierLockStatus.lockedBy}</p>
                             )}
                         </div>
                         <div className="space-y-2">
@@ -931,7 +1372,7 @@ export default function InventoryAddPage() {
                                     <button
                                         type="button"
                                         onClick={handleClearInvoice}
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-300"
                                         tabIndex={-1}
                                     >
                                         <X className="h-4 w-4" />
@@ -948,7 +1389,7 @@ export default function InventoryAddPage() {
                                     onChange={(e) => handleInvoiceDateChange(e.target.value)}
                                     onBlur={handleInvoiceDateBlur}
                                     placeholder="MM/DD/YYYY"
-                                    className={`flex-1 ${dateError ? 'text-red-600 border-red-500' : ''}`}
+                                    className={`flex-1 ${dateError ? 'text-red-600 dark:text-red-400 border-red-500 dark:border-red-700' : ''}`}
                                     title={dateError || ''}
                                 />
                                 <Popover>
@@ -990,7 +1431,7 @@ export default function InventoryAddPage() {
                                                 placeholder="Search or type part #..."
                                                 value={currentItem.part_number}
                                                 onChange={(e) => {
-                                                    handleItemFieldChange('part_number', e.target.value.toUpperCase());
+                                                    handleItemFieldChange('part_number', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''));
                                                     setPartSearchOpen(true);
                                                 }}
                                                 onKeyDown={handlePartNumberInputKeyDown}
@@ -1002,14 +1443,14 @@ export default function InventoryAddPage() {
                                         </div>
                                     </PopoverTrigger>
                                     <PopoverContent className="p-0 w-[400px]" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
-                                        <div className="max-h-[300px] overflow-y-auto p-1 bg-white">
+                                        <div className="max-h-[300px] overflow-y-auto p-1 bg-white dark:bg-slate-900">
                                             {inventorySearchLoading ? (
-                                                <div className="py-6 flex items-center justify-center gap-2 text-sm text-slate-500">
+                                                <div className="py-6 flex items-center justify-center gap-2 text-sm text-slate-500 dark:text-slate-400">
                                                     <Loader2 className="h-4 w-4 animate-spin" />
                                                     Searching parts...
                                                 </div>
                                             ) : filteredInventory.length === 0 ? (
-                                                <div className="py-6 text-center text-sm text-slate-500">
+                                                <div className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">
                                                     No existing parts found.
                                                     <br />
                                                     Continue typing to create new.
@@ -1023,11 +1464,11 @@ export default function InventoryAddPage() {
                                                                 selectPartFromList(item);
                                                                 setPartSearchOpen(false);
                                                             }}
-                                                            className="flex items-center justify-between rounded-sm px-2 py-2 text-sm outline-none hover:bg-slate-100 cursor-pointer border-b border-slate-50 last:border-0"
+                                                            className="flex items-center justify-between rounded-sm px-2 py-2 text-sm outline-none hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer border-b border-slate-50 dark:border-slate-800 last:border-0"
                                                         >
                                                             <div className="flex flex-col">
-                                                                <span className="font-medium text-slate-900">{item.part_number}</span>
-                                                                <span className="text-xs text-slate-500">{item.description}</span>
+                                                                <span className="font-medium text-slate-900 dark:text-slate-100">{item.part_number}</span>
+                                                                <span className="text-xs text-slate-500 dark:text-slate-400">{item.description}</span>
                                                             </div>
                                                             {item.part_number === currentItem.part_number && (
                                                                 <Check className="h-4 w-4 text-green-600" />
@@ -1147,7 +1588,7 @@ export default function InventoryAddPage() {
                                     step="0.01"
                                     value={currentItem.profit_margin}
                                     readOnly
-                                    className="bg-gray-50"
+                                    className="bg-gray-50 dark:bg-slate-800"
                                 />
                             </div>
                             <div className="space-y-2 flex items-center">
@@ -1235,9 +1676,9 @@ export default function InventoryAddPage() {
                                                             handleItemFieldChange('location', '');
                                                             setLocationSearchOpen(false);
                                                         }}
-                                                        className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100"
+                                                        className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
                                                     >
-                                                        <span className="text-slate-500 italic">No Location</span>
+                                                        <span className="text-slate-500 dark:text-slate-400 italic">No Location</span>
                                                         {(!currentItem.location || currentItem.location === '') && <Check className="ml-auto h-4 w-4" />}
                                                     </div>
                                                     {filteredLocations.length === 0 ? (
@@ -1250,7 +1691,7 @@ export default function InventoryAddPage() {
                                                                     handleItemFieldChange('location', loc.location_name);
                                                                     setLocationSearchOpen(false);
                                                                 }}
-                                                                className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100"
+                                                                className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
                                                             >
                                                                 <span>{loc.location_name}</span>
                                                                 {currentItem.location === loc.location_name && (
@@ -1268,8 +1709,8 @@ export default function InventoryAddPage() {
                         )}
 
                         {addToBatchError && (
-                            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
-                                <p className="text-sm text-red-700 flex items-center gap-2">
+                            <div className="mb-4 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-md">
+                                <p className="text-sm text-red-700 dark:text-red-400 flex items-center gap-2">
                                     <Lock className="w-4 h-4" />
                                     {addToBatchError}
                                 </p>
@@ -1278,7 +1719,7 @@ export default function InventoryAddPage() {
 
                         <div className="flex items-end justify-between gap-4 mt-4">
                             <div className="w-64">
-                                <Label htmlFor="category">Category {suggestingCategory && <span className="text-xs text-blue-500 animate-pulse">(Suggesting...)</span>}</Label>
+                                <Label htmlFor="category">Category {suggestingCategory && <span className="text-xs text-blue-500 dark:text-blue-400 animate-pulse">(Suggesting...)</span>}</Label>
                                 <Select 
                                     value={currentItem.category} 
                                     onValueChange={(val) => {
@@ -1303,7 +1744,7 @@ export default function InventoryAddPage() {
                             </div>
 
                             <div className="flex items-center gap-2">
-                                <span className="text-xs text-slate-500">Ctrl + A</span>
+                                <span className="text-xs text-slate-500 dark:text-slate-400">Ctrl + A</span>
                                 <Button onClick={handleAddToBatch} className="bg-black text-white hover:bg-gray-800">
                                     <Plus className="w-4 h-4 mr-2" />
                                     Add to Batch
@@ -1316,40 +1757,155 @@ export default function InventoryAddPage() {
                         <div className="border-t pt-6 mt-6">
                             <div className="flex justify-between items-center mb-4">
                                 <h4 className="font-semibold">Batch Items ({getTotalItemsCount()} items, {batchItems.length} invoice{batchItems.length !== 1 ? 's' : ''})</h4>
-                                <div className="text-sm font-semibold text-slate-700">
+                                <div className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                                     Total Value: ${getTotalBatchValue().toFixed(2)}
                                 </div>
                             </div>
                             <div className="space-y-4 max-h-96 overflow-y-auto">
-                                {batchItems.map((group, groupIndex) => (
-                                    <div key={groupIndex} className="bg-slate-50 rounded-lg p-4">
-                                        <div className="font-semibold text-slate-800 mb-3 pb-2 border-b border-slate-300">
-                                            {getSupplierName(group.supplier_id)} - Invoice #{group.invoice_number} - {format(parseISO(group.invoice_date), 'MMM d, yyyy')}
+                                {batchItems.map((group, groupIndex) => {
+                                    const isMissingGroupInfo = !group.supplier_id || !group.invoice_number || !group.invoice_date;
+                                    const actualSubtotal = group.partItems.reduce((sum, item) => sum + (item.line_total || 0), 0);
+                                    const actualTotalForMismatch = actualSubtotal + (group.freight_amount || 0);
+                                    const subtotalMismatch = group.ocr_expected_subtotal !== undefined && group.ocr_expected_subtotal !== null && Math.abs(group.ocr_expected_subtotal - actualTotalForMismatch) > 0.01;
+                                    
+                                    const calculatedGrandTotal = actualTotalForMismatch + (group.invoice_gst || 0);
+                                    const totalMismatch = group.invoice_total !== undefined && group.invoice_total !== null && group.invoice_total > 0 && Math.abs(group.invoice_total - calculatedGrandTotal) > 0.01;
+
+                                    const isDuplicate = duplicateInvoices[`${group.supplier_id}-${group.invoice_number}`];
+                                    const hasRowErrors = group.partItems.some(item => !item.part_number || !item.description || !item.quantity_received || !item.cost || !item.sales_class || !item.selling_price);
+                                    const groupHasError = isMissingGroupInfo || subtotalMismatch || totalMismatch || hasRowErrors || isDuplicate;
+                                    
+                                    const errorMessages = [];
+                                    if (isMissingGroupInfo) errorMessages.push("Missing Supplier, Invoice #, or Date");
+                                    if (subtotalMismatch) errorMessages.push(`Subtotal mismatch (OCR Expected: $${group.ocr_expected_subtotal?.toFixed(2)}, Actual: $${actualTotalForMismatch.toFixed(2)})`);
+                                    if (totalMismatch) errorMessages.push(`Total mismatch (OCR Expected: $${group.invoice_total?.toFixed(2)}, Actual: $${calculatedGrandTotal.toFixed(2)})`);
+                                    if (hasRowErrors) errorMessages.push("One or more rows have missing information");
+                                    if (isDuplicate) errorMessages.push("Invoice appears to be a duplicate");
+
+                                    return (
+                                    <div key={groupIndex} className={`bg-slate-50 dark:bg-slate-800 rounded-lg p-4 ${isMissingGroupInfo ? 'border-2 border-orange-400 dark:border-orange-600' : ''}`}>
+                                        <div className="font-semibold text-slate-800 dark:text-slate-200 mb-3 pb-2 border-b border-slate-300 dark:border-slate-600 flex items-center gap-2">
+                                            {isMissingGroupInfo && (
+                                                <Badge variant="destructive" className="bg-orange-500 hover:bg-orange-600">ERROR INVOICE</Badge>
+                                            )}
+                                            {getSupplierName(group.supplier_id)} - Invoice #{group.invoice_number || 'Missing'} - {group.invoice_date ? format(parseISO(group.invoice_date), 'MMM d, yyyy') : 'Missing Date'}
+                                            {isDuplicate && (
+                                                <Badge variant="outline" className="ml-2 border-orange-500 dark:border-orange-700 text-orange-500 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/30 flex items-center gap-1 text-xs px-2 py-0">
+                                                    <TriangleAlert className="w-3 h-3" />
+                                                    Duplicate Entry
+                                                </Badge>
+                                            )}
                                         </div>
                                         <div className="space-y-2">
-                                            {group.partItems.map((item) => (
-                                                <div key={item.id} className="flex justify-between items-center p-2 bg-white rounded border border-slate-200">
+                                            {group.partItems.map((item) => {
+                                                const rowHasError = !item.part_number || !item.description || !item.quantity_received || !item.cost || !item.sales_class || !item.selling_price || item.missing_tire_tax;
+                                                return (
+                                                <div key={item.id} className={`flex justify-between items-center p-2 rounded border ${rowHasError ? 'bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-700' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700'}`}>
                                                     <span className="text-sm">
-                                                        <span className="font-medium">{item.part_number}</span> - {item.description} 
-                                                        <span className="text-slate-600"> (Qty: {item.quantity_received})</span>
-                                                        <span className="text-slate-700 font-semibold ml-2">${(item.line_total || 0).toFixed(2)}</span>
+                                                        <span className="font-medium mr-2">{item.part_number || <span className="text-red-500 dark:text-red-400 font-bold italic">Missing Part #</span>}</span>
+                                                        {!item.is_existing && (
+                                                            <Badge variant="outline" className="bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800 text-[10px] mr-2 h-5 px-1 py-0">New</Badge>
+                                                        )}
+                                                        {item.core && (
+                                                            <Badge variant="outline" className="bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 border-orange-200 dark:border-orange-800 text-[10px] mr-2 h-5 px-1 py-0">Core: ${(parseFloat(item.core_cost) || 0).toFixed(2)}</Badge>
+                                                        )}
+                                                        {item.enviro_fee > 0 && (
+                                                            <Badge variant="outline" className="bg-slate-100 dark:bg-slate-700/60 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-600 text-[10px] mr-2 h-5 px-1 py-0">Enviro Fee: ${(parseFloat(item.enviro_fee) || 0).toFixed(2)}</Badge>
+                                                        )}
+                                                        <span>- {item.description || <span className="text-red-500 dark:text-red-400 font-bold italic">Missing Description</span>}</span>
+                                                        {item.missing_tire_tax && (
+                                                            <span className="text-red-500 dark:text-red-400 font-bold italic ml-2">Missing Tire Tax</span>
+                                                        )}
+                                                        <span className="text-slate-600 dark:text-slate-400"> (Qty: {item.quantity_received})</span>
+                                                        <span className="text-slate-700 dark:text-slate-300 font-semibold ml-2">${(item.line_total || 0).toFixed(2)}</span>
                                                     </span>
-                                                    <Button 
-                                                        size="sm" 
-                                                        variant="ghost" 
-                                                        onClick={() => handleRemoveItem(groupIndex, item.id)}
-                                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </Button>
+                                                    <div className="flex items-center gap-1">
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            onClick={() => handleEditItem(groupIndex, item)}
+                                                            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/30"
+                                                        >
+                                                            <Pencil className="w-4 h-4" />
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="ghost"
+                                                            onClick={() => handleRemoveItem(groupIndex, item.id)}
+                                                            className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </Button>
+                                                    </div>
                                                 </div>
-                                            ))}
+                                            )})}
                                         </div>
-                                        <div className="mt-2 pt-2 border-t border-slate-300 text-right text-sm font-semibold text-slate-700">
-                                            Invoice Total: ${group.partItems.reduce((sum, item) => sum + (item.line_total || 0), 0).toFixed(2)}
+                                        <div className="mt-2 pt-2 border-t border-slate-300 dark:border-slate-600 text-right text-sm font-semibold flex items-center justify-end gap-6 text-slate-700 dark:text-slate-300">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-slate-500 dark:text-slate-400 font-normal">Subtotal:</span>
+                                                <span className={subtotalMismatch ? 'bg-orange-200 dark:bg-orange-900/50 px-1 rounded' : ''}>
+                                                    ${actualTotalForMismatch.toFixed(2)}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-slate-500 dark:text-slate-400 font-normal">Freight:</span>
+                                                <div className="relative">
+                                                    <span className="absolute left-2 top-1.5 text-slate-500 dark:text-slate-400">$</span>
+                                                    <Input 
+                                                        type="number" 
+                                                        step="0.01" 
+                                                        className="w-24 h-8 pl-5 text-right font-normal" 
+                                                        value={group.freight_amount || ''}
+                                                        onChange={(e) => {
+                                                            const newBatchItems = [...batchItems];
+                                                            newBatchItems[groupIndex].freight_amount = parseFloat(e.target.value) || 0;
+                                                            setBatchItems(newBatchItems);
+                                                        }}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-slate-500 dark:text-slate-400 font-normal">GST:</span>
+                                                <div className="relative">
+                                                    <span className="absolute left-2 top-1.5 text-slate-500 dark:text-slate-400">$</span>
+                                                    <Input 
+                                                        type="number" 
+                                                        step="0.01" 
+                                                        className="w-24 h-8 pl-5 text-right font-normal" 
+                                                        value={group.invoice_gst || ''}
+                                                        onChange={(e) => {
+                                                            const newBatchItems = [...batchItems];
+                                                            newBatchItems[groupIndex].invoice_gst = parseFloat(e.target.value) || 0;
+                                                            setBatchItems(newBatchItems);
+                                                        }}
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                Invoice Total:
+                                                <span className={totalMismatch ? 'bg-orange-200 dark:bg-orange-900/50 px-1 rounded' : ''}>
+                                                    ${calculatedGrandTotal.toFixed(2)}
+                                                </span>
+                                            </div>
+                                            {groupHasError && (
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            <AlertCircle className="w-4 h-4 text-black dark:text-slate-100 cursor-help" />
+                                                        </TooltipTrigger>
+                                                        <TooltipContent className="bg-black text-white p-2 text-sm">
+                                                            <ul className="list-disc pl-4 space-y-1">
+                                                                {errorMessages.map((msg, i) => (
+                                                                    <li key={i}>{msg}</li>
+                                                                ))}
+                                                            </ul>
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            )}
                                         </div>
                                     </div>
-                                ))}
+                                )})}
                             </div>
                         </div>
                     )}
@@ -1359,7 +1915,7 @@ export default function InventoryAddPage() {
                             Cancel
                         </Button>
                         <div className="flex items-center gap-2">
-                            <span className="text-xs text-slate-500">Ctrl + S</span>
+                            <span className="text-xs text-slate-500 dark:text-slate-400">Ctrl + S</span>
                             <Button onClick={handleSaveAndFinish} disabled={batchItems.length === 0 || saving} className="bg-gray-600 text-white hover:bg-gray-700">
                                 {saving ? (
                                     <>
@@ -1414,10 +1970,21 @@ export default function InventoryAddPage() {
                 }}
                 onGoToSuppliers={() => {
                     setShowBatchResultDialog(false);
-                    handleNavigateAway(createPageUrl('Suppliers'));
+                    if (processedSupplierIds.length === 1) {
+                        handleNavigateAway(createPageUrl(`SupplierTx?id=${processedSupplierIds[0]}`));
+                    } else {
+                        handleNavigateAway(createPageUrl('Suppliers'));
+                    }
                 }}
                 successfulInvoices={batchResult.successfulInvoices}
                 failedInvoices={batchResult.failedInvoices}
+            />
+
+            <PartsInvoiceOCRModal
+                open={ocrModalOpen}
+                onOpenChange={setOcrModalOpen}
+                onSuccess={handleOCRSuccess}
+                supplierNames={suppliers.map(s => s.name)}
             />
         </div>
     );

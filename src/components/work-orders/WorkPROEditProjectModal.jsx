@@ -7,11 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Save } from 'lucide-react';
-import { Employee } from '@/entities/all';
-
-const WORKPRO_API_KEY = '835a11119e7d4b84a59f8f7a180b7e61';
-const WORKPRO_APP_ID = '68b3caadfc9d9a1ea34d2018'; // This line has been updated
-const API_BASE_URL = `https://app.base44.com/api/apps/${WORKPRO_APP_ID}/entities`;
+import { supabase } from '@/lib/supabase';
 
 export default function WorkPROEditProjectModal({ open, onClose, project, onUpdate, onRefresh }) {
   const [formData, setFormData] = useState({
@@ -26,7 +22,8 @@ export default function WorkPROEditProjectModal({ open, onClose, project, onUpda
   useEffect(() => {
     const loadEmployees = async () => {
       try {
-        const allEmployees = await Employee.list();
+        const { data: allEmployees, error: employeesError } = await supabase.from('Employee').select('*');
+        if (employeesError) throw employeesError;
         const techs = allEmployees.filter(emp => 
           emp.position === 'technician' || 
           emp.position === 'apprentice' ||
@@ -42,10 +39,13 @@ export default function WorkPROEditProjectModal({ open, onClose, project, onUpda
 
   useEffect(() => {
     if (project && open) {
-      const assignedEmployeesList = project.employee_assigned 
-        ? project.employee_assigned.split(',').map(name => name.trim())
-        : [];
-      
+      let assignedEmployeesList = [];
+      if (Array.isArray(project.employees_assigned) && project.employees_assigned.length > 0) {
+        assignedEmployeesList = project.employees_assigned;
+      } else if (project.employee_assigned) {
+        assignedEmployeesList = project.employee_assigned.split(',').map(name => name.trim());
+      }
+
       setFormData({
         status: project.status || '',
         time_estimate: project.time_estimate || '',
@@ -83,21 +83,20 @@ export default function WorkPROEditProjectModal({ open, onClose, project, onUpda
       const updateData = {
         status: formData.status,
         time_estimate: parseFloat(formData.time_estimate) || 0,
-        employee_assigned: formData.assigned_employees.join(', ')
+        employees_assigned: formData.assigned_employees
       };
 
-      const response = await fetch(`${API_BASE_URL}/Project/${project.id}`, {
-        method: 'PUT',
-        headers: { 'api_key': WORKPRO_API_KEY, 'Content-Type': 'application/json' },
-        body: JSON.stringify(updateData)
-      });
+      const { error } = await supabase
+        .from('Project')
+        .update(updateData)
+        .eq('id', project.id);
 
-      if (!response.ok) throw new Error('Failed to update project');
+      if (error) throw error;
 
       // Update local state
       onUpdate('status', formData.status);
       onUpdate('time_estimate', formData.time_estimate);
-      onUpdate('employee_assigned', formData.assigned_employees.join(', '));
+      onUpdate('employees_assigned', formData.assigned_employees);
       
       setHasChanges(false);
       alert('Project updated successfully!');
@@ -126,9 +125,9 @@ export default function WorkPROEditProjectModal({ open, onClose, project, onUpda
           {/* Project Name - Display Only */}
           <div className="space-y-2">
             <Label>Project Name</Label>
-            <div className="bg-slate-50 p-3 rounded-lg border">
-              <p className="text-slate-700">{project?.name}</p>
-              <p className="text-xs text-slate-500 mt-1">Project name is auto-assigned based on customer and vehicle data</p>
+            <div className="bg-slate-50 dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-800">
+              <p className="text-slate-700 dark:text-slate-300">{project?.name}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Project name is auto-assigned based on customer and vehicle data</p>
             </div>
           </div>
 
@@ -164,7 +163,7 @@ export default function WorkPROEditProjectModal({ open, onClose, project, onUpda
           {/* Assigned Employees */}
           <div className="space-y-3">
             <Label>Assigned Employees</Label>
-            <div className="space-y-2 max-h-48 overflow-y-auto border rounded-lg p-3">
+            <div className="space-y-2 max-h-48 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-lg p-3">
               {employees.map((employee) => {
                 const employeeName = getEmployeeName(employee);
                 const isChecked = formData.assigned_employees.includes(employeeName);
@@ -186,7 +185,7 @@ export default function WorkPROEditProjectModal({ open, onClose, project, onUpda
                 );
               })}
               {employees.length === 0 && (
-                <p className="text-slate-500 text-sm">No employees found</p>
+                <p className="text-slate-500 dark:text-slate-400 text-sm">No employees found</p>
               )}
             </div>
           </div>

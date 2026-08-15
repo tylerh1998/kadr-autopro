@@ -46,7 +46,7 @@ export default function InvoiceDescriptionModal({ open, onClose, onSubmit, workO
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-blue-600" />
+            <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             Review Internal Work Order Description
           </DialogTitle>
           <DialogDescription>

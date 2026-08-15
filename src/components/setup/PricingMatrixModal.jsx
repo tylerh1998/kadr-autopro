@@ -183,7 +183,7 @@ export default function PricingMatrixModal({ salesClass, onSubmit, onCancel }) {
                           size="icon"
                           onClick={() => handleRemoveRange(index)}
                           disabled={ranges.length <= 1}
-                          className="text-red-600 hover:text-red-700"
+                          className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -194,7 +194,7 @@ export default function PricingMatrixModal({ salesClass, onSubmit, onCancel }) {
               </Table>
             </div>
             
-            <p className="text-sm text-slate-600 mt-2">
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">
               You can add up to 10 pricing ranges. Each range should specify the minimum and maximum cost along with the corresponding margin percentage.
             </p>
           </div>

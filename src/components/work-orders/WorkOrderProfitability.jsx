@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { DollarSign, TrendingUp, Package, Wrench, Loader2, Clock } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import TechTimeModal from './TechTimeModal';
 
 export default function WorkOrderProfitability({ open, onClose, workOrder, lineItems = [], workPROProject, workPROProjects = [], employees = [] }) {
@@ -31,7 +31,8 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
   const refreshWorkOrder = async () => {
     if (workOrder?.id) {
        try {
-           const wos = await base44.entities.WorkOrder.filter({ id: workOrder.id });
+           const { data: wos, error } = await supabase.from('WorkOrder').select('*').eq('id', workOrder.id);
+           if (error) throw error;
            if (wos && wos.length > 0) {
                setLocalWorkOrder(wos[0]);
            }
@@ -60,14 +61,23 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
         for (let i = 0; i < projectsToFetch.length; i += BATCH_SIZE) {
           const batch = projectsToFetch.slice(i, i + BATCH_SIZE);
           const promises = batch.map(p => 
-            base44.functions.invoke('getProjectTimeSessions', { projectId: p.id })
+            supabase
+              .from('ProjectTimeSession')
+              .select('*')
+              .eq('project_id', p.id)
           );
           
           const responses = await Promise.all(promises);
           
           responses.forEach(response => {
-            if (response.data?.success && Array.isArray(response.data.logs)) {
-              allLogs = [...allLogs, ...response.data.logs];
+            if (!response.error && response.data) {
+              const mappedLogs = response.data.map(session => ({
+                ...session,
+                hours: session.total_hours || 0,
+                workpro_user_name: session.user_name || session.user_email,
+                email: session.user_email
+              }));
+              allLogs = [...allLogs, ...mappedLogs];
             }
           });
 
@@ -214,15 +224,15 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
   };
 
   const getMarginColor = (margin) => {
-    if (margin >= 30) return 'text-green-600';
-    if (margin >= 15) return 'text-yellow-600';
-    return 'text-red-600';
+    if (margin >= 30) return 'text-green-600 dark:text-green-400';
+    if (margin >= 15) return 'text-yellow-600 dark:text-yellow-400';
+    return 'text-red-600 dark:text-red-400';
   };
 
   const getMarginBadgeColor = (margin) => {
-    if (margin >= 30) return 'bg-green-100 text-green-800';
-    if (margin >= 15) return 'bg-yellow-100 text-yellow-800';
-    return 'bg-red-100 text-red-800';
+    if (margin >= 30) return 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300';
+    if (margin >= 15) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300';
+    return 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300';
   };
 
   // Calculate total hours including manual logs
@@ -254,13 +264,13 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
               <TrendingUp className="w-5 h-5" />
               Work Order Profitability Analysis
             </DialogTitle>
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
               RO #{workOrder.ro_number} - {workOrder.description}
             </p>
           </DialogHeader>
           <div className="flex items-center justify-center p-12">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600 mr-3" />
-            <p className="text-slate-700">Calculating labor costs...</p>
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400 mr-3" />
+            <p className="text-slate-700 dark:text-slate-300">Calculating labor costs...</p>
           </div>
         </DialogContent>
       </Dialog>
@@ -275,7 +285,7 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
             <TrendingUp className="w-5 h-5" />
             Work Order Profitability Analysis
           </DialogTitle>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
             RO #{workOrder.ro_number} - {workOrder.description}
           </p>
         </DialogHeader>
@@ -292,25 +302,25 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div className="text-center">
-                  <p className="text-sm text-slate-600">Total Revenue</p>
-                  <p className="text-2xl font-bold text-green-600">
+                  <p className="text-sm text-slate-600 dark:text-slate-400">Total Revenue</p>
+                  <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                     {formatCurrency(profitabilityData.totalRevenue)}
                   </p>
                 </div>
                 <div className="text-center">
-                  <p className="text-sm text-slate-600">Total Cost</p>
-                  <p className="text-2xl font-bold text-red-600">
+                  <p className="text-sm text-slate-600 dark:text-slate-400">Total Cost</p>
+                  <p className="text-2xl font-bold text-red-600 dark:text-red-400">
                     {formatCurrency(profitabilityData.totalCost)}
                   </p>
                 </div>
                 <div className="text-center">
-                  <p className="text-sm text-slate-600">Gross Profit</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">Gross Profit</p>
                   <p className={`text-2xl font-bold ${getMarginColor(profitabilityData.profitMargin)}`}>
                     {formatCurrency(profitabilityData.grossProfit)}
                   </p>
                 </div>
                 <div className="text-center">
-                  <p className="text-sm text-slate-600">Profit Margin</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">Profit Margin</p>
                   <Badge className={`text-lg px-3 py-1 ${getMarginBadgeColor(profitabilityData.profitMargin)}`}>
                     {(profitabilityData.profitMargin || 0).toFixed(1)}%
                   </Badge>
@@ -325,27 +335,27 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Package className="w-5 h-5 text-blue-600" />
+                  <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   Parts Analysis
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex justify-between">
-                  <span className="text-slate-600">Revenue:</span>
+                  <span className="text-slate-600 dark:text-slate-400">Revenue:</span>
                   <span className="font-semibold">{formatCurrency(profitabilityData.partsData.revenue)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-600">Cost:</span>
+                  <span className="text-slate-600 dark:text-slate-400">Cost:</span>
                   <span className="font-semibold">{formatCurrency(profitabilityData.partsData.cost)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-600">Profit:</span>
+                  <span className="text-slate-600 dark:text-slate-400">Profit:</span>
                   <span className={`font-semibold ${getMarginColor(profitabilityData.partsData.margin)}`}>
                     {formatCurrency(profitabilityData.partsData.profit)}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-600">Margin:</span>
+                  <span className="text-slate-600 dark:text-slate-400">Margin:</span>
                   <Badge className={getMarginBadgeColor(profitabilityData.partsData.margin)}>
                     {(profitabilityData.partsData.margin || 0).toFixed(1)}%
                   </Badge>
@@ -358,12 +368,12 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Wrench className="w-5 h-5 text-orange-600" />
+                    <Wrench className="w-5 h-5 text-orange-600 dark:text-orange-400" />
                     Labor Analysis
                   </div>
-                  <Badge 
-                    variant="outline" 
-                    className="cursor-pointer hover:bg-slate-100 flex items-center gap-1"
+                  <Badge
+                    variant="outline"
+                    className="cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-1"
                     onClick={() => setShowTechTimeModal(true)}
                   >
                     <Clock className="w-3 h-3" />
@@ -374,28 +384,28 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
               <CardContent className="p-0">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-slate-50 border-b">
-                      <th className="text-left py-2 px-4 font-medium text-slate-500">Metric</th>
-                      <th className="text-right py-2 px-4 font-medium text-slate-500">Hours</th>
-                      <th className="text-right py-2 px-4 font-medium text-slate-500">Amount</th>
+                    <tr className="bg-slate-50 border-b dark:bg-slate-800">
+                      <th className="text-left py-2 px-4 font-medium text-slate-500 dark:text-slate-400">Metric</th>
+                      <th className="text-right py-2 px-4 font-medium text-slate-500 dark:text-slate-400">Hours</th>
+                      <th className="text-right py-2 px-4 font-medium text-slate-500 dark:text-slate-400">Amount</th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr className="border-b">
-                      <td className="py-2 px-4 text-slate-600">Revenue</td>
+                      <td className="py-2 px-4 text-slate-600 dark:text-slate-400">Revenue</td>
                       <td className="text-right py-2 px-4">{(profitabilityData.laborData.billedHours || 0).toFixed(1)}</td>
                       <td className="text-right py-2 px-4 font-semibold">{formatCurrency(profitabilityData.laborData.revenue)}</td>
                     </tr>
                     <tr className="border-b">
-                      <td className="py-2 px-4 text-slate-600">
+                      <td className="py-2 px-4 text-slate-600 dark:text-slate-400">
                         Cost{profitabilityData.laborData.actualCostCalculated ? '' : ' (Est)'}
                       </td>
                       <td className="text-right py-2 px-4">{(totalTechHours || 0).toFixed(1)}</td>
                       <td className="text-right py-2 px-4 font-semibold">{formatCurrency(profitabilityData.laborData.cost)}</td>
                     </tr>
                     <tr className="border-b">
-                      <td className="py-2 px-4 text-slate-600">Profit</td>
-                      <td className={`text-right py-2 px-4 ${(profitabilityData.laborData.billedHours - totalTechHours) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      <td className="py-2 px-4 text-slate-600 dark:text-slate-400">Profit</td>
+                      <td className={`text-right py-2 px-4 ${(profitabilityData.laborData.billedHours - totalTechHours) >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                         {((profitabilityData.laborData.billedHours || 0) - (totalTechHours || 0)).toFixed(1)}
                       </td>
                       <td className={`text-right py-2 px-4 font-semibold ${getMarginColor(profitabilityData.laborData.margin)}`}>
@@ -403,7 +413,7 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
                       </td>
                     </tr>
                     <tr>
-                      <td className="py-2 px-4 text-slate-600">Margin</td>
+                      <td className="py-2 px-4 text-slate-600 dark:text-slate-400">Margin</td>
                       <td className="text-right py-2 px-4 text-slate-400">-</td>
                       <td className="text-right py-2 px-4">
                         <Badge className={getMarginBadgeColor(profitabilityData.laborData.margin)}>
@@ -469,7 +479,7 @@ export default function WorkOrderProfitability({ open, onClose, workOrder, lineI
 
           {safeLineItems.length === 0 && (
             <Card>
-              <CardContent className="p-8 text-center text-slate-500">
+              <CardContent className="p-8 text-center text-slate-500 dark:text-slate-400">
                 <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>No line items found for profitability analysis.</p>
               </CardContent>

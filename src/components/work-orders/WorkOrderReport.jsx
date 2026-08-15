@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import { SystemSettings } from '@/entities/all';
 
 export default function WorkOrderReport({ workOrder, customer, vehicle, lineItems, wipLegal = '', defaultMessage = '' }) {
 
@@ -89,7 +88,7 @@ export default function WorkOrderReport({ workOrder, customer, vehicle, lineItem
         <div className="flex justify-between items-start">
           <div className="flex-shrink-0">
             <img 
-              src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b90236f4d7e6ac0de4a262/9ad287758_KensAutoDieselRepair12.jpg" 
+              src="https://hbcrwkmgsazqrvsrmxyr.supabase.co/storage/v1/object/public/KADR/KADRLogoAddress.jpg"
               alt="Ken's Auto & Diesel Repair" 
               className="h-32"
             />

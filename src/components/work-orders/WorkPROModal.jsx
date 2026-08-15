@@ -10,9 +10,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Save, Clock, Gauge, Link as LinkIcon, PlusCircle, Droplet, CheckCircle2, ExternalLink, X, Pencil, Search, AlertTriangle } from 'lucide-react';
-import { Employee } from '@/entities/all';
 import { format } from 'date-fns';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import TechTimeModal from './TechTimeModal';
 import EditProjectDetailsModal from './EditProjectDetailsModal';
 import NewWorkPROModal from './NewWorkPROModal';
@@ -85,19 +84,27 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
       const fetchSupabaseData = async () => {
         try {
           if (workOrder.customer_id) {
-            const custRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Customer', match: { id: workOrder.customer_id } });
-            if (custRes.data?.data && custRes.data.data.length > 0) {
-              setLocalCustomer(custRes.data.data[0]);
-            }
+            const { data, error } = await supabase
+              .from('Customer')
+              .select('*')
+              .eq('id', workOrder.customer_id)
+              .limit(1)
+              .single();
+            if (error) console.error('Error fetching Customer:', error);
+            else if (data) setLocalCustomer(data);
           }
           if (workOrder.vehicle_id) {
-            const vehRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Vehicle', match: { id: workOrder.vehicle_id } });
-            if (vehRes.data?.data && vehRes.data.data.length > 0) {
-              setLocalVehicle(vehRes.data.data[0]);
-            }
+            const { data, error } = await supabase
+              .from('Vehicle')
+              .select('*')
+              .eq('id', workOrder.vehicle_id)
+              .limit(1)
+              .single();
+            if (error) console.error('Error fetching Vehicle:', error);
+            else if (data) setLocalVehicle(data);
           }
         } catch (error) {
-          console.error("Error fetching from SupabaseProxy:", error);
+          console.error('Error fetching Customer/Vehicle data:', error);
         }
       };
       fetchSupabaseData();
@@ -138,7 +145,8 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
   useEffect(() => {
     const loadEmployees = async () => {
       try {
-        const allEmployees = await Employee.list();
+        const { data: allEmployees, error: employeesError } = await supabase.from('Employee').select('*');
+        if (employeesError) throw employeesError;
         const techs = allEmployees.filter(emp => 
           emp.position === 'technician' || 
           emp.position === 'apprentice' ||
@@ -154,19 +162,17 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
 
   const fetchTechTimeTotal = useCallback(async (projectId) => {
     try {
-      const response = await base44.functions.invoke('workProProxy', {
-        entityName: 'ProjectTimeSession',
-        method: 'filter',
-        params: {
-          project_id: projectId
-        }
-      });
+      const { data: sessions, error } = await supabase
+        .from('ProjectTimeSession')
+        .select('total_hours')
+        .eq('project_id', projectId);
 
-      if (response.data.success) {
-        const sessions = response.data.data || [];
+      if (!error && sessions) {
         const totalHours = sessions.reduce((sum, session) => sum + (parseFloat(session.total_hours) || 0), 0);
         setTechTimeTotal(totalHours);
+        return;
       }
+      setTechTimeTotal(0);
     } catch (error) {
       console.error('Error fetching tech time total:', error);
       setTechTimeTotal(0);
@@ -238,29 +244,29 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
 
       // PRIORITY 1: Try to fetch using workOrderIdentifier
       if (workOrderIdentifier) {
-        const projectResponse = await base44.functions.invoke('workProProxy', {
-          entityName: 'Project',
-          method: 'filter',
-          params: {
-            work_order: workOrderIdentifier
+        try {
+          const { data: projects, error } = await supabase.from('Project').select('*').eq('work_order', workOrderIdentifier);
+          if (!error && Array.isArray(projects)) {
+            foundProjects = projects;
+          } else if (error) {
+            console.warn('Project filter failed:', error);
           }
-        });
-
-        if (projectResponse.data.success) {
-          foundProjects = projectResponse.data.data || [];
+        } catch (e) {
+          console.warn('Project filter failed:', e);
         }
       }
 
       // FALLBACK: If no projects found and we have initialWorkPROProject.id, fetch by ID
       if (foundProjects.length === 0 && initialWorkPROProject?.id) {
-        const projectResponse = await base44.functions.invoke('workProProxy', {
-          entityName: 'Project',
-          method: 'get',
-          id: initialWorkPROProject.id
-        });
-
-        if (projectResponse.data.success && projectResponse.data.data) {
-          foundProjects = [projectResponse.data.data];
+        try {
+          const { data: project, error } = await supabase.from('Project').select('*').eq('id', initialWorkPROProject.id).single();
+          if (!error && project) {
+            foundProjects = [project];
+          } else if (error) {
+             console.warn('Project get failed:', error);
+          }
+        } catch (e) {
+          console.warn('Project get failed:', e);
         }
       }
 
@@ -304,15 +310,9 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
   const fetchAvailableProjectsForConnection = async () => {
     setIsFetchingProjectsForConnection(true);
     try {
-      const response = await base44.functions.invoke('workProProxy', {
-        entityName: 'Project',
-        method: 'list',
-        limit: 1000
-      });
+      const { data: projects, error } = await supabase.from('Project').select('*').limit(1000);
 
-      if (response.data.success) {
-        const projects = response.data.data || [];
-        
+      if (!error && Array.isArray(projects)) {
         // Filter out archived projects and those already connected to a work order
         const availableProjects = projects.filter(p => 
           p.status !== 'archived' && !p.work_order
@@ -356,14 +356,14 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
         vin: vehicle?.vin || ''
       };
 
-      const response = await base44.functions.invoke('workProProxy', {
-        entityName: 'Project',
-        method: 'update',
-        id: selectedWorkPROProject.id,
-        params: updatePayload
-      });
+      const { data: updatedProject, error } = await supabase
+        .from('Project')
+        .update(updatePayload)
+        .eq('id', selectedWorkPROProject.id)
+        .select()
+        .single();
 
-      if (!response.data.success) throw new Error(response.data.error || 'Failed to connect project');
+      if (error || !updatedProject) throw new Error(error?.message || 'Failed to connect project');
 
       // Reload the modal with the newly connected project
       await fetchWorkPROData();
@@ -441,16 +441,14 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
         updateData.date_archived = null;
       }
 
-      const response = await base44.functions.invoke('workProProxy', {
-        entityName: 'Project',
-        method: 'update',
-        id: project.id,
-        params: updateData
-      });
+      const { data: savedProject, error } = await supabase
+        .from('Project')
+        .update(updateData)
+        .eq('id', project.id)
+        .select()
+        .single();
 
-      if (!response.data.success) throw new Error(response.data.error || 'Failed to update project');
-
-      const savedProject = response.data.data;
+      if (error || !savedProject) throw new Error(error?.message || 'Failed to update project');
       setProject(savedProject);
       await loadProjectIntoForm(savedProject);
       setHasChanges(false);
@@ -497,12 +495,12 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
   };
 
   const statusButtons = [
-    { key: 'to_do', label: 'To Do', color: 'bg-slate-900 hover:bg-slate-800 text-white', inactiveColor: 'bg-white hover:bg-slate-50 text-slate-900 border border-slate-300' },
-    { key: 'in_progress', label: 'In Progress', color: 'bg-blue-600 hover:bg-blue-700 text-white', inactiveColor: 'bg-white hover:bg-blue-50 text-blue-600 border border-blue-300' },
-    { key: 'parts_needed', label: 'Parts Needed', color: 'bg-red-600 hover:bg-red-700 text-white', inactiveColor: 'bg-white hover:bg-red-50 text-red-600 border border-red-300' },
-    { key: 'on_hold', label: 'On Hold', color: 'bg-orange-500 hover:bg-orange-600 text-white', inactiveColor: 'bg-white hover:bg-orange-50 text-orange-500 border border-orange-300' },
-    { key: 'done', label: 'Done', color: 'bg-green-600 hover:bg-green-700 text-white', inactiveColor: 'bg-white hover:bg-green-50 text-green-600 border border-green-300' },
-    { key: 'archived', label: 'Archived', color: 'bg-gray-600 hover:bg-gray-700 text-white', inactiveColor: 'bg-white hover:bg-gray-50 text-gray-600 border border-gray-300' }
+    { key: 'to_do', label: 'To Do', color: 'bg-slate-900 hover:bg-slate-800 text-white', inactiveColor: 'bg-white hover:bg-slate-50 text-slate-900 border border-slate-300 dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-100 dark:border-slate-700' },
+    { key: 'in_progress', label: 'In Progress', color: 'bg-blue-600 hover:bg-blue-700 text-white', inactiveColor: 'bg-white hover:bg-blue-50 text-blue-600 border border-blue-300 dark:bg-slate-900 dark:hover:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800' },
+    { key: 'parts_needed', label: 'Parts Needed', color: 'bg-red-600 hover:bg-red-700 text-white', inactiveColor: 'bg-white hover:bg-red-50 text-red-600 border border-red-300 dark:bg-slate-900 dark:hover:bg-red-950/30 dark:text-red-400 dark:border-red-800' },
+    { key: 'on_hold', label: 'On Hold', color: 'bg-orange-500 hover:bg-orange-600 text-white', inactiveColor: 'bg-white hover:bg-orange-50 text-orange-500 border border-orange-300 dark:bg-slate-900 dark:hover:bg-orange-950/30 dark:text-orange-400 dark:border-orange-800' },
+    { key: 'done', label: 'Done', color: 'bg-green-600 hover:bg-green-700 text-white', inactiveColor: 'bg-white hover:bg-green-50 text-green-600 border border-green-300 dark:bg-slate-900 dark:hover:bg-green-950/30 dark:text-green-400 dark:border-green-800' },
+    { key: 'archived', label: 'Archived', color: 'bg-gray-600 hover:bg-gray-700 text-white', inactiveColor: 'bg-white hover:bg-gray-50 text-gray-600 border border-gray-300 dark:bg-slate-900 dark:hover:bg-gray-800/50 dark:text-gray-400 dark:border-gray-700' }
   ];
 
   // Check if this is an oil change type project
@@ -534,17 +532,17 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col">
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col dark:bg-slate-950 dark:border-slate-800 [&>button]:hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 text-slate-950 dark:text-slate-50">
                 <span>WorkPRO Project</span>
                 {projectsList.length > 1 ? (
                     <Select 
                         value={project?.id} 
                         onValueChange={(val) => handleProjectSwitch(val)}
                     >
-                        <SelectTrigger className="h-8 min-w-[300px] border-slate-300 bg-white">
+                        <SelectTrigger className="h-8 min-w-[300px] border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100">
                             <SelectValue placeholder="Select project" />
                         </SelectTrigger>
                         <SelectContent>
@@ -556,7 +554,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                         </SelectContent>
                     </Select>
                 ) : project && (
-                  <div className="flex items-center gap-3 text-sm font-normal text-slate-600">
+                  <div className="flex items-center gap-3 text-sm font-normal text-slate-600 dark:text-slate-400">
                     <span>{project.name}</span>
                     {project.work_order && (
                       <>
@@ -595,14 +593,13 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                   <ExternalLink className="w-4 h-4 mr-2" />
                   Open in Window
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
+                <button
                   onClick={onClose}
-                  className="h-8 w-8"
+                  className="h-8 w-8 bg-red-600 hover:bg-red-700 text-white rounded-none p-0 transition-colors focus:outline-none flex items-center justify-center border border-red-500 shadow-sm"
+                  aria-label="Close"
                 >
                   <X className="w-5 h-5" />
-                </Button>
+                </button>
               </div>
             </DialogTitle>
           </DialogHeader>
@@ -655,7 +652,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
               ) : (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-semibold text-slate-900">Available Projects</h3>
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Available Projects</h3>
                     <Button 
                       variant="ghost" 
                       size="sm" 
@@ -681,7 +678,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
 
                   {/* Status Filter */}
                   <Tabs value={connectStatusFilter} onValueChange={setConnectStatusFilter} className="w-full">
-                    <TabsList className="grid w-full grid-cols-6 h-auto p-1 bg-slate-100 rounded-lg">
+                    <TabsList className="grid w-full grid-cols-6 h-auto p-1 bg-slate-100 dark:bg-slate-800 rounded-lg">
                       {['to_do', 'in_progress', 'parts_needed', 'on_hold', 'done', 'archived'].map(status => (
                         <TabsTrigger 
                           key={status} 
@@ -689,16 +686,17 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                           className={`
                             text-xs py-2 px-1 flex flex-col items-center gap-1
                             data-[state=active]:bg-white data-[state=active]:shadow-sm
-                            ${status === 'to_do' ? 'data-[state=active]:text-slate-900' : ''}
-                            ${status === 'in_progress' ? 'data-[state=active]:text-blue-700' : ''}
-                            ${status === 'parts_needed' ? 'data-[state=active]:text-red-700' : ''}
-                            ${status === 'on_hold' ? 'data-[state=active]:text-orange-700' : ''}
-                            ${status === 'done' ? 'data-[state=active]:text-green-700' : ''}
-                            ${status === 'archived' ? 'data-[state=active]:text-gray-700' : ''}
+                            dark:data-[state=active]:bg-slate-700
+                            ${status === 'to_do' ? 'data-[state=active]:text-slate-900 dark:data-[state=active]:text-slate-100' : ''}
+                            ${status === 'in_progress' ? 'data-[state=active]:text-blue-700 dark:data-[state=active]:text-blue-400' : ''}
+                            ${status === 'parts_needed' ? 'data-[state=active]:text-red-700 dark:data-[state=active]:text-red-400' : ''}
+                            ${status === 'on_hold' ? 'data-[state=active]:text-orange-700 dark:data-[state=active]:text-orange-400' : ''}
+                            ${status === 'done' ? 'data-[state=active]:text-green-700 dark:data-[state=active]:text-green-400' : ''}
+                            ${status === 'archived' ? 'data-[state=active]:text-gray-700 dark:data-[state=active]:text-gray-300' : ''}
                           `}
                         >
                           <span className="capitalize">{status.replace('_', ' ')}</span>
-                          <span className="text-[10px] bg-slate-200 px-1.5 rounded-full min-w-[1.25rem] text-center">
+                          <span className="text-[10px] bg-slate-200 dark:bg-slate-600 px-1.5 rounded-full min-w-[1.25rem] text-center text-slate-800 dark:text-slate-200">
                             {getProjectCountByStatus(status)}
                           </span>
                         </TabsTrigger>
@@ -723,7 +721,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                         p.task?.toLowerCase().includes(searchLower)
                       );
                     }).length === 0 ? (
-                      <div className="text-center py-8 text-slate-500 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                      <div className="text-center py-8 text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 rounded-lg border border-dashed border-slate-200 dark:border-slate-800">
                         <p>No projects found matching current filters</p>
                       </div>
                     ) : (
@@ -746,44 +744,44 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                         .map((proj) => (
                           <Card 
                             key={proj.id}
-                            className="cursor-pointer hover:shadow-md transition-all border-slate-200"
+                            className="cursor-pointer hover:shadow-md transition-all border-slate-200 dark:border-slate-800 dark:bg-slate-900"
                             onClick={() => handleConnectExistingProject(proj)}
                           >
                             <CardContent className="p-4">
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
                                   <div className="flex items-center gap-2 mb-1">
-                                    <h4 className="font-semibold text-slate-900">{proj.name}</h4>
+                                    <h4 className="font-semibold text-slate-900 dark:text-slate-100">{proj.name}</h4>
                                     {getStatusBadge(proj.status)}
                                   </div>
                                   {proj.customer && (
-                                    <p className="text-sm text-slate-600 flex items-center gap-2">
-                                      <span className="w-16 text-slate-400 text-xs">Customer:</span>
+                                    <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                                      <span className="w-16 text-slate-400 dark:text-slate-500 text-xs">Customer:</span>
                                       {proj.customer}
                                     </p>
                                   )}
                                   {proj.vehicle && (
-                                    <p className="text-sm text-slate-600 flex items-center gap-2">
-                                      <span className="w-16 text-slate-400 text-xs">Vehicle:</span>
+                                    <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                                      <span className="w-16 text-slate-400 dark:text-slate-500 text-xs">Vehicle:</span>
                                       {proj.vehicle}
                                     </p>
                                   )}
                                   {proj.task && (
-                                    <p className="text-sm text-slate-600 flex items-center gap-2">
-                                      <span className="w-16 text-slate-400 text-xs">Task:</span>
+                                    <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-2">
+                                      <span className="w-16 text-slate-400 dark:text-slate-500 text-xs">Task:</span>
                                       {proj.task}
                                     </p>
                                   )}
-                                  <div className="flex items-center gap-4 mt-2 pt-2 border-t border-slate-100">
+                                  <div className="flex items-center gap-4 mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                                     {proj.created_date && (
-                                      <span className="text-xs text-slate-400 flex items-center gap-1">
+                                      <span className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1">
                                         <Clock className="w-3 h-3" />
                                         Created: {format(new Date(proj.created_date), 'MMM d, yyyy')}
                                       </span>
                                     )}
                                   </div>
                                 </div>
-                                <Button size="sm" variant="ghost" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                                <Button size="sm" variant="ghost" className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-900/30">
                                   Connect <LinkIcon className="w-3 h-3 ml-1" />
                                 </Button>
                               </div>
@@ -808,7 +806,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
 
               <div>
                 <Label className="text-sm font-medium">Employees Assigned</Label>
-                <div className="grid grid-cols-2 gap-2 mt-2 p-3 border rounded-lg bg-slate-50 max-h-32 overflow-y-auto">
+                <div className="grid grid-cols-2 gap-2 mt-2 p-3 border rounded-lg bg-slate-50 dark:bg-slate-900/50 dark:border-slate-800 max-h-32 overflow-y-auto">
                   {employees.map((employee) => {
                     const employeeName = getEmployeeName(employee);
                     const isChecked = formData.assigned_employees.includes(employeeName);
@@ -1137,8 +1135,8 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
           )}
 
           {project && (
-            <DialogFooter className="flex items-center justify-between border-t pt-4 mt-4">
-              <div className="flex items-center gap-4 text-sm text-slate-600">
+            <DialogFooter className="flex items-center justify-between border-t dark:border-slate-800 pt-4 mt-4">
+              <div className="flex items-center gap-4 text-sm text-slate-600 dark:text-slate-400">
                 <button
                   onClick={() => setShowTechTimeModal(true)}
                   className="flex items-center gap-1.5 hover:text-blue-600 transition-colors cursor-pointer"

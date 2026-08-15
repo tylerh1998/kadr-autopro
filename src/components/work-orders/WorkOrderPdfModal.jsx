@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Loader2, AlertTriangle, Printer, X, Download } from "lucide-react";
 import { Button } from '@/components/ui/button';
-import { base44 } from "@/api/base44Client";
+import { supabase } from '@/lib/supabase';
 
 export default function WorkOrderPdfModal({ open, onClose, workOrder, customer, vehicle, lineItems, wipLegal = '', defaultMessage = '' }) {
     const [blobUrl, setBlobUrl] = useState(null);
@@ -33,18 +33,23 @@ export default function WorkOrderPdfModal({ open, onClose, workOrder, customer, 
             setLoading(true);
             setError(null);
             try {
-                // Call backend function using SDK - expecting JSON response with Data URI
-                const response = await base44.functions.invoke('generateWorkOrderPdf', {
-                    workOrder,
-                    customer,
-                    vehicle,
-                    lineItems,
-                    wipLegal,
-                    defaultMessage
+                // Call native edge function - expecting JSON response with Data URI
+                const { data, error: invokeError } = await supabase.functions.invoke('autopro-generateWorkOrderPdf', {
+                    body: {
+                        workOrder,
+                        customer,
+                        vehicle,
+                        lineItems,
+                        wipLegal,
+                        defaultMessage
+                    }
                 });
 
-                const { pdfDataUri, filename } = response.data;
-                
+                if (invokeError) throw invokeError;
+                if (data?.error) throw new Error(data.error);
+
+                const { pdfDataUri, filename } = data;
+
                 if (filename) setPdfFilename(filename);
 
                 if (!pdfDataUri) {
@@ -133,19 +138,19 @@ export default function WorkOrderPdfModal({ open, onClose, workOrder, customer, 
                     </div>
                 </DialogHeader>
                 
-                <div className="flex-1 w-full h-full bg-slate-100 overflow-hidden relative">
+                <div className="flex-1 w-full h-full bg-slate-100 overflow-hidden relative dark:bg-slate-800">
                     {loading && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 z-10">
-                            <Loader2 className="w-10 h-10 animate-spin text-blue-600 mb-4" />
-                            <p className="text-slate-600 font-medium">Generating PDF Report...</p>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/90 z-10 dark:bg-slate-900/90">
+                            <Loader2 className="w-10 h-10 animate-spin text-blue-600 mb-4 dark:text-blue-400" />
+                            <p className="text-slate-600 font-medium dark:text-slate-300">Generating PDF Report...</p>
                         </div>
                     )}
-                    
+
                     {!loading && error && (
-                        <div className="flex flex-col items-center justify-center h-full text-red-500 gap-2 p-4 text-center">
+                        <div className="flex flex-col items-center justify-center h-full text-red-500 gap-2 p-4 text-center dark:text-red-400">
                             <AlertTriangle className="w-10 h-10" />
                             <p className="font-medium">Error Generating Report</p>
-                            <p className="text-sm text-slate-600">{error}</p>
+                            <p className="text-sm text-slate-600 dark:text-slate-300">{error}</p>
                             <Button onClick={onClose} variant="outline" className="mt-4">
                                 Close
                             </Button>

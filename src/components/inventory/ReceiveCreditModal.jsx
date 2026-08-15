@@ -9,11 +9,12 @@ import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { CreditCard, DollarSign, ChevronDown, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
-import { ChartOfAccount, InventoryTxs, LinesOfCredit, LinesOfCreditTransaction, InventoryReturn } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 import { checkEntityLock } from '../utils/mountainTimeUtils';
 
 export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate }) {
+  const { employee } = useAuth();
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [invoiceDate, setInvoiceDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [adjustmentAmount, setAdjustmentAmount] = useState(0);
@@ -29,51 +30,38 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const user = await base44.auth.me();
-        setCurrentUser(user);
-      } catch (error) {
-        console.error('Error fetching user:', error);
-      }
-    };
-    fetchUser();
-  }, []);
+    setCurrentUser(employee);
+  }, [employee]);
 
   useEffect(() => {
     const loadData = async () => {
       try {
         console.log('Loading credit modal data...');
 
-        const accountsData = await ChartOfAccount.list('account_number');
+        const { data: accountsData, error: accountsError } = await supabase
+          .from('ChartOfAccount')
+          .select('*')
+          .order('account_number');
+        if (accountsError) throw accountsError;
         console.log('Chart of accounts loaded:', accountsData);
-        setAccounts(accountsData);
+        setAccounts(accountsData || []);
 
-        let linesOfCreditData = [];
-        try {
-          linesOfCreditData = await LinesOfCredit.filter({ is_active: true });
-          console.log('Lines of Credit loaded via filter:', linesOfCreditData);
-        } catch (filterError) {
-          console.log('Filter failed, trying list():', filterError);
-          try {
-            linesOfCreditData = await LinesOfCredit.list();
-            console.log('Lines of Credit loaded via list:', linesOfCreditData);
-            linesOfCreditData = linesOfCreditData.filter(loc => loc.is_active !== false);
-          } catch (listError) {
-            console.error('Both filter and list failed for Lines of Credit:', listError);
-          }
-        }
-        setLinesOfCredit(linesOfCreditData);
+        const { data: linesOfCreditData, error: locError } = await supabase
+          .from('LinesOfCredit')
+          .select('*')
+          .eq('is_active', true);
+        if (locError) console.error('Failed to load Lines of Credit:', locError);
+        console.log('Lines of Credit loaded:', linesOfCreditData);
+        setLinesOfCredit(linesOfCreditData || []);
 
         // Load inventory suppliers
-        const suppliersResponse = await base44.functions.invoke('SupabaseProxy', {
-          action: 'read',
-          table: 'Supplier',
-          match: { inventory_supplier: true }
-        });
-        const suppliersData = suppliersResponse.data?.data || [];
+        const { data: suppliersData, error: suppliersError } = await supabase
+          .from('Supplier')
+          .select('*')
+          .eq('inventory_supplier', true);
+        if (suppliersError) console.error('Failed to load inventory suppliers:', suppliersError);
         console.log('Inventory suppliers loaded:', suppliersData);
-        setSuppliers(suppliersData);
+        setSuppliers(suppliersData || []);
 
         // Set default supplier after suppliers are loaded
         if (returnItem?.supplier && refundCreditTo === 'Supplier AP') {
@@ -135,17 +123,17 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
 
   const createGLTransaction = async (transactionData) => {
     const userDisplay = currentUser?.full_name || currentUser?.email || currentUser?.id;
+    const now = new Date().toISOString();
 
-    return await base44.functions.invoke('SupabaseProxy', {
-      action: 'create',
-      table: 'GLTransaction',
-      data: {
-        ...transactionData,
-        created_by: userDisplay,
-        created_by_id: currentUser?.id,
-        updated_by: userDisplay
-      }
-    });
+    return await supabase.from('GLTransaction').insert([{
+      id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+      ...transactionData,
+      created_date: now,
+      updated_date: now,
+      created_by: userDisplay,
+      created_by_id: currentUser?.id,
+      updated_by: userDisplay
+    }]);
   };
 
   const handleSubmit = async (e) => {
@@ -176,13 +164,9 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
     // Check if the selected supplier is locked (live check on submit)
     try {
       const supplierIdToCheck = refundCreditTo === 'Supplier AP' ? toAccount : returnItem.supplier;
-      const supplierResponse = await base44.functions.invoke('SupabaseProxy', {
-        action: 'read',
-        table: 'Supplier',
-        match: { id: supplierIdToCheck }
-      });
-      const supplierEntity = (supplierResponse.data?.data || [])[0];
-      
+      const { data: supplierMatches } = await supabase.from('Supplier').select('*').eq('id', supplierIdToCheck);
+      const supplierEntity = (supplierMatches || [])[0];
+
       const lockStatus = checkEntityLock(supplierEntity, currentUser.email);
       if (lockStatus.isLocked) {
         alert(`This supplier is currently locked by ${lockStatus.lockedByUser}. Please wait until the lock is released.`);
@@ -192,7 +176,7 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
 
       // Check if Line of Credit is locked (if selected)
       if (refundCreditTo === 'Line of Credit' && toAccount) {
-        const locEntity = await LinesOfCredit.get(toAccount);
+        const { data: locEntity } = await supabase.from('LinesOfCredit').select('*').eq('id', toAccount).single();
         const locLockStatus = checkEntityLock(locEntity, currentUser.email);
         if (locLockStatus.isLocked) {
           alert(`This line of credit account is currently locked by ${locLockStatus.lockedByUser}. Please wait until the lock is released.`);
@@ -211,23 +195,24 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
       // 1. Create SupplierInvoiceLine for the parts credit
       const creditLineDescription = `ReturnPart/x${returnItem.quantity_returned}/${returnItem.part_number}`;
       const supplierIdForInvoice = refundCreditTo === 'Supplier AP' ? toAccount : returnItem.supplier;
-      
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'create',
-        table: 'SupplierInvoiceLine',
-        data: {
-          supplier_id: supplierIdForInvoice,
-          invoice_number: invoiceNumber,
-          invoice_date: invoiceDate,
-          description: creditLineDescription,
-          purchase_amount: Math.round(-subtotal * 100) / 100,
-          gst_amount: Math.round(-gst * 100) / 100,
-          gl_account: '1200',
-          inventory: true,
-          inventory_credit: true,
-          inventory_item_id: returnItem.inventory_item_id || ''
-        }
-      });
+      const invoiceLineNow = new Date().toISOString();
+
+      await supabase.from('SupplierInvoiceLine').insert([{
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+        supplier_id: supplierIdForInvoice,
+        invoice_number: invoiceNumber,
+        invoice_date: invoiceDate,
+        description: creditLineDescription,
+        purchase_amount: Math.round(-subtotal * 100) / 100,
+        gst_amount: Math.round(-gst * 100) / 100,
+        gl_account: '1200',
+        inventory: true,
+        inventory_credit: true,
+        inventory_item_id: returnItem.inventory_item_id || '',
+        paid_amount: 0,
+        created_date: invoiceLineNow,
+        updated_date: invoiceLineNow
+      }]);
 
       // 2. Create SupplierInvoiceLine for adjustment (if any)
       if (adj !== 0) {
@@ -235,35 +220,38 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
         // Invert adj and adjGst because a negative adjustment in UI means we want to REDUCE the credit invoice total (absolute value).
         // Since credit invoice lines are negative, adding a POSITIVE amount reduces the magnitude of the credit.
         // e.g. -100 (part) + 10 (adjustment) = -90 (total credit).
-        await base44.functions.invoke('SupabaseProxy', {
-          action: 'create',
-          table: 'SupplierInvoiceLine',
-          data: {
-            supplier_id: supplierIdForInvoice,
-            invoice_number: invoiceNumber,
-            invoice_date: invoiceDate,
-            description: adjustmentDescription,
-            purchase_amount: Math.round(-adj * 100) / 100,
-            gst_amount: Math.round(-adjGst * 100) / 100,
-            gl_account: glAccount,
-            inventory: false
-          }
-        });
+        const adjustmentLineNow = new Date().toISOString();
+        await supabase.from('SupplierInvoiceLine').insert([{
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+          supplier_id: supplierIdForInvoice,
+          invoice_number: invoiceNumber,
+          invoice_date: invoiceDate,
+          description: adjustmentDescription,
+          purchase_amount: Math.round(-adj * 100) / 100,
+          gst_amount: Math.round(-adjGst * 100) / 100,
+          gl_account: glAccount,
+          inventory: false,
+          paid_amount: 0,
+          created_date: adjustmentLineNow,
+          updated_date: adjustmentLineNow
+        }]);
       }
 
-      // 3. Create inventory transaction for credit received
-      await InventoryTxs.create({
+      // 3. Create InventoryAuditLog record for credit received
+      const { error: auditError } = await supabase.from('InventoryAuditLog').insert([{
         inventory_item_id: returnItem.inventory_item_id,
-        ro_number: "",
         part_num: returnItem.part_number,
-        tx_date: new Date().toISOString(),
+        source_record_id: returnItem.id,
+        source_function: 'ReceiveCreditModal',
         tx_type: "Credit Received",
         quantity_change: 0,
-        quantity_ordered_change: 0,
-        supplier_name: returnItem.supplier || '',
-        source_record_id: returnItem.id,
-        description: `Credit received for return of ${returnItem.quantity_returned} units. Invoice: ${invoiceNumber}`
-      });
+        supplier_inv: invoiceNumber,
+        description: `Credit received for return of ${returnItem.quantity_returned} units. Invoice: ${invoiceNumber}`,
+        created_by_id: currentUser?.id || null,
+        created_by: currentUser?.full_name || currentUser?.email || currentUser?.username || null,
+        tx_date: new Date().toISOString()
+      }]);
+      if (auditError) console.error('Error creating InventoryAuditLog:', auditError);
 
       // 4. Post GL transactions based on refund destination
       const glDescription = `Inventory Return Credit: ${returnItem.part_number} (Inv: ${invoiceNumber})`;
@@ -354,22 +342,13 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
         });
 
         // Update BankAccount for Cash Drawer
-        const cashDrawerResponse = await base44.functions.invoke('SupabaseProxy', {
-          action: 'filter',
-          table: 'BankAccount',
-          params: { gl_account: '1010' }
-        });
-        const cashDrawerAccounts = cashDrawerResponse.data?.data || [];
-        if (cashDrawerAccounts.length > 0) {
+        const { data: cashDrawerAccounts } = await supabase.from('BankAccount').select('*').eq('gl_account', '1010');
+        if (cashDrawerAccounts && cashDrawerAccounts.length > 0) {
           const cashDrawer = cashDrawerAccounts[0];
-          await base44.functions.invoke('SupabaseProxy', {
-            action: 'update',
-            table: 'BankAccount',
-            id: cashDrawer.id,
-            data: {
-              current_balance: (parseFloat(cashDrawer.current_balance) || 0) + grandTotal
-            }
-          });
+          await supabase.from('BankAccount').update({
+            current_balance: (parseFloat(cashDrawer.current_balance) || 0) + grandTotal,
+            updated_date: new Date().toISOString()
+          }).eq('id', cashDrawer.id);
         }
 
       } else if (refundCreditTo === 'Line of Credit') {
@@ -388,30 +367,40 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
           });
 
           // Create LOC transaction and update balance
-          await LinesOfCreditTransaction.create({
+          const locTxNow = new Date().toISOString();
+          const userDisplay = currentUser?.full_name || currentUser?.email || currentUser?.id;
+          await supabase.from('LinesOfCreditTransaction').insert([{
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
             line_of_credit_id: selectedLOC.id,
             transaction_date: invoiceDate,
             description: `Credit from supplier for return: ${returnItem.part_number}`,
             reference: `Credit Memo: ${invoiceNumber}`,
             charge_amount: 0,
             credit_amount: grandTotal,
+            payment_amount: 0,
             source_type: 'inventory_return',
             source_id: returnItem.id,
-          });
+            created_date: locTxNow,
+            updated_date: locTxNow,
+            created_by: userDisplay,
+            created_by_id: currentUser?.id
+          }]);
 
           const newBalance = (selectedLOC.current_balance || 0) - grandTotal;
           const newAvailableCredit = (selectedLOC.credit_limit || 0) - newBalance;
-          await LinesOfCredit.update(selectedLOC.id, {
+          await supabase.from('LinesOfCredit').update({
             current_balance: newBalance,
             available_credit: newAvailableCredit,
-          });
+            updated_date: locTxNow
+          }).eq('id', selectedLOC.id);
         } else {
           throw new Error('Selected Line of Credit or its GL account not found.');
         }
       }
 
-      // 5. Delete the return item from InventoryReturn
-      await InventoryReturn.delete(returnItem.id);
+      // 5. Delete the return item from InventoryReturn in Supabase
+      const { error: deleteError } = await supabase.from('InventoryReturn').delete().eq('id', returnItem.id);
+      if (deleteError) throw new Error('Failed to delete InventoryReturn record: ' + deleteError.message);
 
       setLoading(false);
       onUpdate();
@@ -424,37 +413,39 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
+      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col dark:bg-slate-950 dark:border-slate-800">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 dark:text-slate-100">
             <CreditCard className="w-5 h-5" />
             Receive Credit / Refund
           </DialogTitle>
         </DialogHeader>
         {returnItem && (
           <form onSubmit={handleSubmit} className="space-y-6 py-4 overflow-y-auto flex-1">
-            <div className="bg-slate-50 p-4 rounded-lg">
-              <h4 className="font-semibold text-slate-900">{returnItem.part_number}</h4>
-              <p className="text-sm text-slate-600">{returnItem.description}</p>
+            <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-lg border dark:border-slate-800">
+              <h4 className="font-semibold text-slate-900 dark:text-slate-100">{returnItem.part_number}</h4>
+              <p className="text-sm text-slate-600 dark:text-slate-400">{returnItem.description}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="invoice-number">Invoice #</Label>
+                <Label htmlFor="invoice-number" className="dark:text-slate-300">Invoice #</Label>
                 <Input
                   id="invoice-number"
                   value={invoiceNumber}
                   onChange={e => setInvoiceNumber(e.target.value)}
+                  className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
                   required
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="invoice-date">Date</Label>
+                <Label htmlFor="invoice-date" className="dark:text-slate-300">Date</Label>
                 <Input
                   id="invoice-date"
                   type="date"
                   value={invoiceDate}
                   onChange={e => setInvoiceDate(e.target.value)}
+                  className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
                   required
                 />
               </div>
@@ -462,32 +453,32 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="refund-credit-to">Refund/Credit To</Label>
+                <Label htmlFor="refund-credit-to" className="dark:text-slate-300">Refund/Credit To</Label>
                 <Select value={refundCreditTo} onValueChange={setRefundCreditTo}>
-                  <SelectTrigger>
+                  <SelectTrigger className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Supplier AP">Supplier AP</SelectItem>
-                    <SelectItem value="Cash Drawer">Cash Drawer</SelectItem>
-                    <SelectItem value="Line of Credit">Line of Credit</SelectItem>
+                  <SelectContent className="dark:bg-slate-950 dark:border-slate-800">
+                    <SelectItem value="Supplier AP" className="dark:text-slate-300 dark:focus:bg-slate-800">Supplier AP</SelectItem>
+                    <SelectItem value="Cash Drawer" className="dark:text-slate-300 dark:focus:bg-slate-800">Cash Drawer</SelectItem>
+                    <SelectItem value="Line of Credit" className="dark:text-slate-300 dark:focus:bg-slate-800">Line of Credit</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="to-account">
+                <Label htmlFor="to-account" className="dark:text-slate-300">
                   {refundCreditTo === 'Supplier AP' ? 'Supplier' : 'To Account'}
                 </Label>
                 <Select
                   value={toAccount}
                   onValueChange={setToAccount}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100">
                     <SelectValue placeholder="Select account" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="dark:bg-slate-950 dark:border-slate-800">
                     {getToAccountOptions().map(option => (
-                      <SelectItem key={option.value} value={option.value}>
+                      <SelectItem key={option.value} value={option.value} className="dark:text-slate-300 dark:focus:bg-slate-800">
                         {option.label}
                       </SelectItem>
                     ))}
@@ -497,24 +488,24 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
             </div>
 
             {/* Financial Summary */}
-            <div className="bg-white border rounded-lg p-4 space-y-3">
-              <h4 className="font-semibold text-slate-900 flex items-center gap-2">
+            <div className="bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-lg p-4 space-y-3">
+              <h4 className="font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
                 <DollarSign className="w-4 h-4" />
                 Financial Summary
               </h4>
-              <div className="space-y-2 text-sm">
+              <div className="space-y-2 text-sm dark:text-slate-300">
                 <div className="flex justify-between">
                   <span>Subtotal:</span>
-                  <span className="font-medium">${displaySubtotal.toFixed(2)}</span>
+                  <span className="font-medium dark:text-slate-200">${displaySubtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>GST (5%):</span>
-                  <span className="font-medium">${displayGst.toFixed(2)}</span>
+                  <span className="font-medium dark:text-slate-200">${displayGst.toFixed(2)}</span>
                 </div>
-                <Separator />
+                <Separator className="dark:bg-slate-800" />
                 <div className="flex justify-between font-bold">
                   <span>Grand Total:</span>
-                  <span className="text-lg">${grandTotal.toFixed(2)}</span>
+                  <span className="text-lg dark:text-slate-100">${grandTotal.toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -525,7 +516,7 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full flex items-center justify-between"
+                  className="w-full flex items-center justify-between dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800"
                 >
                   <span className="font-semibold">Adjustment (Optional)</span>
                   {isAdjustmentOpen ? (
@@ -535,11 +526,11 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
                   )}
                 </Button>
               </CollapsibleTrigger>
-              <CollapsibleContent className="mt-4">
-                <div className="space-y-4 border rounded-lg p-4 bg-slate-50">
+              <CollapsibleContent className="mt-4 animate-in fade-in-50 duration-200">
+                <div className="space-y-4 border dark:border-slate-800 rounded-lg p-4 bg-slate-50 dark:bg-slate-900">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="adjustment-amount">Amount</Label>
+                      <Label htmlFor="adjustment-amount" className="dark:text-slate-300">Amount</Label>
                       <Input
                         id="adjustment-amount"
                         type="number"
@@ -547,17 +538,18 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
                         value={adjustmentAmount}
                         onChange={e => setAdjustmentAmount(e.target.value)}
                         placeholder="0.00"
+                        className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="gl-account">GL Account *</Label>
-                      <Select value={glAccount} onValueChange={setGlAccount}>
-                        <SelectTrigger className={adj !== 0 && !glAccount ? 'border-red-300' : ''}>
+                      <Label htmlFor="gl-account" className="dark:text-slate-300">GL Account *</Label>
+                      <Select value={String(glAccount || '')} onValueChange={setGlAccount}>
+                        <SelectTrigger className={(adj !== 0 && !glAccount ? 'border-red-300' : '') + " dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"}>
                           <SelectValue placeholder="Select account" />
                         </SelectTrigger>
-                        <SelectContent>
-                          {accounts.filter(account => !account.controlled || account.account_number === '5004').map(account => (
-                            <SelectItem key={account.id} value={account.account_number}>
+                        <SelectContent className="dark:bg-slate-950 dark:border-slate-800">
+                          {accounts.filter(account => !account.controlled || String(account.account_number) === '5004').map(account => (
+                            <SelectItem key={account.id} value={String(account.account_number)} className="dark:text-slate-300 dark:focus:bg-slate-800">
                               {account.account_number} - {account.account_name}
                             </SelectItem>
                           ))}
@@ -567,23 +559,23 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
                   </div>
                   
                   {adj !== 0 && (
-                    <div className="bg-white border rounded-lg p-3 space-y-1 text-sm">
+                    <div className="bg-white dark:bg-slate-950 border dark:border-slate-800 rounded-lg p-3 space-y-1 text-sm dark:text-slate-300">
                       <div className="flex justify-between">
                         <span>Adjustment Amount:</span>
-                        <span className={`font-medium ${adj >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <span className={`font-medium ${adj >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                           ${adj.toFixed(2)}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span>GST (5%):</span>
-                        <span className={`font-medium ${adj >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <span className={`font-medium ${adj >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                           ${adjGst.toFixed(2)}
                         </span>
                       </div>
-                      <Separator className="my-2" />
+                      <Separator className="my-2 dark:bg-slate-800" />
                       <div className="flex justify-between font-bold">
                         <span>Adjustment Total:</span>
-                        <span className={adj >= 0 ? 'text-green-600' : 'text-red-600'}>
+                        <span className={adj >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
                           ${adjTotal.toFixed(2)}
                         </span>
                       </div>
@@ -591,13 +583,14 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
                   )}
 
                   <div className="space-y-2">
-                    <Label htmlFor="adjustment-reason">Reason</Label>
+                    <Label htmlFor="adjustment-reason" className="dark:text-slate-300">Reason</Label>
                     <Textarea
                       id="adjustment-reason"
                       value={adjustmentReason}
                       onChange={e => setAdjustmentReason(e.target.value)}
                       placeholder="Reason for adjustment..."
                       rows={2}
+                      className="dark:bg-slate-950 dark:border-slate-800 dark:text-slate-100"
                     />
                   </div>
                 </div>
@@ -605,10 +598,10 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
             </Collapsible>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
+              <Button type="button" variant="outline" onClick={onClose} disabled={loading} className="dark:border-slate-800 dark:text-slate-300 dark:hover:bg-slate-800">
                 Cancel
               </Button>
-              <Button type="submit" disabled={loading} className="bg-green-600 hover:bg-green-700">
+              <Button type="submit" disabled={loading} className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 text-white">
                 {loading ? 'Processing...' : 'Record Credit/Refund'}
               </Button>
             </DialogFooter>

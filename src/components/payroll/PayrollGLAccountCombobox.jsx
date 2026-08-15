@@ -106,7 +106,7 @@ export default function PayrollGLAccountCombobox({ chartOfAccounts, currentValue
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[360px] p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
-        <div className="p-2 bg-white">
+        <div className="p-2 bg-white dark:bg-slate-900">
           <Input
             placeholder="Search by account # or name..."
             value={search}
@@ -117,7 +117,7 @@ export default function PayrollGLAccountCombobox({ chartOfAccounts, currentValue
           />
           <div ref={listRef} className="max-h-[260px] overflow-y-auto space-y-1">
             {filteredAccounts.length === 0 ? (
-              <div className="py-6 text-center text-sm text-slate-500">No accounts found.</div>
+              <div className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">No accounts found.</div>
             ) : (
               filteredAccounts.map((account, index) => {
                 const isSelected = String(currentValue) === String(account.account_number);
@@ -141,13 +141,13 @@ export default function PayrollGLAccountCombobox({ chartOfAccounts, currentValue
                         }
                       }, 50);
                     }}
-                    className={`flex items-center justify-between rounded-sm px-2 py-2 text-sm outline-none cursor-pointer border-b border-slate-50 last:border-0 ${isHighlighted ? 'bg-slate-200' : 'hover:bg-slate-100'}`}
+                    className={`flex items-center justify-between rounded-sm px-2 py-2 text-sm outline-none cursor-pointer border-b border-slate-50 dark:border-slate-800 last:border-0 ${isHighlighted ? 'bg-slate-200 dark:bg-slate-700' : 'hover:bg-slate-100 dark:hover:bg-slate-700/50'}`}
                   >
                     <div className="flex flex-col min-w-0">
-                      <span className="font-medium text-slate-900">{account.account_number}</span>
-                      <span className="text-xs text-slate-500 truncate">{account.account_name}</span>
+                      <span className="font-medium text-slate-900 dark:text-slate-100">{account.account_number}</span>
+                      <span className="text-xs text-slate-500 dark:text-slate-400 truncate">{account.account_name}</span>
                     </div>
-                    {isSelected && <Check className="h-4 w-4 text-green-600 shrink-0" />}
+                    {isSelected && <Check className="h-4 w-4 text-green-600 dark:text-green-400 shrink-0" />}
                   </div>
                 );
               })

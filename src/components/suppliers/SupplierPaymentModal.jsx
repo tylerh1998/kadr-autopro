@@ -13,11 +13,12 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { CalendarIcon, Loader2, X } from 'lucide-react';
 import { format, parseISO, differenceInDays, parse, endOfMonth, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { cn } from "@/lib/utils";
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 import { createPageUrl } from '@/utils';
 import { checkBankAccountLock, checkEntityLock } from '../utils/mountainTimeUtils';
 import { checkFiscalPeriodStatus } from '../utils/fiscalPeriodUtils';
-import { LinesOfCredit } from '@/entities/all';
+import { releaseSupplierLockKeepAlive } from '../utils/supplierLockUtils';
 import AddToSheetModal from './AddToSheetModal';
 
 // Helper function to safely parse date for calendar component
@@ -169,6 +170,7 @@ const buildAppliedDetailsFromConceptualInvoice = (invoice) => {
 };
 
 export default function SupplierPaymentModal({ open, onClose, supplier, invoiceLines, onPaymentComplete }) {
+  const { employee } = useAuth();
   const [loading, setLoading] = useState(false);
   const [actionLocked, setActionLocked] = useState(false);
   const [activeTab, setActiveTab] = useState('pay_invoices');
@@ -191,16 +193,8 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
   const [cashFlowLoading, setCashFlowLoading] = useState(false);
 
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const user = await base44.auth.me();
-        setCurrentUser(user);
-      } catch (error) {
-        console.error('Error fetching user:', error);
-      }
-    };
-    fetchUser();
-  }, []);
+    setCurrentUser(employee);
+  }, [employee]);
 
   const [paymentData, setPaymentData] = useState({
     payment_date: format(new Date(), 'yyyy-MM-dd'),
@@ -241,11 +235,13 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
         let entries = [];
 
         if (supplier.id) {
-          entries = await base44.entities.CashFlowEntry.filter({ supplier_id: supplier.id }, '-updated_date', 20);
+          const { data } = await supabase.from('CashFlowEntry').select('*').eq('supplier_id', supplier.id).order('updated_date', { ascending: false }).limit(20);
+          entries = data || [];
         }
 
         if ((!entries || entries.length === 0) && supplier.name) {
-          entries = await base44.entities.CashFlowEntry.filter({ supplier: supplier.name }, '-updated_date', 20);
+          const { data } = await supabase.from('CashFlowEntry').select('*').eq('supplier', supplier.name).order('updated_date', { ascending: false }).limit(20);
+          entries = data || [];
         }
 
         if (!cancelled) {
@@ -278,17 +274,14 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
   const loadData = async () => {
     setLoading(true);
     try {
-      const [banksResponse, locs] = await Promise.all([
-        base44.functions.invoke('SupabaseProxy', {
-          action: 'list',
-          table: 'BankAccount'
-        }),
-        base44.entities.LinesOfCredit.filter({ is_active: true })
+      const [banksResponse, locsResponse] = await Promise.all([
+        supabase.from('BankAccount').select('*'),
+        supabase.from('LinesOfCredit').select('*').eq('is_active', true)
       ]);
 
-      const banks = (banksResponse.data?.data || []).filter(acc => acc.is_active !== false);
+      const banks = (banksResponse.data || []).filter(acc => acc.is_active !== false);
       setBankAccounts(banks);
-      setLinesOfCredit(locs || []);
+      setLinesOfCredit(locsResponse.data || []);
 
       if (invoiceLines && Array.isArray(invoiceLines)) {
         const outstanding = invoiceLines
@@ -508,8 +501,10 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
         
         if (paymentData.payment_method === 'Line of Credit') {
           // For LOC, check LOC lock
-          accountToCheck = await LinesOfCredit.get(paymentData.from_account_id);
-          
+          const locResponse = await supabase.from('LinesOfCredit').select('*').eq('id', paymentData.from_account_id).single();
+          if (locResponse.error || !locResponse.data) throw new Error(locResponse.error?.message || 'Line of credit not found');
+          accountToCheck = locResponse.data;
+
           if (accountToCheck.locked_by_user && accountToCheck.locked_timestamp) {
             const lockStatus = checkEntityLock(accountToCheck, currentUser?.email || '');
             
@@ -521,12 +516,8 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
           }
         } else {
           // For Bank Account or Cheque, check the bank account lock
-          const bankAccountResponse = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'BankAccount',
-            match: { id: paymentData.from_account_id }
-          });
-          accountToCheck = bankAccountResponse.data?.data?.[0];
+          const bankAccountResponse = await supabase.from('BankAccount').select('*').eq('id', paymentData.from_account_id);
+          accountToCheck = bankAccountResponse.data?.[0];
 
           if (!accountToCheck) {
             setLoading(false);
@@ -633,15 +624,17 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
       });
 
       // Call backend function to process payment
-      const response = await base44.functions.invoke('processSupplierPayment', {
-        supplierId: supplier.id,
-        paymentDate: paymentData.payment_date,
-        paymentMethod: paymentData.payment_method,
-        fromAccountId: paymentData.from_account_id,
-        totalPaymentAmount: paymentAmount,
-        chequeNumber: chequeNumber || null,
-        notes: paymentData.notes || null,
-        appliedInvoices: appliedInvoicesDetails
+      const response = await supabase.functions.invoke('autopro-processSupplierPayment', {
+        body: {
+          supplierId: supplier.id,
+          paymentDate: paymentData.payment_date,
+          paymentMethod: paymentData.payment_method,
+          fromAccountId: paymentData.from_account_id,
+          totalPaymentAmount: paymentAmount,
+          chequeNumber: chequeNumber || null,
+          notes: paymentData.notes || null,
+          appliedInvoices: appliedInvoicesDetails
+        }
       });
 
       // Handle response
@@ -651,9 +644,11 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
         const paymentId = result.payment_id;
 
         if (chequeNumber && addChequeToCashFlow) {
-          const existingRows = await base44.entities.CashFlowEntry.list('-sort_order', 1);
+          const { data: existingRows } = await supabase.from('CashFlowEntry').select('*').order('sort_order', { ascending: false }).limit(1);
           const nextSortOrder = (existingRows?.[0]?.sort_order || 0) + 1;
-          await base44.entities.CashFlowEntry.create({
+          const nowIso = new Date().toISOString();
+          await supabase.from('CashFlowEntry').insert([{
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
             supplier_id: supplier.id,
             supplier: supplier.name,
             amount: paymentAmount,
@@ -661,25 +656,28 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
             date_paid: paymentData.payment_date,
             chq_number: chequeNumber,
             method: 'Cheque',
-            sort_order: nextSortOrder
-          });
+            sort_order: nextSortOrder,
+            created_date: nowIso,
+            updated_date: nowIso
+          }]);
         }
-        
+
         // Start polling for status
         const pollInterval = setInterval(async () => {
             try {
-                const paymentResponse = await base44.functions.invoke('SupabaseProxy', {
-                    action: 'read',
-                    table: 'SupplierPayment',
-                    match: { id: paymentId }
-                });
-                const payment = paymentResponse.data?.data?.[0];
+                const paymentResponse = await supabase.from('SupplierPayment').select('*').eq('id', paymentId);
+                const payment = paymentResponse.data?.[0];
                 if (!payment) return;
 
                 if (payment.status === 'completed') {
                     clearInterval(pollInterval);
                     if (chequeNumber) {
                          const chequeUrl = `${createPageUrl('ChequeWriter')}?chequeReference=${encodeURIComponent(chequeNumber)}`;
+                         // This is a hard page navigation (not a React Router route
+                         // change), so it bypasses SupplierTx's normal awaited lock
+                         // release entirely. Release via keepalive first so the
+                         // Supplier's lock doesn't get stuck.
+                         releaseSupplierLockKeepAlive(supplier?.id);
                          window.location.href = chequeUrl;
                     } else {
                          if (onPaymentComplete) onPaymentComplete();
@@ -776,7 +774,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
               <TabsContent value="pay_invoices" className="space-y-4">
                 <div className="border rounded-lg max-h-[400px] overflow-y-auto">
                   <Table>
-                    <TableHeader className="sticky top-0 bg-white z-10">
+                    <TableHeader className="sticky top-0 bg-white dark:bg-slate-900 z-10">
                       <TableRow>
                         <TableHead className="w-12">
                           <Checkbox
@@ -807,7 +805,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                           return (
                             <TableRow 
                               key={invoice.uniqueKey}
-                              className={`cursor-pointer ${isSelected ? 'bg-blue-50' : (isCredit ? 'bg-green-50' : '')} hover:bg-blue-100`}
+                              className={`cursor-pointer ${isSelected ? 'bg-blue-50 dark:bg-blue-900/30' : (isCredit ? 'bg-green-50 dark:bg-green-900/20' : '')} hover:bg-blue-100 dark:hover:bg-blue-900/40`}
                               onClick={() => handleInvoiceSelection(invoice.uniqueKey, !isSelected)}
                             >
                               <TableCell onClick={(e) => e.stopPropagation()}>
@@ -829,7 +827,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                     </TableBody>
                   </Table>
                 </div>
-                <div className="flex justify-between items-center p-4 bg-slate-50 rounded-lg">
+                <div className="flex justify-between items-center p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
                   <span className="font-semibold">Selected Amount:</span>
                   <span className="text-xl font-bold">{totalSelectedAmount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span>
                 </div>
@@ -837,8 +835,8 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
 
               <TabsContent value="pay_on_account" className="space-y-4">
                 <div className="space-y-4">
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="text-sm text-blue-800">
+                  <div className="p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+                    <p className="text-sm text-blue-800 dark:text-blue-300">
                       This payment will be applied to the oldest outstanding invoices first.
                       Any remaining amount will be kept on account.
                     </p>
@@ -865,9 +863,11 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                                 setCalculating(true);
                                 setCalculationResult(null);
                                 try {
-                                    const res = await base44.functions.invoke('calculateSupplierPaymentBreakdown', {
-                                        supplierId: supplier.id,
-                                        paymentAmount: amount
+                                    const res = await supabase.functions.invoke('autopro-calculateSupplierPaymentBreakdown', {
+                                        body: {
+                                            supplierId: supplier.id,
+                                            paymentAmount: amount
+                                        }
                                     });
                                     if (res.data.success) {
                                         setCalculationResult(res.data.breakdown);
@@ -886,14 +886,14 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                             {calculating ? <Loader2 className="w-4 h-4 animate-spin" /> : "Calculate"}
                         </Button>
                     </div>
-                    <p className="text-sm text-slate-500">
+                    <p className="text-sm text-slate-500 dark:text-slate-400">
                       Total Balance Owing: {totalBalanceOwing.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
                     </p>
                   </div>
 
                   {calculationResult && (
                     <div className="border rounded-lg overflow-hidden">
-                        <div className="bg-slate-100 px-4 py-2 font-medium border-b flex justify-between">
+                        <div className="bg-slate-100 dark:bg-slate-800 px-4 py-2 font-medium border-b dark:border-slate-700 flex justify-between">
                             <span>Proposed Application</span>
                             <span>{calculationResult.totalApplied.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span>
                         </div>
@@ -921,9 +921,9 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                                         ))
                                     )}
                                     {Math.abs(calculationResult.unappliedAmount) > 0.005 && (
-                                        <TableRow className="bg-amber-50">
-                                            <TableCell className="font-medium text-amber-800">Unapplied (On Account)</TableCell>
-                                            <TableCell className="text-right font-medium text-amber-800">
+                                        <TableRow className="bg-amber-50 dark:bg-amber-900/30">
+                                            <TableCell className="font-medium text-amber-800 dark:text-amber-300">Unapplied (On Account)</TableCell>
+                                            <TableCell className="text-right font-medium text-amber-800 dark:text-amber-300">
                                                 {calculationResult.unappliedAmount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
                                             </TableCell>
                                         </TableRow>
@@ -962,8 +962,8 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
             <DialogTitle>Payment Details</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="p-3 bg-slate-50 rounded-lg">
-              <p className="text-sm text-slate-600">Payment Amount:</p>
+            <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+              <p className="text-sm text-slate-600 dark:text-slate-400">Payment Amount:</p>
               <p className="text-xl font-bold">{totalSelectedAmount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</p>
             </div>
 
@@ -1046,8 +1046,8 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                       onClick={() => handlePaymentMethodChange(method)}
                       className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
                         paymentData.payment_method === method
-                          ? 'bg-slate-900 text-white shadow-md'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                          ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 shadow-md'
+                          : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
                       }`}
                     >
                       {method}
@@ -1087,23 +1087,23 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
             )}
 
             {(cashFlowLoading || cashFlowEntry) && (
-              <div className="space-y-2 rounded-lg border bg-slate-50 p-3">
-                <Label className="text-sm font-semibold text-slate-700">Cash Flow Entry</Label>
+              <div className="space-y-2 rounded-lg border dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3">
+                <Label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Cash Flow Entry</Label>
                 {cashFlowLoading ? (
-                  <p className="text-sm text-slate-500">Loading cash flow entry...</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Loading cash flow entry...</p>
                 ) : cashFlowEntry ? (
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between gap-3">
-                      <span className="text-slate-500">Paid Date</span>
-                      <span className="font-medium text-slate-900">{cashFlowEntry.date_paid ? format(parseISO(cashFlowEntry.date_paid), 'MMM d, yyyy') : '—'}</span>
+                      <span className="text-slate-500 dark:text-slate-400">Paid Date</span>
+                      <span className="font-medium text-slate-900 dark:text-slate-100">{cashFlowEntry.date_paid ? format(parseISO(cashFlowEntry.date_paid), 'MMM d, yyyy') : '—'}</span>
                     </div>
                     <div className="flex justify-between gap-3">
-                      <span className="text-slate-500">Amount</span>
-                      <span className="font-medium text-slate-900">{(cashFlowEntry.amount_paid || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span>
+                      <span className="text-slate-500 dark:text-slate-400">Amount</span>
+                      <span className="font-medium text-slate-900 dark:text-slate-100">{(cashFlowEntry.amount_paid || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span>
                     </div>
                     <div className="space-y-1">
-                      <span className="text-slate-500">Comment</span>
-                      <p className="rounded border bg-white px-3 py-2 text-slate-900">{cashFlowEntry.comment || '—'}</p>
+                      <span className="text-slate-500 dark:text-slate-400">Comment</span>
+                      <p className="rounded border dark:border-slate-600 bg-white dark:bg-slate-700 px-3 py-2 text-slate-900 dark:text-slate-100">{cashFlowEntry.comment || '—'}</p>
                     </div>
                   </div>
                 ) : null}
@@ -1181,7 +1181,7 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
               <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
               <div className="text-center">
                 <h3 className="text-lg font-semibold mb-2">Processing Payment</h3>
-                <p className="text-sm text-slate-600">Please wait while we process your payment and prepare the cheque...</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Please wait while we process your payment and prepare the cheque...</p>
               </div>
             </div>
           </DialogContent>

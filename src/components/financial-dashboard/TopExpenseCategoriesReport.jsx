@@ -26,7 +26,10 @@ export default function TopExpenseCategoriesReport({ data }) {
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip formatter={(value) => formatCurrency(value)} />
+            <Tooltip
+              formatter={(value) => formatCurrency(value)}
+              contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', color: 'hsl(var(--foreground))' }}
+            />
           </PieChart>
         </ResponsiveContainer>
         <div className="mt-4 space-y-2 max-h-60 overflow-y-auto">
@@ -34,9 +37,9 @@ export default function TopExpenseCategoriesReport({ data }) {
             <div key={item.category} className="flex justify-between items-start gap-2">
               <div className="flex items-start gap-2 flex-1 min-w-0">
                 <div className="w-4 h-4 rounded flex-shrink-0 mt-0.5" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                <span className="text-sm text-slate-700 truncate">{item.category}</span>
+                <span className="text-sm text-slate-700 dark:text-slate-300 truncate">{item.category}</span>
               </div>
-              <span className="text-sm font-semibold text-slate-900 flex-shrink-0">{formatCurrency(item.amount)}</span>
+              <span className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex-shrink-0">{formatCurrency(item.amount)}</span>
             </div>
           ))}
         </div>

@@ -6,9 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { TagAlong } from "@/entities/TagAlong";
-import { InventoryCategory } from "@/entities/InventoryCategory";
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Save, Loader2, Search, Check } from "lucide-react";
 
 export default function InventoryAddModal({ open, onClose, onAdd, suppliers, salesClasses, inventoryLocations }) {
@@ -86,14 +84,21 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
 
     const loadData = async () => {
         try {
-            const [tagAlongsData, categoriesData] = await Promise.all([
-                TagAlong.list(),
-                InventoryCategory.list()
-            ]);
-            setTagAlongs(tagAlongsData);
-            setInternalCategories(categoriesData);
+            const categoriesResult = await supabase.from('InventoryCategory').select('*').order('name');
+            if (categoriesResult.error) {
+                console.error('Error loading categories:', categoriesResult.error);
+            }
+            setInternalCategories(categoriesResult.data || []);
         } catch (error) {
-            console.error('Error loading data:', error);
+            console.error('Error loading categories:', error);
+        }
+
+        try {
+            const { data: tagAlongsData, error: tagAlongsError } = await supabase.from('TagAlong').select('*');
+            if (tagAlongsError) throw tagAlongsError;
+            setTagAlongs(tagAlongsData || []);
+        } catch (error) {
+            console.error('Error loading tag alongs:', error);
         }
     };
 
@@ -110,12 +115,19 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
                     const supplier = suppliers.find(s => s.id === formData.supplier_id);
                     const supplierName = supplier ? supplier.name : '';
                     
-                    const response = await base44.functions.invoke('suggestInventoryCategory', {
-                        part_number: formData.part_number,
-                        description: formData.description,
-                        supplier_name: supplierName
+                    const response = await supabase.functions.invoke('autopro-suggestInventoryCategory', {
+                        body: {
+                            part_number: formData.part_number,
+                            description: formData.description,
+                            supplier_name: supplierName
+                        }
                     });
-                    
+
+                    if (response.error) {
+                        console.error('Category suggestion error:', response.error);
+                        return;
+                    }
+
                     if (response.data && response.data.category) {
                         setFormData(prev => {
                             if (!prev.category) {
@@ -369,7 +381,7 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
                                 type="number"
                                 value={formData.quantity_on_hand}
                                 disabled
-                                className="bg-gray-100"
+                                className="bg-gray-100 dark:bg-slate-800"
                             />
                         </div>
                         <div className="space-y-2">
@@ -437,7 +449,7 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
                                     required
                                 />
                                 {calculatedMargin && (
-                                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-green-600">
+                                    <div className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-green-600 dark:text-green-400">
                                         {calculatedMargin}%
                                     </div>
                                 )}
@@ -492,7 +504,7 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
 
                     {/* Conditional Fields: Stocked Item Details */}
                     {formData.stocked_item && (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4 bg-gray-50 p-4 rounded-md">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-4 bg-gray-50 dark:bg-slate-800/50 p-4 rounded-md">
                             <div className="space-y-2">
                                 <Label htmlFor="minimum_quantity">Minimum</Label>
                                 <Input
@@ -540,13 +552,13 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
                                                         handleInputChange('location', '');
                                                         setLocationSearchOpen(false);
                                                     }}
-                                                    className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100"
+                                                    className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
                                                 >
-                                                    <span className="text-slate-500 italic">No Location</span>
+                                                    <span className="text-slate-500 dark:text-slate-400 italic">No Location</span>
                                                     {(!formData.location || formData.location === '') && <Check className="ml-auto h-4 w-4" />}
                                                 </div>
                                                 {filteredLocations.length === 0 ? (
-                                                    <div className="py-2 text-center text-sm text-slate-500">No locations found.</div>
+                                                    <div className="py-2 text-center text-sm text-slate-500 dark:text-slate-400">No locations found.</div>
                                                 ) : (
                                                     filteredLocations.map((loc) => (
                                                         <div
@@ -555,7 +567,7 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
                                                                 handleInputChange('location', loc.location_name);
                                                                 setLocationSearchOpen(false);
                                                             }}
-                                                            className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100"
+                                                            className="flex items-center gap-2 px-2 py-1.5 text-sm rounded cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
                                                         >
                                                             <span>{loc.location_name}</span>
                                                             {formData.location === loc.location_name && (
@@ -575,7 +587,7 @@ export default function InventoryAddModal({ open, onClose, onAdd, suppliers, sal
                     {/* Row 4: Category, Is Active, Buttons */}
                     <div className="flex items-end justify-between gap-4 pt-4 border-t">
                         <div className="w-64 space-y-2">
-                            <Label htmlFor="category">Category {suggestingCategory && <span className="text-xs text-blue-500 animate-pulse">(Suggesting...)</span>}</Label>
+                            <Label htmlFor="category">Category {suggestingCategory && <span className="text-xs text-blue-500 dark:text-blue-400 animate-pulse">(Suggesting...)</span>}</Label>
                             <Select 
                                 value={formData.category || 'none'} 
                                 onValueChange={(val) => handleInputChange('category', val === 'none' ? '' : val)}

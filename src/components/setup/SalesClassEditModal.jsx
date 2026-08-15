@@ -126,7 +126,7 @@ export default function SalesClassEditModal({ salesClass, open, onSubmit, onClos
               </Button>
             </div>
             
-            <div className="grid grid-cols-4 gap-4 font-semibold text-sm text-slate-600 border-b pb-2 px-2">
+            <div className="grid grid-cols-4 gap-4 font-semibold text-sm text-slate-600 dark:text-slate-400 border-b pb-2 px-2">
               <div>Cost From ($)</div>
               <div>Cost To ($)</div>
               <div>Margin (%)</div>
@@ -155,7 +155,7 @@ export default function SalesClassEditModal({ salesClass, open, onSubmit, onClos
                   <Button
                     type="button" variant="ghost" size="icon"
                     onClick={() => deleteRule(rule.id)}
-                    className="text-red-600 hover:text-red-700"
+                    className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                   >
                     <Trash2 className="w-4 h-4" />
                   </Button>

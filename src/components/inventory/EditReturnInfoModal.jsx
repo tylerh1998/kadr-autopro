@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { InventoryReturn, ReturnReason } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,8 +35,9 @@ export default function EditReturnInfoModal({ open, onClose, returnItem, onUpdat
 
   const loadReturnReasons = async () => {
     try {
-      const reasons = await ReturnReason.list();
-      setReturnReasons(reasons.filter(r => r.is_active));
+      const { data, error } = await supabase.from('ReturnReason').select('*').eq('is_active', true);
+      if (error) { console.error('Error loading return reasons:', error); return; }
+      setReturnReasons(data || []);
     } catch (error) {
       console.error('Error loading return reasons:', error);
     }
@@ -64,8 +65,12 @@ export default function EditReturnInfoModal({ open, onClose, returnItem, onUpdat
         sent_back: formData.sent_back || 'N/A'
       };
 
-      await InventoryReturn.update(returnItem.id, updateData);
-      
+      const { error: updateError } = await supabase
+        .from('InventoryReturn')
+        .update({ ...updateData, updated_date: new Date().toISOString() })
+        .eq('id', returnItem.id);
+      if (updateError) throw updateError;
+
       alert('Return information updated successfully!');
       onUpdate();
     } catch (error) {
@@ -95,9 +100,9 @@ export default function EditReturnInfoModal({ open, onClose, returnItem, onUpdat
 
         {returnItem && (
           <form onSubmit={handleSubmit} className="space-y-6 py-4">
-            <div className="bg-slate-50 p-4 rounded-lg">
-              <h4 className="font-semibold text-slate-900">{returnItem.part_number}</h4>
-              <p className="text-sm text-slate-600">{returnItem.description}</p>
+            <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg">
+              <h4 className="font-semibold text-slate-900 dark:text-slate-100">{returnItem.part_number}</h4>
+              <p className="text-sm text-slate-600 dark:text-slate-400">{returnItem.description}</p>
 
             </div>
 

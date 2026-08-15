@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Clock } from 'lucide-react';
 import { format } from 'date-fns';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 
 export default function GlobalClockInModal({ open, onClose, user, onClockIn }) {
   const [clockInTime, setClockInTime] = useState('');
@@ -37,35 +37,41 @@ export default function GlobalClockInModal({ open, onClose, user, onClockIn }) {
       }
 
       const isoTime = selectedTime.toISOString();
+      const nowIso = new Date().toISOString();
 
       // 1. Create TimeRecord (Global Clock In)
-      const timeRecordRes = await base44.functions.invoke('workProProxy', {
-        entityName: 'TimeRecord',
-        method: 'create',
-        params: {
+      const { data: timeRecord, error: timeRecordError } = await supabase
+        .from('TimeRecord')
+        .insert({
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+          created_date: nowIso,
+          created_by: user?.email,
+          created_by_id: user?.autopro_user_id,
           employee_name: user.full_name,
           clock_in_time: isoTime,
           status: 'active',
           total_hours: 0,
           pto_hours: 0,
           stat_hours: 0
-        }
-      });
+        })
+        .select()
+        .single();
 
-      if (!timeRecordRes.data.success) throw new Error(timeRecordRes.data.error || 'Failed to create Time Record');
-      const timeRecord = timeRecordRes.data.data;
+      if (timeRecordError) throw new Error(timeRecordError.message || 'Failed to create Time Record');
 
       // 2. Create UnassignedTime
-      await base44.functions.invoke('workProProxy', {
-        entityName: 'UnassignedTime',
-        method: 'create',
-        params: {
+      const { error: unassignedTimeError } = await supabase
+        .from('UnassignedTime')
+        .insert({
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+          created_date: nowIso,
+          created_by: user?.email,
+          created_by_id: user?.autopro_user_id,
           user_name: user.full_name,
-          employee_name: user.full_name,
           start_time: isoTime,
           status: 'active'
-        }
-      });
+        });
+      if (unassignedTimeError) console.error('Error creating UnassignedTime:', unassignedTimeError);
 
       onClockIn(timeRecord);
       onClose();
@@ -94,7 +100,7 @@ export default function GlobalClockInModal({ open, onClose, user, onClockIn }) {
               onChange={(e) => setClockInTime(e.target.value)}
               required
             />
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Defaults to current time. You can backdate if needed.
             </p>
           </div>

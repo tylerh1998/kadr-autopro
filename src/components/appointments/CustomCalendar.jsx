@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Loader2, Trash2, Edit2, Move, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, Trash2, Edit2, Move, Users, Plus } from 'lucide-react';
 import { format, addDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, differenceInMinutes, addMinutes } from 'date-fns';
 import CellAppointmentsModal from './CellAppointmentsModal';
 import WorkPROModal from '../work-orders/WorkPROModal';
+import { getBayColorClass } from '@/lib/bayColors';
 
 // Constants for layout
 const SLOT_DURATION_MINUTES = 30;
@@ -17,9 +18,8 @@ export default function CustomCalendar({
   loading,
   onOpenWorkOrder,
   onDeleteAppointment,
-  bayColors,
-  techColors,
   employees,
+  onNewAppointment,
 }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState('week');
@@ -76,19 +76,6 @@ export default function CustomCalendar({
       };
     });
   }, [events, employees]);
-
-  const getBayColorClass = useCallback((bay) => {
-    const bayColorMap = {
-      'Floor': 'bg-orange-100 border-orange-300',
-      'Main Floor': 'bg-orange-100 border-orange-300',
-      'Main Hoist': 'bg-green-100 border-green-300',
-      'North Floor': 'bg-purple-100 border-purple-300',
-      'North Hoist': 'bg-yellow-100 border-yellow-300',
-      'Outside': 'bg-slate-100 border-slate-300',
-      'Other': 'bg-pink-100 border-pink-300',
-    };
-    return bayColorMap[bay] || 'bg-slate-100 border-slate-300';
-  }, []);
 
   const timeSlots = useMemo(() => {
     const slots = [];
@@ -297,16 +284,6 @@ export default function CustomCalendar({
     setView('day');
   };
 
-  const getEventStyle = useCallback((event) => {
-    let backgroundColor = '#3174ad';
-    if (event.bayId) {
-      backgroundColor = bayColors[event.bayId] || backgroundColor;
-    } else if (event.employee_id) {
-      backgroundColor = techColors[event.employee_id] || backgroundColor;
-    }
-    return { backgroundColor };
-  }, [bayColors, techColors]);
-
   const debouncedUpdate = useCallback((event, updatedSlot) => {
     if (updateTimeoutRef.current) {
       clearTimeout(updateTimeoutRef.current);
@@ -490,7 +467,7 @@ export default function CustomCalendar({
   }, [moveMode, appointmentToMove, isUpdating, onSelectSlot, handleMoveToCell, handleSelectEvent]);
 
   // Component for rendering a single appointment
-  const SingleAppointmentCard = ({ event, colorClass = null, useTechColors = false }) => {
+  const SingleAppointmentCard = ({ event, colorClass = null }) => {
     const customerName = event.customer 
       ? (event.customer.org_name || `${event.customer.first_name} ${event.customer.last_name}`.trim())
       : event.displayTitle || 'Appointment';
@@ -505,27 +482,19 @@ export default function CustomCalendar({
     
     let cardClasses;
     let cardStyle = { height: '100%', width: '100%' };
-    
-    if (useTechColors && event.employee_id && techColors[event.employee_id]) {
-      const techColor = techColors[event.employee_id];
-      cardStyle = {
-        ...cardStyle,
-        backgroundColor: techColor + '20',
-        borderColor: techColor,
-        borderWidth: '1px'
-      };
-      cardClasses = `text-xs px-2 py-1 rounded truncate hover:opacity-80 transition-all cursor-pointer flex flex-col justify-center ${
-        isCancelledOrNoShow ? 'opacity-50' : ''
-      }`;
-    } else if (colorClass) {
-      cardClasses = `text-xs px-2 py-1 rounded border truncate hover:opacity-80 transition-all cursor-pointer flex flex-col justify-center ${colorClass} ${
+
+    if (colorClass) {
+      cardClasses = `text-xs px-2 py-1 rounded border truncate hover:opacity-80 transition-all cursor-pointer flex flex-col justify-start items-stretch ${colorClass} ${
         isCancelledOrNoShow ? 'opacity-50' : ''
       }`;
     } else {
-      cardClasses = `text-xs px-2 py-1 bg-slate-100 rounded border border-slate-200 truncate hover:bg-slate-200 transition-colors cursor-pointer flex flex-col justify-center ${
+      cardClasses = `text-xs px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded border border-slate-200 dark:border-slate-700 truncate hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer flex flex-col justify-start items-stretch ${
         isCancelledOrNoShow ? 'opacity-50' : ''
       }`;
     }
+
+    const durationMinutes = differenceInMinutes(event.end, event.start);
+    const isShort = durationMinutes <= 30;
     
     return (
       <div
@@ -548,18 +517,18 @@ export default function CustomCalendar({
         }}
         title={hoverText}
       >
-        <div className={`text-sm font-medium text-slate-900 truncate ${
+        <div className={`text-sm font-semibold text-slate-900 dark:text-white truncate flex-shrink-0 ${
           isCancelledOrNoShow ? 'line-through' : ''
         }`}>
           {customerName}
         </div>
-        <div className={`text-xs text-black ${
+        <div className={`text-xs text-slate-700 dark:text-white flex-shrink-0 ${
           isCancelledOrNoShow ? 'line-through' : ''
         }`}>
           {format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}
         </div>
-        {event.bayId && (
-          <div className={`text-xs text-black ${
+        {event.bayId && !isShort && (
+          <div className={`text-[10px] px-1.5 py-0.5 rounded-full border border-black/10 dark:border-white/10 w-fit mt-1 bg-white/40 dark:bg-black/30 font-semibold tracking-wide text-slate-800 dark:text-white flex-shrink-0 ${
             isCancelledOrNoShow ? 'line-through' : ''
           }`}>
             {event.bayId}
@@ -575,10 +544,10 @@ export default function CustomCalendar({
     
     // Extract border color for text/icon if possible, or default to slate/black
     // Default blue style
-    let containerClass = "w-full bg-blue-50 border-2 border-blue-300 hover:bg-blue-100";
-    let iconClass = "text-blue-600";
-    let titleClass = "text-blue-800";
-    let dividerClass = "border-blue-200";
+    let containerClass = "w-full bg-blue-50 dark:bg-blue-950/40 border-2 border-blue-300 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/30";
+    let iconClass = "text-blue-600 dark:text-blue-400";
+    let titleClass = "text-blue-800 dark:text-blue-300";
+    let dividerClass = "border-blue-200 dark:border-blue-800";
 
     if (colorClass) {
       // Assuming colorClass is like "bg-blue-100 border-blue-300"
@@ -587,9 +556,9 @@ export default function CustomCalendar({
       containerClass = `w-full border-2 rounded p-1 cursor-pointer transition-colors h-full flex flex-col justify-start overflow-hidden ${colorClass} hover:opacity-90`;
       
       // Attempt to derive text colors or just use slate-900
-      iconClass = "text-slate-700";
-      titleClass = "text-slate-900";
-      dividerClass = "border-slate-300";
+      iconClass = "text-slate-700 dark:text-inherit";
+      titleClass = "text-slate-905 dark:text-inherit";
+      dividerClass = "border-slate-300 dark:border-slate-700";
     } else {
       containerClass += " rounded p-1 cursor-pointer transition-colors h-full flex flex-col justify-start overflow-hidden";
     }
@@ -605,20 +574,24 @@ export default function CustomCalendar({
             {totalCount} Appts
           </span>
         </div>
-        <div className="space-y-1 overflow-y-auto max-h-full px-1 scrollbar-hide">
+        <div className="space-y-1 overflow-y-auto max-h-full px-0.5 scrollbar-hide">
           {appointments.map((event) => {
             const customerName = event.customer 
               ? (event.customer.org_name || `${event.customer.first_name} ${event.customer.last_name}`.trim())
               : event.displayTitle || 'Appointment';
             
             const isCancelledOrNoShow = event.status === 'Cancelled' || event.status === 'No Show';
+            const bayColorClass = getBayColorClass(event.bayId);
 
             return (
-              <div key={event.id} className={`flex flex-col border-b ${dividerClass} last:border-0 pb-1 ${isCancelledOrNoShow ? 'opacity-50 line-through' : ''}`}>
-                <span className="truncate text-sm font-medium text-slate-900">{customerName}</span>
-                <span className="text-xs text-black">{format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}</span>
+              <div 
+                key={event.id} 
+                className={`p-1.5 mb-1 last:mb-0 rounded border flex flex-col justify-start items-stretch ${bayColorClass} ${isCancelledOrNoShow ? 'opacity-50 line-through' : ''}`}
+              >
+                <span className="truncate text-sm font-semibold text-slate-900 dark:text-white flex-shrink-0">{customerName}</span>
+                <span className="text-[11px] text-slate-700 dark:text-white flex-shrink-0 mt-0.5">{format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}</span>
                 {event.bayId && (
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded border w-fit mt-0.5 ${getBayColorClass(event.bayId)} text-slate-800`}>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full border border-black/10 dark:border-white/10 w-fit mt-1 bg-white/40 dark:bg-black/30 font-semibold tracking-wide text-slate-800 dark:text-white flex-shrink-0">
                     {event.bayId}
                   </span>
                 )}
@@ -725,17 +698,17 @@ export default function CustomCalendar({
     };
 
     return (
-      <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+      <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden bg-white dark:bg-slate-900">
         <table className="w-full border-collapse table-fixed">
           <colgroup>
             <col style={{ width: '80px' }} />
             {bayOptions.map(bay => <col key={bay} />)}
           </colgroup>
-          <thead className="sticky top-0 bg-white z-10">
+          <thead className="sticky top-0 bg-white dark:bg-slate-900 z-10">
             <tr>
-              <th className="border border-slate-300 bg-slate-100 p-2 w-20 text-left font-semibold text-sm text-slate-700">Time</th>
+              <th className="border border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 p-2 w-20 text-left font-semibold text-sm text-slate-700 dark:text-slate-300">Time</th>
               {bayOptions.map(bay => (
-                <th key={bay} className="border border-slate-300 bg-slate-100 p-2 text-center font-semibold text-sm text-slate-700">{bay}</th>
+                <th key={bay} className="border border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 p-2 text-center font-semibold text-sm text-slate-700 dark:text-slate-300">{bay}</th>
               ))}
             </tr>
           </thead>
@@ -746,7 +719,7 @@ export default function CustomCalendar({
 
               return (
                 <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
-                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">{format(slotTime, 'h:mm a')}</td>
+                  <td className="border border-slate-300 dark:border-slate-800 p-2 text-sm font-semibold text-slate-600 dark:text-slate-400 align-top bg-slate-50 dark:bg-slate-800/40">{format(slotTime, 'h:mm a')}</td>
                   {bayOptions.map(bay => {
                     if (coveredCells[bay][timeString]) return null;
 
@@ -802,14 +775,14 @@ export default function CustomCalendar({
                       }
                     } else {
                       return (
-                        <td key={bay} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                        <td key={bay} className={`border border-slate-300 dark:border-slate-800 p-1 relative bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 dark:bg-blue-900/20 cursor-crosshair' : ''}`}
                           onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day, null, bay)} onClick={() => handleCellClick([], slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), bay, null, null)}>
                         </td>
                       );
                     }
 
                     return (
-                      <td key={bay} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                      <td key={bay} rowSpan={rowSpan} className={`border border-slate-300 dark:border-slate-800 p-1 relative bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 dark:bg-blue-900/20 cursor-crosshair' : ''}`}
                         onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day, null, bay)} onClick={() => {}}>
                         <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
                       </td>
@@ -821,10 +794,10 @@ export default function CustomCalendar({
 
             {/* Lunch Row */}
             <tr style={{ height: '60px' }}>
-              <td className="border border-slate-300 p-2 text-sm font-semibold text-white bg-black align-middle text-center">LUNCH</td>
+              <td className="border border-slate-300 dark:border-slate-800 p-2 text-sm font-semibold text-white bg-black align-middle text-center">LUNCH</td>
               {bayOptions.map(bay => {
                 if (coveredCells[bay]['LUNCH']) return null;
-                return <td key={bay} className="border border-slate-300 bg-black"></td>;
+                return <td key={bay} className="border border-slate-300 dark:border-slate-800 bg-black"></td>;
               })}
             </tr>
 
@@ -835,7 +808,7 @@ export default function CustomCalendar({
 
               return (
                 <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
-                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">{format(slotTime, 'h:mm a')}</td>
+                  <td className="border border-slate-300 dark:border-slate-800 p-2 text-sm font-semibold text-slate-600 dark:text-slate-400 align-top bg-slate-50 dark:bg-slate-800/40">{format(slotTime, 'h:mm a')}</td>
                   {bayOptions.map(bay => {
                     if (coveredCells[bay][timeString]) return null;
 
@@ -891,14 +864,14 @@ export default function CustomCalendar({
                       }
                     } else {
                       return (
-                        <td key={bay} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                        <td key={bay} className={`border border-slate-300 dark:border-slate-800 p-1 relative bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 dark:bg-blue-900/20 cursor-crosshair' : ''}`}
                           onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day, null, bay)} onClick={() => handleCellClick([], slotTime, addMinutes(slotTime, SLOT_DURATION_MINUTES), bay, null, null)}>
                         </td>
                       );
                     }
 
                     return (
-                      <td key={bay} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                      <td key={bay} rowSpan={rowSpan} className={`border border-slate-300 dark:border-slate-800 p-1 relative bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 dark:bg-blue-900/20 cursor-crosshair' : ''}`}
                         onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day, null, bay)} onClick={() => {}}>
                         <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
                       </td>
@@ -969,17 +942,17 @@ export default function CustomCalendar({
     };
 
     return (
-      <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
+      <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden bg-white dark:bg-slate-900">
         <table className="w-full border-collapse table-fixed">
           <colgroup>
             <col style={{ width: '80px' }} />
             {days.map((day, index) => <col key={index} style={{ width: columnWidthPercent + '%' }} />)}
           </colgroup>
-          <thead className="sticky top-0 bg-white z-10">
+          <thead className="sticky top-0 bg-white dark:bg-slate-900 z-10">
             <tr>
-              <th className="border border-slate-300 bg-slate-100 p-2 text-left font-semibold text-sm text-slate-700">Time</th>
+              <th className="border border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 p-2 text-left font-semibold text-sm text-slate-700 dark:text-slate-300">Time</th>
               {days.map(day => (
-                <th key={day.toISOString()} onClick={() => { setCurrentDate(day); setView('day'); }} className={`border border-slate-300 bg-slate-100 p-2 text-center font-semibold text-sm cursor-pointer hover:bg-slate-200 transition-colors ${isSameDay(day, new Date()) ? 'bg-blue-100 text-blue-900' : 'text-slate-700'}`}>
+                <th key={day.toISOString()} onClick={() => { setCurrentDate(day); setView('day'); }} className={`border border-slate-300 dark:border-slate-800 bg-slate-100 dark:bg-slate-800 p-2 text-center font-semibold text-sm cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors ${isSameDay(day, new Date()) ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-900 dark:text-blue-200' : 'text-slate-700 dark:text-slate-300'}`}>
                   <div>{format(day, 'EEE')}</div>
                   <div className="text-lg">{format(day, 'd')}</div>
                 </th>
@@ -992,7 +965,7 @@ export default function CustomCalendar({
               const slotTime = parseTimeString(timeString, currentDate);
               return (
                 <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
-                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">{format(slotTime, 'h:mm a')}</td>
+                  <td className="border border-slate-300 dark:border-slate-800 p-2 text-sm font-semibold text-slate-600 dark:text-slate-400 align-top bg-slate-50 dark:bg-slate-800/40">{format(slotTime, 'h:mm a')}</td>
                   {days.map(day => {
                     const dayKey = day.toISOString();
                     if (coveredCells[dayKey][timeString]) return null;
@@ -1052,14 +1025,14 @@ export default function CustomCalendar({
                       }
                     } else {
                       return (
-                        <td key={dayKey} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                        <td key={dayKey} className={`border border-slate-300 dark:border-slate-800 p-1 relative bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 dark:bg-blue-900/20 cursor-crosshair' : ''}`}
                           onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => handleCellClick([], daySlotTime, addMinutes(daySlotTime, SLOT_DURATION_MINUTES), null, null, null)}>
                         </td>
                       );
                     }
 
                     return (
-                      <td key={dayKey} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                      <td key={dayKey} rowSpan={rowSpan} className={`border border-slate-300 dark:border-slate-800 p-1 relative bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 dark:bg-blue-900/20 cursor-crosshair' : ''}`}
                         onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => {}}>
                         <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
                       </td>
@@ -1071,11 +1044,11 @@ export default function CustomCalendar({
 
             {/* Lunch Row */}
             <tr style={{ height: '60px' }}>
-              <td className="border border-slate-300 p-2 text-sm font-semibold text-white bg-black align-middle text-center">LUNCH</td>
+              <td className="border border-slate-300 dark:border-slate-800 p-2 text-sm font-semibold text-white bg-black align-middle text-center">LUNCH</td>
               {days.map(day => {
                 const dayKey = day.toISOString();
                 if (coveredCells[dayKey]['LUNCH']) return null;
-                return <td key={day.toISOString()} className="border border-slate-300 bg-black"></td>;
+                return <td key={day.toISOString()} className="border border-slate-300 dark:border-slate-800 bg-black"></td>;
               })}
             </tr>
 
@@ -1084,7 +1057,7 @@ export default function CustomCalendar({
               const slotTime = parseTimeString(timeString, currentDate);
               return (
                 <tr key={timeString} style={{ height: `${MIN_SLOT_HEIGHT_PX}px` }}>
-                  <td className="border border-slate-300 p-2 text-sm font-semibold text-slate-600 align-top bg-slate-50">{format(slotTime, 'h:mm a')}</td>
+                  <td className="border border-slate-300 dark:border-slate-800 p-2 text-sm font-semibold text-slate-600 dark:text-slate-400 align-top bg-slate-50 dark:bg-slate-800/40">{format(slotTime, 'h:mm a')}</td>
                   {days.map(day => {
                     const dayKey = day.toISOString();
                     if (coveredCells[dayKey][timeString]) return null;
@@ -1144,14 +1117,14 @@ export default function CustomCalendar({
                       }
                     } else {
                       return (
-                        <td key={dayKey} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                        <td key={dayKey} className={`border border-slate-300 dark:border-slate-800 p-1 relative bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 dark:bg-blue-900/20 cursor-crosshair' : ''}`}
                           onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => handleCellClick([], daySlotTime, addMinutes(daySlotTime, SLOT_DURATION_MINUTES), null, null, null)}>
                         </td>
                       );
                     }
 
                     return (
-                      <td key={dayKey} rowSpan={rowSpan} className={`border border-slate-300 p-1 relative bg-white hover:bg-slate-50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 cursor-crosshair' : ''}`}
+                      <td key={dayKey} rowSpan={rowSpan} className={`border border-slate-300 dark:border-slate-800 p-1 relative bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer align-top ${moveMode ? 'bg-blue-50 dark:bg-blue-900/20 cursor-crosshair' : ''}`}
                         onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, timeString, day)} onClick={() => {}}>
                         <div className="w-full flex items-stretch" style={{ height: `${rowSpan * MIN_SLOT_HEIGHT_PX}px` }}>{cellContent}</div>
                       </td>
@@ -1176,10 +1149,10 @@ export default function CustomCalendar({
     const days = eachDayOfInterval({ start: startDate, end: endDate });
     
     return (
-      <div className="border border-slate-200 rounded-lg overflow-hidden bg-white">
-        <div className="grid grid-cols-7 bg-slate-100 border-b-2 border-slate-300">
+      <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-hidden bg-white dark:bg-slate-900">
+        <div className="grid grid-cols-7 bg-slate-100 dark:bg-slate-800 border-b-2 border-slate-300 dark:border-slate-700">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-            <div key={day} className="text-center py-3 text-sm font-semibold text-slate-700 border-r border-slate-200 last:border-r-0">
+            <div key={day} className="text-center py-3 text-sm font-semibold text-slate-700 dark:text-slate-300 border-r border-slate-200 dark:border-slate-700 last:border-r-0">
               {day}
             </div>
           ))}
@@ -1194,9 +1167,9 @@ export default function CustomCalendar({
             return (
               <div
                 key={day.toString()}
-                className={`min-h-[120px] border-r border-b border-slate-200 p-2 cursor-pointer hover:bg-slate-50 transition-colors ${
-                  !isCurrentMonth ? 'bg-slate-50' : 'bg-white'
-                } ${idx % 7 === 6 ? 'border-r-0' : ''} ${moveMode ? 'cursor-crosshair bg-blue-50' : ''}`}
+                className={`min-h-[120px] border-r border-b border-slate-200 dark:border-slate-800 p-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${
+                  !isCurrentMonth ? 'bg-slate-50 dark:bg-slate-900/40' : 'bg-white dark:bg-slate-900'
+                } ${idx % 7 === 6 ? 'border-r-0' : ''} ${moveMode ? 'cursor-crosshair bg-blue-50 dark:bg-blue-900/20' : ''}`}
                 onClick={() => {
                   if (moveMode && appointmentToMove) {
                     const newStart = new Date(day);
@@ -1209,7 +1182,7 @@ export default function CustomCalendar({
               >
                 <div className={`text-sm font-semibold mb-2 ${
                   isToday ? 'bg-blue-600 text-white w-7 h-7 rounded-full flex items-center justify-center' : 
-                  !isCurrentMonth ? 'text-slate-400' : 'text-slate-900'
+                  !isCurrentMonth ? 'text-slate-400 dark:text-slate-500' : 'text-slate-900 dark:text-slate-100'
                 }`}>
                   {format(day, 'd')}
                 </div>
@@ -1231,7 +1204,7 @@ export default function CustomCalendar({
                     return (
                       <div
                         key={event.id}
-                        className={`text-xs px-2 py-1 bg-slate-100 rounded border border-slate-200 truncate hover:bg-slate-200 transition-colors cursor-pointer ${
+                        className={`text-xs px-2 py-1 rounded border truncate hover:opacity-90 transition-colors cursor-pointer ${getBayColorClass(event.bayId)} ${
                           isCancelledOrNoShow ? 'opacity-50' : ''
                         }`}
                         onClick={(e) => {
@@ -1249,12 +1222,12 @@ export default function CustomCalendar({
                         }}
                         title={hoverText}
                       >
-                        <div className={`font-medium text-slate-900 truncate ${
+                        <div className={`font-medium text-slate-900 dark:text-inherit truncate ${
                           isCancelledOrNoShow ? 'line-through' : ''
                         }`}>
                           {customerName}
                         </div>
-                        <div className={`text-[10px] text-slate-600 ${
+                        <div className={`text-[10px] text-slate-600 dark:text-inherit/80 ${
                           isCancelledOrNoShow ? 'line-through' : ''
                         }`}>
                           {format(event.start, 'h:mm a')} - {format(event.end, 'h:mm a')}
@@ -1308,7 +1281,7 @@ export default function CustomCalendar({
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-slate-900 p-4 rounded-lg shadow-sm border border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-3">
           <Button variant="outline" size="sm" onClick={() => handleNavigate('PREV')}>
             <ChevronLeft className="w-4 h-4" />
@@ -1319,7 +1292,7 @@ export default function CustomCalendar({
           <Button variant="outline" size="sm" onClick={() => handleNavigate('NEXT')}>
             <ChevronRight className="w-4 h-4" />
           </Button>
-          <h2 className="text-xl font-semibold text-slate-900 ml-2">
+          <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100 ml-2">
             {view === 'month' 
               ? format(currentDate, 'MMMM yyyy')
               : (view === 'day')
@@ -1333,52 +1306,61 @@ export default function CustomCalendar({
 
         <div className="flex items-center gap-4">
           {(view === 'week' || view === 'day') && (
-            <div className="flex items-center gap-3 px-4 py-2 bg-slate-50 rounded-lg border border-slate-200">
-              <span className="text-xs font-semibold text-slate-600">Bays:</span>
-              <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+              <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">Bays:</span>
+              <div className="flex items-center gap-2.5 flex-wrap">
                 {bayOptions.map(bay => (
                   <div key={bay} className="flex items-center gap-1.5">
                     <div className={`w-3 h-3 rounded border-2 ${getBayColorClass(bay)}`}></div>
-                    <span className="text-xs text-slate-700">{bay}</span>
+                    <span className="text-xs text-slate-700 dark:text-slate-300">{bay}</span>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          <div className="flex items-center gap-2 bg-slate-100 rounded-lg p-1">
+          <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
             <button
               onClick={() => setView('month')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 view === 'month'
-                  ? 'bg-black text-white'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-black dark:bg-slate-700 text-white'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               Month
             </button>
             <button
               onClick={() => setView('week')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 view === 'week'
-                  ? 'bg-black text-white'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-black dark:bg-slate-700 text-white'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               Week
             </button>
             <button
               onClick={() => setView('day')}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`px-2.5 py-1.5 rounded-md text-sm font-medium transition-colors ${
                 view === 'day'
-                  ? 'bg-black text-white'
-                  : 'text-slate-600 hover:text-slate-900'
+                  ? 'bg-black dark:bg-slate-700 text-white'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               Day
             </button>
 
           </div>
+          {onNewAppointment && (
+            <Button
+              onClick={onNewAppointment}
+              className="bg-black hover:bg-slate-800 text-white dark:bg-white dark:hover:bg-slate-100 dark:text-black font-medium shadow-sm transition-all"
+            >
+              <Plus className="w-4 h-4 mr-1" />
+              New
+            </Button>
+          )}
         </div>
       </div>
 
@@ -1388,7 +1370,7 @@ export default function CustomCalendar({
 
       {contextMenu && (
         <div
-          className="fixed bg-white shadow-lg rounded-lg border border-slate-200 py-1 z-50 min-w-[180px]"
+          className="fixed bg-white dark:bg-slate-800 shadow-lg rounded-lg border border-slate-200 dark:border-slate-700 py-1 z-50 min-w-[180px]"
           style={{
             left: contextMenu.x,
             top: contextMenu.y,
@@ -1396,14 +1378,14 @@ export default function CustomCalendar({
           onClick={(e) => e.stopPropagation()}
         >
           <button
-            className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-800 dark:text-slate-200"
             onClick={handleContextEdit}
           >
             <Edit2 className="w-4 h-4" />
             Edit Details
           </button>
           <button
-            className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-800 dark:text-slate-200"
             onClick={handleContextMove}
           >
             <Move className="w-4 h-4" />
@@ -1412,7 +1394,7 @@ export default function CustomCalendar({
           {contextMenu.event.workOrder && (
             <>
               <button
-                className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 flex items-center gap-2"
+                className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-800 dark:text-slate-200"
                 onClick={handleContextOpenWorkOrder}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
@@ -1423,7 +1405,7 @@ export default function CustomCalendar({
                 Open Work Order
               </button>
               <button
-                className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 flex items-center gap-2"
+                className="w-full px-4 py-2 text-left text-sm hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2 text-slate-800 dark:text-slate-200"
                 onClick={handleContextOpenWorkPRO}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
@@ -1434,7 +1416,7 @@ export default function CustomCalendar({
             </>
           )}
           <button 
-            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 flex items-center gap-2"
             onClick={handleContextDelete}
           >
             <Trash2 className="w-4 h-4" />
@@ -1451,11 +1433,17 @@ export default function CustomCalendar({
         onSelectAppointment={handleSelectEvent}
         onOpenWorkOrder={onOpenWorkOrder}
         onDeleteAppointment={onDeleteAppointment}
-        bayColors={bayColors}
-        techColors={techColors}
-        employees={employees}
-        getEventStyle={getEventStyle}
-        handleAppointmentClick={handleAppointmentClick}
+        onNewAppointment={() => {
+          if (selectedCellSlotInfo) {
+            onSelectSlot({
+              start: selectedCellSlotInfo.start,
+              end: selectedCellSlotInfo.end,
+              bay: selectedCellSlotInfo.bay,
+              employee_id: selectedCellSlotInfo.techId
+            });
+            setShowCellAppointmentsModal(false);
+          }
+        }}
       />
 
       <WorkPROModal

@@ -9,7 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { CalendarIcon, FileText } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { ChartOfAccount } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 import { checkFiscalPeriodStatus } from '@/components/utils/fiscalPeriodUtils';
 import { AlertTriangle } from 'lucide-react';
 
@@ -129,8 +129,13 @@ export default function RecordAdjustmentModal({ open, onClose, customer, onRecor
 
   const loadGLAccounts = async () => {
     try {
-      const accounts = await ChartOfAccount.filter({ is_active: true }, 'account_number');
-      setGlAccounts(accounts.filter(acc => !acc.controlled));
+      const { data: accounts, error } = await supabase
+        .from('ChartOfAccount')
+        .select('*')
+        .eq('is_active', true)
+        .order('account_number');
+      if (error) throw error;
+      setGlAccounts((accounts || []).filter(acc => !acc.controlled));
     } catch (error) {
       console.error('Error loading GL accounts:', error);
       setGlAccounts([]);
@@ -222,7 +227,7 @@ export default function RecordAdjustmentModal({ open, onClose, customer, onRecor
                 }}
                 onBlur={handleDateBlur}
                 placeholder="MM/DD/YYYY"
-                className={dateInputError ? 'border-red-500' : ''}
+                className={dateInputError ? 'border-red-500 dark:border-red-700' : ''}
               />
               <Popover>
                 <PopoverTrigger asChild>
@@ -242,9 +247,9 @@ export default function RecordAdjustmentModal({ open, onClose, customer, onRecor
             </div>
             {dateInputError && <p className="text-xs text-red-500">{dateInputError}</p>}
             {periodError && !dateInputError && (
-              <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-md mt-2">
-                <AlertTriangle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-red-800">{periodError}</p>
+              <div className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-900/50 rounded-md mt-2">
+                <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400 mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-red-800 dark:text-red-400">{periodError}</p>
               </div>
             )}
           </div>
@@ -276,13 +281,13 @@ export default function RecordAdjustmentModal({ open, onClose, customer, onRecor
 
           <div className="space-y-2">
             <Label>GL Account</Label>
-            <Select value={glAccount} onValueChange={setGlAccount}>
+            <Select value={String(glAccount || '')} onValueChange={setGlAccount}>
               <SelectTrigger>
                 <SelectValue placeholder="Select GL Account..." />
               </SelectTrigger>
               <SelectContent>
                 {glAccounts.map(account => (
-                  <SelectItem key={account.id} value={account.account_number}>
+                  <SelectItem key={account.id} value={String(account.account_number)}>
                     {account.account_number} - {account.account_name}
                   </SelectItem>
                 ))}

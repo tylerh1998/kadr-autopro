@@ -1,4 +1,4 @@
-import { FiscalPeriod } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 
 /**
  * Checks if a given date falls within an active, open fiscal period.
@@ -16,8 +16,9 @@ export async function checkFiscalPeriodStatus(dateString) {
     }
 
     // Fetch all fiscal periods
-    const fiscalPeriods = await FiscalPeriod.list();
-    
+    const { data: fiscalPeriods, error: fiscalPeriodsError } = await supabase.from('FiscalPeriod').select('*');
+    if (fiscalPeriodsError) throw fiscalPeriodsError;
+
     if (!fiscalPeriods || fiscalPeriods.length === 0) {
       return {
         isValid: false,

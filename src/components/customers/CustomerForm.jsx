@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -100,10 +100,16 @@ export default function CustomerForm({ customer, onSubmit, onCancel, isSubmittin
     // Check if customer is being deactivated and deactivate associated vehicles
     if (customer && (customer.is_active !== false) && !formData.is_active) {
       try {
-        const res = await base44.functions.invoke('supabaseVehicle', { action: 'filter', match: { customer_id: customer.id } });
-        const vehicles = res.data?.data || [];
+        const { data: vehicles, error: vehiclesError } = await supabase
+          .from('Vehicle')
+          .select('*')
+          .eq('customer_id', customer.id);
+        if (vehiclesError) throw vehiclesError;
         if (vehicles && vehicles.length > 0) {
-          await Promise.all(vehicles.map(v => base44.functions.invoke('supabaseVehicle', { action: 'update', id: v.id, data: { is_active: false } })));
+          const nowIso = new Date().toISOString();
+          await Promise.all(vehicles.map(v =>
+            supabase.from('Vehicle').update({ is_active: false, updated_date: nowIso }).eq('id', v.id)
+          ));
         }
       } catch (error) {
         console.error("Failed to deactivate customer vehicles:", error);
@@ -143,7 +149,7 @@ export default function CustomerForm({ customer, onSubmit, onCancel, isSubmittin
             onChange={handleChange}
             placeholder="Company or organization name"
           />
-          <p className="text-xs text-slate-500 mt-1">Leave blank for individual customers</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Leave blank for individual customers</p>
         </div>
 
         <div>
@@ -179,7 +185,7 @@ export default function CustomerForm({ customer, onSubmit, onCancel, isSubmittin
             required
             maxLength={12}
           />
-          <p className="text-xs text-slate-500 mt-1">Format: XXX XXX XXXX</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Format: XXX XXX XXXX</p>
         </div>
 
         <div>
@@ -192,7 +198,7 @@ export default function CustomerForm({ customer, onSubmit, onCancel, isSubmittin
             placeholder="XXX XXX XXXX"
             maxLength={12}
           />
-          <p className="text-xs text-slate-500 mt-1">Format: XXX XXX XXXX</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Format: XXX XXX XXXX</p>
         </div>
 
         <div className="md:col-span-2">
@@ -286,7 +292,7 @@ export default function CustomerForm({ customer, onSubmit, onCancel, isSubmittin
         </div>
       </div>
 
-      <div className="flex justify-end gap-2 pt-4 border-t">
+      <div className="flex justify-end gap-2 pt-4 border-t dark:border-slate-800">
         {customer && (
           <Button 
             type="button" 

@@ -9,9 +9,9 @@ const currencyFormatter = new Intl.NumberFormat('en-CA', {
 });
 
 const ActionCard = ({ icon: Icon, label, onClick, compact = false }) => (
-  <Card className="bg-slate-900 text-white border-slate-900 cursor-pointer transition-colors hover:bg-slate-800 no-print" onClick={onClick}>
+  <Card className="bg-slate-900 text-white border-slate-900 dark:bg-slate-800 dark:border-slate-800 cursor-pointer transition-colors hover:bg-slate-800 dark:hover:bg-slate-700 no-print" onClick={onClick}>
     <CardContent className={compact ? "p-3 flex items-center gap-3" : "p-4 flex items-center gap-3"}>
-      <Icon className="w-5 h-5" />
+      <Icon className="w-5 h-5 text-slate-100 dark:text-slate-200" />
       <span className="font-semibold">{label}</span>
     </CardContent>
   </Card>
@@ -31,25 +31,25 @@ export default function VehicleHistorySummaryCards({
   if (layout === 'modal') {
     return (
       <div className="vehicle-history-summary-modal space-y-3 md:space-y-0 md:flex md:items-stretch md:gap-3">
-        <Card className="md:w-44 md:flex-shrink-0">
+        <Card className="md:w-44 md:flex-shrink-0 dark:bg-card dark:border-slate-800">
           <CardContent className="p-4">
-            <p className="text-sm font-medium text-slate-500 flex items-center gap-2">
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-2">
               <ClipboardList className="w-4 h-4" />
               Number of ROs
             </p>
-            <p className="mt-2 text-3xl font-bold text-blue-600">{activeRoCount}</p>
-            <p className="text-xs text-slate-500">{voidCount} void</p>
+            <p className="mt-2 text-3xl font-bold text-blue-600 dark:text-blue-400">{activeRoCount}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">{voidCount} void</p>
           </CardContent>
         </Card>
 
-        <Card className="md:flex-1">
+        <Card className="md:flex-1 dark:bg-card dark:border-slate-800">
           <CardContent className="p-4">
-            <p className="text-sm font-medium text-slate-500 flex items-center gap-2">
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-2">
               <DollarSign className="w-4 h-4" />
               Total Work
             </p>
-            <p className="mt-2 text-3xl font-bold text-green-600">{currencyFormatter.format(totalWork)}</p>
-            <p className="text-xs text-slate-500">Excludes estimates and void</p>
+            <p className="mt-2 text-3xl font-bold text-green-600 dark:text-green-400">{currencyFormatter.format(totalWork)}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Excludes estimates and void</p>
           </CardContent>
         </Card>
 
@@ -63,25 +63,25 @@ export default function VehicleHistorySummaryCards({
 
   return (
     <div className={`vehicle-history-summary-grid grid grid-cols-1 gap-3 sm:grid-cols-2 ${gridClassName}`}>
-      <Card>
+      <Card className="dark:bg-card dark:border-slate-800">
         <CardContent className="p-4">
-          <p className="text-sm font-medium text-slate-500 flex items-center gap-2">
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-2">
             <ClipboardList className="w-4 h-4" />
             Number of ROs
           </p>
-          <p className="mt-2 text-3xl font-bold text-blue-600">{activeRoCount}</p>
-          <p className="text-xs text-slate-500">{voidCount} void</p>
+          <p className="mt-2 text-3xl font-bold text-blue-600 dark:text-blue-400">{activeRoCount}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">{voidCount} void</p>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="dark:bg-card dark:border-slate-800">
         <CardContent className="p-4">
-          <p className="text-sm font-medium text-slate-500 flex items-center gap-2">
+          <p className="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-2">
             <DollarSign className="w-4 h-4" />
             Total Work
           </p>
-          <p className="mt-2 text-3xl font-bold text-green-600">{currencyFormatter.format(totalWork)}</p>
-          <p className="text-xs text-slate-500">Excludes estimates and void</p>
+          <p className="mt-2 text-3xl font-bold text-green-600 dark:text-green-400">{currencyFormatter.format(totalWork)}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Excludes estimates and void</p>
         </CardContent>
       </Card>
 

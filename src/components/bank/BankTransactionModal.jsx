@@ -7,10 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { AlertCircle, Loader2, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { ChartOfAccount } from '@/entities/all';
 import { checkBankAccountLock } from '../utils/mountainTimeUtils';
 
 export default function BankTransactionModal({ open, onClose, bankAccountId, bankAccount, transaction, onSubmit, onDelete, currentUser }) {
@@ -41,12 +40,12 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
       if (open && currentUser && bankAccountId) {
         try {
           // Always fetch the latest account data to check lock status
-          const accountResponse = await base44.functions.invoke('SupabaseProxy', {
-            action: 'filter',
-            table: 'BankAccount',
-            params: { id: bankAccountId }
-          });
-          const account = accountResponse.data?.data?.[0];
+          const { data: accountData, error: accountError } = await supabase
+            .from('BankAccount')
+            .select('*')
+            .eq('id', bankAccountId);
+          if (accountError) throw accountError;
+          const account = accountData?.[0];
           const lockStatus = checkBankAccountLock(account, currentUser.email);
 
           if (lockStatus.isLocked) {
@@ -56,15 +55,13 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
           }
 
           // Acquire lock
-          await base44.functions.invoke('SupabaseProxy', {
-            action: 'update',
-            table: 'BankAccount',
-            id: bankAccountId,
-            data: {
+          await supabase
+            .from('BankAccount')
+            .update({
               locked_by_user: currentUser.email,
               locked_timestamp: new Date().toISOString()
-            }
-          });
+            })
+            .eq('id', bankAccountId);
           
           setLockAcquired(true);
           setIsLocked(false);
@@ -121,25 +118,29 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
   useEffect(() => {
     if (!open && lockAcquired && currentUser && bankAccountId) {
       // Release lock when modal closes
-      base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'BankAccount',
-        id: bankAccountId,
-        data: {
+      supabase
+        .from('BankAccount')
+        .update({
           locked_by_user: null,
           locked_timestamp: null
-        }
-      }).catch(error => {
-        console.error('Error releasing lock:', error);
-      });
+        })
+        .eq('id', bankAccountId)
+        .then(({ error }) => {
+          if (error) console.error('Error releasing lock:', error);
+        });
       setLockAcquired(false);
     }
   }, [open, lockAcquired, currentUser, bankAccountId]);
 
   const loadChartOfAccounts = async () => {
     try {
-      const accounts = await ChartOfAccount.filter({ is_active: true }, 'account_number');
-      setChartOfAccounts(accounts);
+      const { data, error } = await supabase
+        .from('ChartOfAccount')
+        .select('*')
+        .eq('is_active', true)
+        .order('account_number');
+      if (error) throw error;
+      setChartOfAccounts(data || []);
     } catch (error) {
       console.error('Error loading chart of accounts:', error);
       setChartOfAccounts([]);
@@ -226,17 +227,16 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
   const handleClose = () => {
     // Release lock before closing
     if (lockAcquired && currentUser && bankAccountId) {
-      base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'BankAccount',
-        id: bankAccountId,
-        data: {
+      supabase
+        .from('BankAccount')
+        .update({
           locked_by_user: null,
           locked_timestamp: null
-        }
-      }).catch(error => {
-        console.error('Error releasing lock on close:', error);
-      });
+        })
+        .eq('id', bankAccountId)
+        .then(({ error }) => {
+          if (error) console.error('Error releasing lock on close:', error);
+        });
       setLockAcquired(false);
     }
     onClose();
@@ -293,7 +293,7 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="debit_amount" className="text-red-600">Debit Amount</Label>
+                <Label htmlFor="debit_amount" className="text-red-600 dark:text-red-400">Debit Amount</Label>
                 <Input
                   id="debit_amount"
                   type="number"
@@ -301,12 +301,12 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
                   placeholder="0.00"
                   value={formData.debit_amount}
                   onChange={(e) => handleChange('debit_amount', e.target.value)}
-                  className="border-red-300 focus:border-red-500 text-red-600 font-semibold"
+                  className="border-red-300 dark:border-red-700 focus:border-red-500 text-red-600 dark:text-red-400 font-semibold"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="credit_amount" className="text-green-600">Credit Amount</Label>
+                <Label htmlFor="credit_amount" className="text-green-600 dark:text-green-400">Credit Amount</Label>
                 <Input
                   id="credit_amount"
                   type="number"
@@ -314,7 +314,7 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
                   placeholder="0.00"
                   value={formData.credit_amount}
                   onChange={(e) => handleChange('credit_amount', e.target.value)}
-                  className="border-green-300 focus:border-green-500 text-green-600 font-semibold"
+                  className="border-green-300 dark:border-green-700 focus:border-green-500 text-green-600 dark:text-green-400 font-semibold"
                 />
               </div>
             </div>
@@ -342,16 +342,16 @@ export default function BankTransactionModal({ open, onClose, bankAccountId, ban
               <div className="space-y-2">
                 <Label htmlFor="gl_account">GL Account *</Label>
                 <Select
-                  value={formData.gl_account}
+                  value={String(formData.gl_account || '')}
                   onValueChange={(value) => handleChange('gl_account', value)}
                   required
                 >
-                  <SelectTrigger className={!formData.gl_account ? 'border-red-300' : ''}>
+                  <SelectTrigger className={!formData.gl_account ? 'border-red-300 dark:border-red-700' : ''}>
                     <SelectValue placeholder="Select GL Account..." />
                   </SelectTrigger>
                   <SelectContent>
                     {chartOfAccounts.filter(account => !account.controlled).map((account) => (
-                      <SelectItem key={account.id} value={account.account_number}>
+                      <SelectItem key={account.id} value={String(account.account_number)}>
                         {account.account_number} - {account.account_name}
                       </SelectItem>
                     ))}

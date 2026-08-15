@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { User, Car, FileText, Copy, History, Pencil, Phone, Mail, MapPin, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
-import { base44 } from '@/api/base44Client';
 import ChangeCustomerModal from '../ChangeCustomerModal';
 
 export default function WorkOrderHeaderInfo({
@@ -23,6 +22,7 @@ export default function WorkOrderHeaderInfo({
   onOpenOdometerPrompt,
   onOpenApprovals,
   onOpenVersionHistory,
+  onShowVehicleDetails,
 }) {
   const [createdByName, setCreatedByName] = useState('');
   const [lastUpdatedByName, setLastUpdatedByName] = useState('');
@@ -35,18 +35,6 @@ export default function WorkOrderHeaderInfo({
     if (email.endsWith('@no-reply.base44.com')) {
       return 'System';
     }
-
-    // User fetch removed to enforce Employee list lookup
-    // try {
-    //   // Try to fetch user name from User entity
-    //   const users = await base44.entities.User.filter({ email });
-    //   if (users && users.length > 0) {
-    //     const user = users[0];
-    //     return user.User_name || user.full_name || email;
-    //   }
-    // } catch (error) {
-    //   console.error('Error fetching user info for:', email, error);
-    // }
 
     // Fallback to employees list
     if (employees && employees.length > 0) {
@@ -139,16 +127,16 @@ export default function WorkOrderHeaderInfo({
   const getOdometerDisplay = () => {
     if (workOrder?.odometer !== null && workOrder?.odometer !== undefined && workOrder?.odometer !== '') {
       // WorkOrder has odometer - Blue hyperlink
-      return { text: workOrder.odometer.toString(), color: 'text-blue-600 hover:text-blue-800' };
+      return { text: workOrder.odometer.toString(), color: 'text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300' };
     } else if (vehicle?.mileage !== null && vehicle?.mileage !== undefined && vehicle?.mileage !== '') {
       // Vehicle has mileage - Red hyperlink
-      return { text: vehicle.mileage.toString(), color: 'text-red-600 hover:text-red-800' };
+      return { text: vehicle.mileage.toString(), color: 'text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300' };
     } else if (vehicle?.odometer !== null && vehicle?.odometer !== undefined && vehicle?.odometer !== '') {
       // Vehicle has odometer (fallback if DB field differs) - Red hyperlink
-      return { text: vehicle.odometer.toString(), color: 'text-red-600 hover:text-red-800' };
+      return { text: vehicle.odometer.toString(), color: 'text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300' };
     } else {
       // No data - Red hyperlink
-      return { text: 'None Recorded', color: 'text-red-600 hover:text-red-800' };
+      return { text: 'None Recorded', color: 'text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300' };
     }
   };
 
@@ -205,33 +193,33 @@ export default function WorkOrderHeaderInfo({
             <div className="flex-1">
               {customer ? (
                 <div className="space-y-2">
-                  <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2 mb-3">
-                    <User className="w-5 h-5 text-blue-600" />
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 mb-3">
+                    <User className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                     Customer
                   </h3>
                   <div className="space-y-1 text-sm">
-                    <p className="font-semibold text-slate-900 text-base">
+                    <p className="font-semibold text-slate-900 dark:text-slate-100 text-base">
                       {getCustomerDisplayName()}
                     </p>
                     {getCustomerContact() && (
-                      <p className="text-slate-500 text-xs">
+                      <p className="text-slate-500 dark:text-slate-400 text-xs">
                         Contact: {getCustomerContact()}
                       </p>
                     )}
                     {customer?.phone && (
-                      <p className="flex items-center gap-2 text-slate-600">
+                      <p className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
                         <Phone className="w-3 h-3" />
                         {formatPhoneDisplay(customer.phone)}
                       </p>
                     )}
                     {customer?.email && (
-                      <p className="flex items-center gap-2 text-slate-600">
+                      <p className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
                         <Mail className="w-3 h-3" />
                         {customer?.email}
                       </p>
                     )}
                     {(customer?.address || customer?.city || customer?.state || customer?.zip_code) && (
-                      <p className="flex items-start gap-2 text-slate-600">
+                      <p className="flex items-start gap-2 text-slate-600 dark:text-slate-400">
                         <MapPin className="w-3 h-3 mt-0.5" />
                         <span>
                           {customer?.address}
@@ -244,7 +232,7 @@ export default function WorkOrderHeaderInfo({
                   </div>
                 </div>
               ) : (
-                <p className="text-slate-500">No customer information available</p>
+                <p className="text-slate-500 dark:text-slate-400">No customer information available</p>
               )}
             </div>
 
@@ -305,34 +293,40 @@ export default function WorkOrderHeaderInfo({
             <div className="flex-1">
               {vehicle ? (
                 <div className="space-y-2">
-                  <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2 mb-3">
-                    <Car className="w-5 h-5 text-green-600" />
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 mb-3">
+                    <Car className="w-5 h-5 text-green-600 dark:text-green-400" />
                     Vehicle
                   </h3>
 
-                  <div className="space-y-1 text-sm">
-                    <p className="text-slate-900 font-semibold text-base">{vehicle.year} {vehicle.make} {vehicle.model}</p>
+                  <div 
+                    className="space-y-1 text-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors p-2 -m-2 rounded-lg"
+                    onClick={onShowVehicleDetails}
+                    title="Click to view vehicle details"
+                  >
+                    <p className="text-slate-900 dark:text-slate-100 font-semibold text-base">{vehicle.year} {vehicle.make} {vehicle.model}</p>
                     
                     <div className="grid grid-cols-2 gap-4">
                       {vehicle.trim && (
-                        <p className="text-slate-700">Trim: {vehicle.trim}</p>
+                        <p className="text-slate-700 dark:text-slate-300">Trim: {vehicle.trim}</p>
                       )}
                       {vehicle.engine && (
-                        <p className="text-slate-700">Engine: {vehicle.engine}</p>
+                        <p className="text-slate-700 dark:text-slate-300">Engine: {vehicle.engine}</p>
                       )}
                     </div>
                     
                     {vehicle.vin && (
-                      <p className="text-slate-700 text-xs font-mono break-all">VIN: {vehicle.vin}</p>
+                      <p className="text-slate-700 dark:text-slate-300 text-xs font-mono break-all">VIN: {vehicle.vin}</p>
                     )}
+                  </div>
                     
+                  <div className="text-sm">
                     {/* Odometer Field as a Button for the new modal */}
                     <div>
-                      <label className="text-sm font-medium text-slate-700">Odometer</label>
+                      <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Odometer</label>
                       <button
                         type="button"
                         onClick={onOpenOdometerPrompt}
-                        className={`block w-full text-left px-3 py-2 border border-slate-300 rounded-md ${odometerDisplay.color} underline font-medium`}
+                        className={`block w-full text-left px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-md ${odometerDisplay.color} underline font-medium`}
                         disabled={isLocked}
                       >
                         {odometerDisplay.text}
@@ -341,7 +335,7 @@ export default function WorkOrderHeaderInfo({
                   </div>
                 </div>
               ) : (
-                <p className="text-slate-500">No vehicle information available</p>
+                <p className="text-slate-500 dark:text-slate-400">No vehicle information available</p>
               )}
             </div>
 
@@ -395,18 +389,18 @@ export default function WorkOrderHeaderInfo({
           <div className="flex gap-4">
             {/* Left Column - Data */}
             <div 
-              className={`flex-1 ${!isLocked ? 'cursor-pointer hover:bg-slate-50 transition-colors p-2 -m-2 rounded-lg' : ''}`}
+              className={`flex-1 ${!isLocked ? 'cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors p-2 -m-2 rounded-lg' : ''}`}
               onClick={!isLocked ? onEditWorkOrderDetails : undefined}
               title={!isLocked ? "Click to edit document details" : ""}
             >
               <div className="space-y-2">
-                <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2 mb-3">
-                  <FileText className="w-5 h-5 text-purple-600" />
+                <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2 mb-3">
+                  <FileText className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                   Document
                 </h3>
 
                 <div className="space-y-1 text-sm">
-                  <p className="text-slate-900 font-semibold text-base">
+                  <p className="text-slate-900 dark:text-slate-100 font-semibold text-base">
                     {workOrder?.stage === 'estimate' ? `EST #${workOrder?.est_number || workOrder?.ro_number?.replace('RO', '') || 'N/A'}` : 
                      workOrder?.stage === 'invoice' ? `INV #${workOrder?.inv_number || 'N/A'}` : 
                      workOrder?.stage === 'credit_invoice' ? `CRINV #${workOrder?.crinv_number || 'N/A'}` : 
@@ -414,23 +408,23 @@ export default function WorkOrderHeaderInfo({
                   </p>
 
                   {workOrder?.stage === 'estimate' && workOrder?.est_date && (
-                    <p className="text-slate-700">{formatDateDisplay(workOrder.est_date)}</p>
+                    <p className="text-slate-700 dark:text-slate-300">{formatDateDisplay(workOrder.est_date)}</p>
                   )}
 
                   {workOrder?.stage !== 'estimate' && workOrder?.wo_date && (
-                    <p className="text-slate-700">{formatDateDisplay(workOrder.wo_date)}</p>
+                    <p className="text-slate-700 dark:text-slate-300">{formatDateDisplay(workOrder.wo_date)}</p>
                   )}
 
                   {workOrder?.po_number && (
-                    <p className="text-slate-700">PO: {workOrder.po_number}</p>
+                    <p className="text-slate-700 dark:text-slate-300">PO: {workOrder.po_number}</p>
                   )}
 
                   {workOrder?.cvip && (
-                    <p className="text-slate-700">CVIP: {workOrder.cvip}</p>
+                    <p className="text-slate-700 dark:text-slate-300">CVIP: {workOrder.cvip}</p>
                   )}
 
                   {workOrder?.description && (
-                    <p className="text-slate-700">{workOrder.description}</p>
+                    <p className="text-slate-700 dark:text-slate-300">{workOrder.description}</p>
                   )}
                 </div>
               </div>
@@ -478,12 +472,12 @@ export default function WorkOrderHeaderInfo({
                 <button
                   type="button"
                   onClick={onOpenVersionHistory}
-                  className="mt-2 pt-2 border-t border-slate-100 text-xs text-slate-500 w-full text-left hover:bg-slate-50 rounded-md px-1 py-2 transition-colors"
+                  className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 w-full text-left hover:bg-slate-50 dark:hover:bg-slate-800 rounded-md px-1 py-2 transition-colors"
                 >
                   {workOrder.created_by && (
                     <div className="flex justify-between items-center">
                       <span>Created By:</span>
-                      <span className="font-medium text-slate-700 truncate max-w-[120px]" title={createdByName}>
+                      <span className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[120px]" title={createdByName}>
                         {createdByName}
                       </span>
                     </div>
@@ -491,15 +485,15 @@ export default function WorkOrderHeaderInfo({
                   {workOrder.created_date && (
                     <div className="flex justify-between items-center mt-1">
                       <span>Created:</span>
-                      <span className="font-medium text-slate-700">
+                      <span className="font-medium text-slate-700 dark:text-slate-300">
                         {formatMountainDateTimeSafe(workOrder.created_date)}
                       </span>
                     </div>
                   )}
                   {workOrder.last_updated_by && (
-                    <div className="flex justify-between items-center mt-2 border-t border-slate-100 pt-2">
+                    <div className="flex justify-between items-center mt-2 border-t border-slate-100 dark:border-slate-800 pt-2">
                       <span>Updated By:</span>
-                      <span className="font-medium text-slate-700 truncate max-w-[120px]" title={lastUpdatedByName}>
+                      <span className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[120px]" title={lastUpdatedByName}>
                         {lastUpdatedByName}
                       </span>
                     </div>
@@ -507,15 +501,15 @@ export default function WorkOrderHeaderInfo({
                   {workOrder.last_updated && (
                     <div className="flex justify-between items-center mt-1">
                       <span>Updated:</span>
-                      <span className="font-medium text-slate-700">
+                      <span className="font-medium text-slate-700 dark:text-slate-300">
                         {formatMountainDateTimeSafe(workOrder.last_updated)}
                       </span>
                     </div>
                   )}
                   {workOrder.completed_by && (
-                    <div className="flex justify-between items-center mt-2 border-t border-slate-100 pt-2">
+                    <div className="flex justify-between items-center mt-2 border-t border-slate-100 dark:border-slate-800 pt-2">
                       <span>Completed By:</span>
-                      <span className="font-medium text-slate-700 truncate max-w-[120px]" title={completedByName}>
+                      <span className="font-medium text-slate-700 dark:text-slate-300 truncate max-w-[120px]" title={completedByName}>
                         {completedByName}
                       </span>
                     </div>
@@ -523,7 +517,7 @@ export default function WorkOrderHeaderInfo({
                   {workOrder.completed_date && (
                     <div className="flex justify-between items-center mt-1">
                       <span>Completed:</span>
-                      <span className="font-medium text-slate-700">
+                      <span className="font-medium text-slate-700 dark:text-slate-300">
                         {formatDateDisplay(workOrder.completed_date)}
                       </span>
                     </div>

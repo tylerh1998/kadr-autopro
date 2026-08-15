@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import moment from 'moment-timezone';
-import { base44 } from '@/api/base44Client';
-import { ChartOfAccount } from '@/entities/all';
+import { useAuth } from '@/lib/AuthContext';
+import { supabase } from '@/lib/supabase';
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import PayrollGLAccountCombobox from '@/components/payroll/PayrollGLAccountCombobox';
 
 export default function AddAdjustmentModal({ open, onClose, onSuccess }) {
+  const { employee } = useAuth();
   const [formData, setFormData] = useState({
     pay_date: '',
     amount: '',
@@ -44,7 +45,11 @@ export default function AddAdjustmentModal({ open, onClose, onSuccess }) {
 
   const loadChartOfAccounts = async () => {
     try {
-      const accountsData = await ChartOfAccount.list('account_number');
+      const { data: accountsData, error } = await supabase
+        .from('ChartOfAccount')
+        .select('*')
+        .order('account_number');
+      if (error) throw error;
       setChartOfAccounts((accountsData || []).filter((account) => account.is_active !== false));
     } catch (err) {
       console.error('Error loading GL accounts:', err);
@@ -63,27 +68,25 @@ export default function AddAdjustmentModal({ open, onClose, onSuccess }) {
         throw new Error('Date, amount, reason, and GL account are required');
       }
 
-      const currentUser = await base44.auth.me();
+      const currentUser = employee;
       const currentTimestamp = getCurrentMountainTimestamp();
 
       // Create the transaction
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'create',
-        table: 'PayrollTransaction',
-        data: {
-          transaction_type: 'Adjustment',
-          pay_date: formData.pay_date,
-          amount: String(parseFloat(formData.amount) || 0),
-          adjustment_reason: formData.adjustment_reason,
-          gl_account: formData.gl_account,
-          notes: formData.notes || null,
-          is_paid: false,
-          created_date: currentTimestamp,
-          updated_date: currentTimestamp,
-          created_by_id: currentUser?.id || null,
-          created_by: currentUser?.User_name || currentUser?.full_name || currentUser?.email || null
-        }
+      const { error: createError } = await supabase.from('PayrollTransaction').insert({
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+        transaction_type: 'Adjustment',
+        pay_date: formData.pay_date,
+        amount: String(parseFloat(formData.amount) || 0),
+        adjustment_reason: formData.adjustment_reason,
+        gl_account: formData.gl_account,
+        notes: formData.notes || null,
+        is_paid: false,
+        created_date: currentTimestamp,
+        updated_date: currentTimestamp,
+        created_by_id: currentUser?.id || null,
+        created_by: currentUser?.User_name || currentUser?.full_name || currentUser?.email || null
       });
+      if (createError) throw createError;
 
       // Reset form
       setFormData({
@@ -110,8 +113,8 @@ export default function AddAdjustmentModal({ open, onClose, onSuccess }) {
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-              <AlertCircle className="w-5 h-5 text-orange-600" />
+            <div className="w-10 h-10 bg-orange-100 dark:bg-orange-900/40 rounded-full flex items-center justify-center">
+              <AlertCircle className="w-5 h-5 text-orange-600 dark:text-orange-400" />
             </div>
             <div>
               <DialogTitle>Add Adjustment</DialogTitle>
@@ -143,7 +146,7 @@ export default function AddAdjustmentModal({ open, onClose, onSuccess }) {
               onChange={(e) => handleChange('amount', e.target.value)}
               required
             />
-            <p className="text-xs text-slate-500">Enter a negative amount for deductions/reversals</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Enter a negative amount for deductions/reversals</p>
           </div>
 
           <div className="space-y-2">
@@ -180,8 +183,8 @@ export default function AddAdjustmentModal({ open, onClose, onSuccess }) {
           </div>
 
           {error && (
-            <Alert className="bg-red-50 border-red-200">
-              <AlertDescription className="text-red-700">
+            <Alert className="bg-red-50 border-red-200 dark:bg-red-900/20 dark:border-red-900/40">
+              <AlertDescription className="text-red-700 dark:text-red-400">
                 {error}
               </AlertDescription>
             </Alert>

@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 // Using supabase proxy for entities
 import { Loader2, FileText, Mail } from 'lucide-react';
 import moment from 'moment-timezone';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import ARPaymentEmailModal from './ARPaymentEmailModal';
 import ARReceiptPDFViewerModal from './ARReceiptPDFViewerModal';
 
@@ -38,8 +38,12 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
         // Fetch customer email
         if (paymentRecord.customer_id) {
           try {
-            const res = await base44.functions.invoke('supabaseCustomer', { action: 'get', id: paymentRecord.customer_id });
-            const customer = res?.data?.data;
+            const { data: customer, error: customerError } = await supabase
+              .from('Customer')
+              .select('*')
+              .eq('id', paymentRecord.customer_id)
+              .maybeSingle();
+            if (customerError) throw customerError;
             setCustomerEmail(customer?.email || null);
           } catch (e) {
             console.warn('Could not fetch customer:', e);
@@ -49,11 +53,13 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
 
         console.log('Loading details for payment:', paymentRecord);
 
-        const response = await base44.functions.invoke('getAppliedPaymentDetails', {
-          paymentId: paymentRecord.id
+        const { data, error } = await supabase.functions.invoke('autopro-getAppliedPaymentDetails', {
+          body: { paymentId: paymentRecord.id }
         });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
 
-        const details = response?.data?.appliedDetails || [];
+        const details = data?.appliedDetails || [];
         console.log('Loaded applied to details:', details);
         setAppliedToDetails(details);
       } catch (error) {
@@ -82,19 +88,30 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
 
     setGeneratingPDF(true);
     try {
-      const response = await base44.functions.invoke('generateARReceiptPDF', {
-        paymentId: paymentRecord.id
+      const { data, error } = await supabase.functions.invoke('autopro-generateARReceiptPDF', {
+        body: { paymentId: paymentRecord.id }
       });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      if (response.data) {
-        if (receiptPdfUrl) {
-          window.URL.revokeObjectURL(receiptPdfUrl);
-        }
-        const blob = new Blob([response.data], { type: 'application/pdf' });
-        const url = window.URL.createObjectURL(blob);
-        setReceiptPdfUrl(url);
-        setShowReceiptModal(true);
+      const { pdfDataUri } = data;
+      if (!pdfDataUri) throw new Error('No PDF data received from server');
+
+      const byteString = atob(pdfDataUri.split(',')[1]);
+      const mimeString = pdfDataUri.split(',')[0].split(':')[1].split(';')[0];
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
       }
+
+      if (receiptPdfUrl) {
+        window.URL.revokeObjectURL(receiptPdfUrl);
+      }
+      const blob = new Blob([ab], { type: mimeString });
+      const url = window.URL.createObjectURL(blob);
+      setReceiptPdfUrl(url);
+      setShowReceiptModal(true);
     } catch (error) {
       console.error('Error generating receipt:', error);
       alert('Failed to generate receipt. Please try again.');
@@ -130,7 +147,7 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
         ) : (
           <div className="space-y-4">
             {paymentRecord && (
-              <div className="bg-slate-50 p-4 rounded-lg space-y-2">
+              <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg space-y-2">
                 <div className="flex justify-between">
                   <span className="font-semibold">Payment Date:</span>
                   <span>{formatMountainDate(paymentRecord.payment_date)}</span>
@@ -167,17 +184,17 @@ export default function ARPaymentDetailsModal({ open, onClose, paymentRecord }) 
                     </TableHeader>
                     <TableBody>
                       {appliedToDetails.map((detail, index) => (
-                        <TableRow key={index} className={detail.isOverpayment ? 'bg-green-50' : ''}>
+                        <TableRow key={index} className={detail.isOverpayment ? 'bg-green-50 dark:bg-green-900/30' : ''}>
                           <TableCell>{detail.reference}</TableCell>
                           <TableCell>{formatMountainDate(detail.date)}</TableCell>
                           <TableCell>{detail.description}</TableCell>
-                          <TableCell className={`text-right font-semibold ${detail.isOverpayment ? 'text-green-700' : ''}`}>
+                          <TableCell className={`text-right font-semibold ${detail.isOverpayment ? 'text-green-700 dark:text-green-400' : ''}`}>
                             ${detail.amountApplied.toFixed(2)}
                             {detail.isOverpayment && <span className="ml-2 text-xs">(Available Credit)</span>}
                           </TableCell>
                         </TableRow>
                       ))}
-                      <TableRow className="font-bold bg-slate-50">
+                      <TableRow className="font-bold bg-slate-50 dark:bg-slate-800">
                         <TableCell colSpan={3} className="text-right">Total Applied:</TableCell>
                         <TableCell className="text-right">${totalApplied.toFixed(2)}</TableCell>
                       </TableRow>

@@ -10,18 +10,18 @@ const formatVariance = (value) => {
 
 const varianceClassName = (value) => {
   if (value === null || value === undefined) return 'text-slate-400';
-  if (value > 0) return 'text-emerald-700';
-  if (value < 0) return 'text-red-700';
-  return 'text-slate-700';
+  if (value > 0) return 'text-emerald-700 dark:text-emerald-400';
+  if (value < 0) return 'text-red-700 dark:text-red-400';
+  return 'text-slate-700 dark:text-slate-300';
 };
 
 const AccountRow = ({ row, level = 0 }) => (
   <>
     <TableRow>
-      <TableCell className="text-slate-800">
+      <TableCell className="text-slate-800 dark:text-slate-200">
         <div style={{ paddingLeft: `${level * 24}px` }}>
           <span className={level === 0 ? 'font-semibold' : 'font-medium'}>{row.account_number}</span>
-          <span className={`ml-2 ${row.is_synthetic ? 'italic text-slate-500' : 'text-slate-600'}`}>{row.account_name}</span>
+          <span className={`ml-2 ${row.is_synthetic ? 'italic text-slate-500 dark:text-slate-400' : 'text-slate-600 dark:text-slate-400'}`}>{row.account_name}</span>
         </div>
       </TableCell>
       <TableCell className={`text-right tabular-nums ${level === 0 ? 'font-semibold' : ''}`}>{formatCurrency(row.month1)}</TableCell>
@@ -41,14 +41,14 @@ const AccountRow = ({ row, level = 0 }) => (
 
 const ReportSection = ({ title, rows, summaryRow, summaryLabel }) => (
   <>
-    <TableRow className="bg-slate-100 hover:bg-slate-100">
-      <TableCell colSpan={5} className="font-semibold uppercase tracking-wide text-slate-700">{title}</TableCell>
+    <TableRow className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800">
+      <TableCell colSpan={5} className="font-semibold uppercase tracking-wide text-slate-700 dark:text-slate-300">{title}</TableCell>
     </TableRow>
     {rows.map((row) => (
       <AccountRow key={row.account_number} row={row} />
     ))}
-    <TableRow className="bg-slate-50">
-      <TableCell className="font-semibold text-slate-900">{summaryLabel}</TableCell>
+    <TableRow className="bg-slate-50 dark:bg-slate-800/60">
+      <TableCell className="font-semibold text-slate-900 dark:text-slate-100">{summaryLabel}</TableCell>
       <TableCell className="text-right font-semibold tabular-nums">{formatCurrency(summaryRow.month1)}</TableCell>
       <TableCell className="text-right font-semibold tabular-nums">{formatCurrency(summaryRow.month2)}</TableCell>
       <TableCell className="text-right font-semibold tabular-nums">{formatCurrency(summaryRow.month3)}</TableCell>
@@ -89,8 +89,8 @@ export default function ThreeMonthPLReport({ data }) {
               summaryRow={summary.totalExpenses}
               summaryLabel="Total Expenses"
             />
-            <TableRow className="bg-slate-100">
-              <TableCell className="font-semibold text-slate-900">Net Income</TableCell>
+            <TableRow className="bg-slate-100 dark:bg-slate-800">
+              <TableCell className="font-semibold text-slate-900 dark:text-slate-100">Net Income</TableCell>
               <TableCell className="text-right font-semibold tabular-nums">{formatCurrency(summary.netIncome.month1)}</TableCell>
               <TableCell className="text-right font-semibold tabular-nums">{formatCurrency(summary.netIncome.month2)}</TableCell>
               <TableCell className="text-right font-semibold tabular-nums">{formatCurrency(summary.netIncome.month3)}</TableCell>

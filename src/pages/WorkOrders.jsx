@@ -1,11 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { Customer } from "@/entities/Customer";
-import { Vehicle } from "@/entities/Vehicle";
-import { TagAlong } from "@/entities/TagAlong";
-import { Appointment } from "@/entities/Appointment";
-import { User } from "@/entities/User";
-import { WorkOrderStatus } from "@/entities/WorkOrderStatus";
-import { SystemSettings } from "@/entities/SystemSettings";
+import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useAuth } from '@/lib/AuthContext';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,15 +10,12 @@ import { Plus, Search, Filter, FileText, Calendar, User as UserIcon, Car, Refres
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { base44 } from "@/api/base44Client";
-import { getworkorderlist } from "@/functions/getworkorderlist";
-import { getNotesBoardData } from "@/functions/getNotesBoardData";
-import { createworkorderdata } from "@/functions/createworkorderdata";
+import { supabase } from "@/lib/supabase";
 
 // Reuse your existing helper that already has the Supabase credentials configured!
 import { getSupabaseRealtimeClient } from "@/lib/supabaseRealtimeClient";
 
-import WorkOrderForm from "../components/work-orders/WorkOrderForm";
+
 import WorkOrderList from "../components/work-orders/WorkOrderList";
 import NewWorkOrderModal from "../components/work-orders/NewWorkOrderModal";
 import WorkPROTaskModal from "../components/work-orders/WorkPROTaskModal";
@@ -42,11 +33,12 @@ import NotesStatusBar from "../components/work-orders/NotesStatusBar";
 import { useTechClockStatus } from "../components/context/TechClockStatusContext";
 
 export default function WorkOrdersPage() {
+  const { employee } = useAuth();
   const [workOrders, setWorkOrders] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [noteCards, setNoteCards] = useState([]);
-  const [showForm, setShowForm] = useState(false);
+
   const [showNewWorkOrderModal, setShowNewWorkOrderModal] = useState(false);
   const [editingWorkOrder, setEditingWorkOrder] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -121,9 +113,12 @@ export default function WorkOrdersPage() {
 
   useEffect(() => {
     loadData(true);
-    loadCurrentUser();
     loadWorkOrderStatuses();
   }, [invoicePage, invoicesSort, debouncedSearchTerm]);
+
+  useEffect(() => {
+    setCurrentUser(employee);
+  }, [employee]);
 
   useEffect(() => {
     setInvoicePage(1);
@@ -131,8 +126,9 @@ export default function WorkOrdersPage() {
 
   const loadWorkOrderStatuses = async () => {
     try {
-      const statuses = await WorkOrderStatus.filter({ is_active: true });
-      const sortedStatuses = statuses.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+      const { data: statuses, error: statusesError } = await supabase.from('WorkOrderStatus').select('*').eq('is_active', true);
+      if (statusesError) throw statusesError;
+      const sortedStatuses = (statuses || []).sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
       setWorkOrderStatuses(sortedStatuses);
     } catch (error) {
       console.error('Error loading work order statuses:', error);
@@ -147,7 +143,18 @@ export default function WorkOrdersPage() {
     }
   };
 
+  // Keep latest state/handlers available to the realtime callback without forcing a resubscribe.
+  // Must run as an effect (not inline in the render body) since loadData/loadWorkPROProjects/
+  // loadTechTimeForProjects are declared later in this component via `const` and referencing them
+  // before that point is a temporal-dead-zone ReferenceError.
+  const realtimeHandlersRef = useRef();
+  useEffect(() => {
+    realtimeHandlersRef.current = { activeTab, workPROLoaded, loadData, loadWorkPROProjects, loadTechTimeForProjects };
+  });
+
   // Direct Broadcast WebSocket Connection - Zero Polling
+  // Subscribed once for the page's lifetime; page/sort/search/tab changes must NOT tear this down,
+  // or the socket can be left in a broken state after the first churn (see realtime investigation notes).
   useEffect(() => {
     let isActive = true;
     let realtimeChannel = null;
@@ -161,7 +168,8 @@ export default function WorkOrdersPage() {
         .channel('work_order_refresh')
         .on('broadcast', { event: 'workorder-updated' }, (message) => {
           console.log('Live broadcast received! Database changed:', message.payload);
-          
+
+          const { activeTab, workPROLoaded, loadData, loadWorkPROProjects, loadTechTimeForProjects } = realtimeHandlersRef.current;
           loadData();
           if (activeTab === 'workpro' && workPROLoaded) {
             loadWorkPROProjects();
@@ -181,7 +189,7 @@ export default function WorkOrdersPage() {
       isActive = false;
       realtimeChannel?.unsubscribe();
     };
-  }, [activeTab, workPROLoaded, invoicePage, invoicesSort, debouncedSearchTerm]);
+  }, []);
 
   useEffect(() => {
     if (activeTab === 'workpro' && !workPROLoaded) {
@@ -203,42 +211,43 @@ export default function WorkOrdersPage() {
     }
   }, [activeTab, workPROLoaded, workPROProjects, techTimeLoaded]);
 
-  const loadCurrentUser = async () => {
-    try {
-      const user = await User.me();
-      setCurrentUser(user);
-    } catch (error) {
-      console.error('Error loading current user:', error);
-    }
-  };
-
   const loadData = async (isInitialLoad = false) => {
     setLoading(true);
     try {
       const invoiceOffset = (invoicePage - 1) * INVOICES_PER_PAGE;
 
       const [generalResponse, invoicePageResponse, notesResponse] = await Promise.all([
-        getworkorderlist({}),
-        getworkorderlist({
-          orMatch: 'stage.eq.invoice,stage.eq.credit_invoice',
-          sort: invoicesSort,
-          limit: INVOICES_PER_PAGE,
-          offset: invoiceOffset,
-          searchTerm: debouncedSearchTerm.trim()
+        supabase.rpc('search_work_orders', {
+          p_stages: ['estimate', 'work_order', 'void']
         }),
-        getNotesBoardData({
-          searchTerm: debouncedSearchTerm.trim()
+        supabase.rpc('search_work_orders', {
+          p_stages: ['invoice', 'credit_invoice'],
+          p_sort: invoicesSort,
+          p_limit: INVOICES_PER_PAGE,
+          p_offset: invoiceOffset,
+          p_search_term: debouncedSearchTerm.trim()
+        }),
+        supabase.functions.invoke('autopro-getNotesBoardData', {
+          body: { searchTerm: debouncedSearchTerm.trim() }
+        }).catch((error) => {
+          console.error('Error fetching notes board data:', error);
+          return { data: { data: [] } };
         })
       ]);
 
-      const generalWorkOrders = (generalResponse?.data?.data || []).filter(
+      if (generalResponse.error) console.error('Error fetching work orders:', generalResponse.error);
+      if (invoicePageResponse.error) console.error('Error fetching invoice work orders:', invoicePageResponse.error);
+      if (notesResponse.error) console.error('Error fetching notes board data:', notesResponse.error);
+      if (notesResponse?.data?.error) console.error('Error fetching notes board data:', notesResponse.data.error);
+
+      const generalWorkOrders = (generalResponse?.data || []).filter(
         wo => wo.stage !== 'invoice' && wo.stage !== 'credit_invoice'
       );
-      const invoicePageData = invoicePageResponse?.data?.data || [];
+      const invoicePageData = invoicePageResponse?.data || [];
       const mergedWorkOrders = [...generalWorkOrders, ...invoicePageData];
 
       setInvoicePageData(invoicePageData);
-      setInvoiceTotalCount(invoicePageResponse?.data?.totalCount || 0);
+      setInvoiceTotalCount(invoicePageData?.[0]?.total_count || 0);
       setWorkOrders(mergedWorkOrders);
       setNoteCards(notesResponse?.data?.data || []);
       
@@ -273,15 +282,13 @@ export default function WorkOrdersPage() {
       setWorkPROLoading(true);
     }
     try {
-      const response = await base44.functions.invoke('workProProxy', {
-        entityName: 'Project',
-        method: 'list',
-        sort: '-created_date'
-      });
+      const { data: projects, error: projectsError } = await supabase
+        .from('Project')
+        .select('*')
+        .order('created_date', { ascending: false });
 
-      if (response.data?.success) {
-        const projects = Array.isArray(response.data.data) ? response.data.data : [];
-        const sortedProjects = [...projects].sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+      if (!projectsError) {
+        const sortedProjects = Array.isArray(projects) ? projects : [];
 
         setWorkPROProjects(prev => {
           const prevSignature = prev.map(p => p.id + (p.updated_date || '')).join(',');
@@ -293,7 +300,7 @@ export default function WorkOrdersPage() {
         });
         setWorkPROLoaded(true);
       } else {
-        console.error('Error fetching WorkPRO projects:', response.data?.error || 'Unknown error');
+        console.error('Error fetching WorkPRO projects:', projectsError.message);
       }
     } catch (error) {
       console.error('Error loading WorkPRO projects:', error);
@@ -305,8 +312,9 @@ export default function WorkOrdersPage() {
   const loadAppointmentsForProjects = async () => {
     try {
       // Load all appointments
-      const allAppointments = await Appointment.list();
-      
+      const { data: allAppointments, error } = await supabase.from('Appointment').select('*');
+      if (error) throw error;
+
       // Group appointments by work_order_id
       const appointmentMap = {};
       
@@ -328,17 +336,16 @@ export default function WorkOrdersPage() {
 
   const loadTechTimeForProjects = async () => {
     try {
-      const response = await base44.functions.invoke('workProProxy', {
-        entityName: 'ProjectTimeSession',
-        method: 'list'
-      });
+      const { data: sessionsData, error: sessionsError } = await supabase
+        .from('ProjectTimeSession')
+        .select('*');
 
-      if (!response.data?.success) {
-        console.error('Error fetching tech time sessions:', response.data?.error || 'Unknown error');
+      if (sessionsError) {
+        console.error('Error fetching tech time sessions:', sessionsError.message);
         return;
       }
 
-      const sessions = Array.isArray(response.data.data) ? response.data.data : [];
+      const sessions = Array.isArray(sessionsData) ? sessionsData : [];
 
       const techTimeMap = {};
 
@@ -443,32 +450,32 @@ export default function WorkOrdersPage() {
   const getStatusIcon = (status) => {
     switch (status?.toLowerCase()) {
       case 'done':
-        return <CheckCircle className="w-5 h-5 text-green-500" />;
+        return <CheckCircle className="w-5 h-5 text-green-500 dark:text-green-400" />;
       case 'in_progress':
-        return <Clock className="w-5 h-5 text-blue-500" />;
+        return <Clock className="w-5 h-5 text-blue-500 dark:text-blue-400" />;
       case 'parts_needed':
-        return <AlertTriangle className="w-5 h-5 text-orange-500" />;
+        return <AlertTriangle className="w-5 h-5 text-orange-500 dark:text-orange-400" />;
       case 'awaiting_work':
       case 'to_do':
-        return <Clock className="w-5 h-5 text-slate-400" />;
+        return <Clock className="w-5 h-5 text-slate-400 dark:text-slate-500" />;
       case 'on_hold':
-        return <AlertTriangle className="w-5 h-5 text-yellow-500" />;
+        return <AlertTriangle className="w-5 h-5 text-yellow-500 dark:text-yellow-400" />;
       case 'archived':
-        return <Wrench className="w-5 h-5 text-gray-500" />;
+        return <Wrench className="w-5 h-5 text-gray-500 dark:text-gray-400" />;
       default:
-        return <Clock className="w-5 h-5 text-slate-400" />;
+        return <Clock className="w-5 h-5 text-slate-400 dark:text-slate-500" />;
     }
   };
 
   const getStatusBadge = (status) => {
     const colors = {
-      'done': 'bg-green-100 text-green-800 border-green-200',
-      'in_progress': 'bg-blue-100 text-blue-800 border-blue-200',
-      'parts_needed': 'bg-orange-100 text-orange-800 border-orange-200',
-      'awaiting_work': 'bg-slate-100 text-slate-800 border-slate-200',
-      'to_do': 'bg-slate-100 text-slate-800 border-slate-200',
-      'on_hold': 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      'archived': 'bg-gray-100 text-gray-800 border-gray-200',
+      'done': 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800',
+      'in_progress': 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+      'parts_needed': 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300 border-orange-200 dark:border-orange-800',
+      'awaiting_work': 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700',
+      'to_do': 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-300 border-slate-200 dark:border-slate-700',
+      'on_hold': 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800',
+      'archived': 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700',
     };
     
     const statusLower = status?.toLowerCase();
@@ -501,12 +508,11 @@ export default function WorkOrdersPage() {
     setNoteCards(nextCards);
 
     try {
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'Note',
-        id: noteId,
-        data: { colour }
-      });
+      const { error } = await supabase
+        .from('Note')
+        .update({ colour })
+        .eq('id', noteId);
+      if (error) throw error;
     } catch (error) {
       console.error('Error updating note colour:', error);
       setNoteCards(previousCards);
@@ -525,15 +531,14 @@ export default function WorkOrdersPage() {
     setNoteCards(nextCards);
 
     try {
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'Note',
-        id: noteId,
-        data: {
+      const { error } = await supabase
+        .from('Note')
+        .update({
           title: nextTitle,
           comment: nextComment
-        }
-      });
+        })
+        .eq('id', noteId);
+      if (error) throw error;
     } catch (error) {
       console.error('Error updating note content:', error);
       setNoteCards(previousCards);
@@ -553,17 +558,16 @@ export default function WorkOrdersPage() {
     if (changedCards.length === 0) return;
 
     try {
-      await Promise.all(changedCards.map((card) =>
-        base44.functions.invoke('SupabaseProxy', {
-          action: 'update',
-          table: 'Note',
-          id: card.noteId,
-          data: {
+      await Promise.all(changedCards.map(async (card) => {
+        const { error } = await supabase
+          .from('Note')
+          .update({
             board_column: card.boardColumn,
             board_order: String(card.boardOrder)
-          }
-        })
-      ));
+          })
+          .eq('id', card.noteId);
+        if (error) throw error;
+      }));
     } catch (error) {
       console.error('Error updating note board order:', error);
       setNoteCards(previousCards);
@@ -586,14 +590,13 @@ export default function WorkOrdersPage() {
 
     setIsSavingNoteLink(true);
     try {
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'Note',
-        id: selectedNoteForLink.noteId,
-        data: {
+      const { error } = await supabase
+        .from('Note')
+        .update({
           work_order_id: workOrder.id
-        }
-      });
+        })
+        .eq('id', selectedNoteForLink.noteId);
+      if (error) throw error;
       setShowNoteLinkModal(false);
       setSelectedNoteForLink(null);
       await loadData();
@@ -613,18 +616,17 @@ export default function WorkOrdersPage() {
 
     setIsCreatingNote(true);
     try {
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'create',
-        table: 'Note',
-        data: {
+      const { error } = await supabase
+        .from('Note')
+        .insert({
           title: '',
           comment: '',
           colour: 'white',
           status: 'Private',
           is_archived: false,
           created_by: currentUser.id
-        }
-      });
+        });
+      if (error) throw error;
       setNotesStatusFilter('private');
       await loadData();
     } catch (error) {
@@ -641,14 +643,13 @@ export default function WorkOrdersPage() {
     const nextStatus = String(note.status || '').toLowerCase() === 'shared' ? 'Private' : 'Shared';
 
     try {
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'Note',
-        id: note.noteId,
-        data: {
+      const { error } = await supabase
+        .from('Note')
+        .update({
           status: nextStatus
-        }
-      });
+        })
+        .eq('id', note.noteId);
+      if (error) throw error;
       await loadData();
     } catch (error) {
       console.error('Error updating note status:', error);
@@ -660,14 +661,13 @@ export default function WorkOrdersPage() {
     if (!note?.noteId) return;
 
     try {
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'Note',
-        id: note.noteId,
-        data: {
+      const { error } = await supabase
+        .from('Note')
+        .update({
           is_archived: note.isArchived !== true
-        }
-      });
+        })
+        .eq('id', note.noteId);
+      if (error) throw error;
       await loadData();
     } catch (error) {
       console.error('Error updating note archive state:', error);
@@ -820,36 +820,29 @@ export default function WorkOrdersPage() {
     }
   };
 
-  const handleSubmit = async (workOrderData) => {
-    try {
-      if (editingWorkOrder && editingWorkOrder.ro_number) {
-        await base44.functions.invoke('SupabaseProxy', {
-          action: 'update',
-          table: 'WorkOrder',
-          id: editingWorkOrder.id,
-          data: workOrderData
-        });
-      } else {
-        console.warn("handleSubmit called for a new work order. This should be handled by NewWorkOrderModal.");
-        return;
-      }
-      
-      setShowForm(false);
-      setEditingWorkOrder(null);
-      loadData();
-    } catch (error) {
-      console.error('Error saving work order:', error);
-    }
-  };
+
 
   const handleCreateNewWorkOrder = async (workOrderData) => {
     try {
       console.log('Creating work order with data:', workOrderData);
-      
-      const response = await createworkorderdata({ data: workOrderData });
-      const createdWorkOrder = response.data?.data;
+
+      if (!workOrderData.ro_number || !workOrderData.customer_id || !workOrderData.vehicle_id) {
+        throw new Error('ro_number, customer_id, and vehicle_id are required');
+      }
+
+      const { data: createdWorkOrder, error: createError } = await supabase
+        .from('WorkOrder')
+        .insert([{
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+          ...workOrderData,
+          created_date: new Date().toISOString(),
+          created_by: currentUser?.email || null,
+        }])
+        .select('*')
+        .single();
+      if (createError) throw createError;
       console.log('Created work order:', createdWorkOrder);
-      
+
       if (!createdWorkOrder || !createdWorkOrder.ro_number) {
         throw new Error('Work order creation failed - no RO number returned');
       }
@@ -898,25 +891,15 @@ export default function WorkOrdersPage() {
       if (!targetWorkOrder?.ro_number) {
         throw new Error('Work order not found');
       }
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'WorkOrder',
-        id: targetWorkOrder.id,
-        data: { status: newStatus }
-      });
+      const { error } = await supabase
+        .from('WorkOrder')
+        .update({ status: newStatus })
+        .eq('id', targetWorkOrder.id);
+      if (error) throw error;
       loadData();
     } catch (error) {
       console.error('Error updating status:', error);
     }
-  };
-
-  const generateRandomString = (length) => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let result = '';
-    for (let i = 0; i < length; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
   };
 
   const handleCreateCounterSale = async () => {
@@ -925,29 +908,24 @@ export default function WorkOrdersPage() {
       const counterSaleVehicleId = '69562a182efce2529204db01';
       
       // Fetch next RO number from SystemSettings
-      const settings = await SystemSettings.list();
+      const { data: settings, error: settingsError } = await supabase.from('SystemSettings').select('*');
+      if (settingsError) console.error('Error loading system settings:', settingsError);
       const systemSettings = settings && settings.length > 0 ? settings[0] : null;
-      
+
       const nextRo = systemSettings?.next_ro_number || 1001;
-      
+
       // Increment and save back to SystemSettings
       if (systemSettings) {
-        await SystemSettings.update(systemSettings.id, {
-          next_ro_number: nextRo + 1
-        });
+        await supabase.from('SystemSettings').update({ next_ro_number: nextRo + 1 }).eq('id', systemSettings.id);
       } else {
-        await SystemSettings.create({
-          next_ro_number: nextRo + 1
-        });
+        await supabase.from('SystemSettings').insert([{ id: crypto.randomUUID(), next_ro_number: nextRo + 1 }]);
       }
       
-      const cp_id = generateRandomString(10);
       const numbers = {
         ro_number: `RO${nextRo}`,
         wo_number: `WO${nextRo}`,
-        cp_id: cp_id,
       };
-      
+
       const counterSaleDefaultLineItems = [
         { id: Date.now() + 1, qty: "", hrs: "", description: "", part_number: "", parts_ea: 0, tot_parts: 0, labour: 0, tx: "Y", total: 0, complete: false, bold: false },
         { id: Date.now() + 2, qty: "", hrs: "", description: "", part_number: "", parts_ea: 0, tot_parts: 0, labour: 0, tx: "Y", total: 0, complete: false, bold: false },
@@ -964,24 +942,30 @@ export default function WorkOrdersPage() {
         approval: "pending",
         wo_date: format(new Date(), 'yyyy-MM-dd'),
         description: "Counter Sale",
-        customer_complaint: "",
-        estimated_hours: null,
+        internal_notes: "",
         labor_rate: 120,
         total_amount: 0,
-        scheduled_date: "",
-        technician: "",
-        line_items: JSON.stringify(counterSaleDefaultLineItems),
+        line_items: counterSaleDefaultLineItems,
         notes_to_customer: "",
         amount_paid: 0,
-        payments: JSON.stringify([])
+        payments: []
       };
-      
+
       console.log('Creating counter sale work order with data:', newWorkOrder);
-      
-      const response = await createworkorderdata({ data: newWorkOrder });
-      const createdWorkOrder = response.data?.data;
+
+      const { data: createdWorkOrder, error: createError } = await supabase
+        .from('WorkOrder')
+        .insert([{
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+          ...newWorkOrder,
+          created_date: new Date().toISOString(),
+          created_by: currentUser?.email || null,
+        }])
+        .select('*')
+        .single();
+      if (createError) throw createError;
       console.log('Created counter sale work order:', createdWorkOrder);
-      
+
       if (!createdWorkOrder || !createdWorkOrder.ro_number) {
         throw new Error('Counter sale work order creation failed - no RO number returned');
       }
@@ -1012,14 +996,15 @@ export default function WorkOrdersPage() {
   const handleFlushLocks = async () => {
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('flushWorkOrderLocks');
-      
-      if (response.data && response.data.success) {
-        alert(`All work order locks have been flushed. (${response.data.flushedCount} flushed)`);
-        loadData();
-      } else {
-        throw new Error(response.data?.error || 'Failed to flush locks');
-      }
+      const { data, error } = await supabase
+        .from('WorkOrder')
+        .update({ LockedByUser: null, locked_timestamp: null })
+        .not('LockedByUser', 'is', null)
+        .select('id');
+
+      if (error) throw new Error(error.message);
+      alert(`All work order locks have been flushed. (${data?.length || 0} flushed)`);
+      loadData();
     } catch (error) {
       console.error('Error flushing locks:', error);
       alert('Failed to flush locks. Please try again.');
@@ -1038,12 +1023,11 @@ export default function WorkOrdersPage() {
     if (!voidTarget) return;
     
     try {
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'WorkOrder',
-        id: voidTarget.id,
-        data: { stage: 'void' }
-      });
+      const { error } = await supabase
+        .from('WorkOrder')
+        .update({ stage: 'void' })
+        .eq('id', voidTarget.id);
+      if (error) throw error;
       loadData();
     } catch (error) {
       console.error('Error voiding work order:', error);
@@ -1090,22 +1074,27 @@ export default function WorkOrdersPage() {
   
   const getStatusColorClasses = (color, isActive) => {
     const colorMap = {
-      blue: { active: 'bg-blue-600 text-white', inactive: 'bg-blue-100 text-blue-900', badge: 'text-blue-600 border-blue-400' },
-      green: { active: 'bg-green-600 text-white', inactive: 'bg-green-100 text-green-900', badge: 'text-green-600 border-green-400' },
-      red: { active: 'bg-red-600 text-white', inactive: 'bg-red-100 text-red-900', badge: 'text-red-600 border-red-400' },
-      yellow: { active: 'bg-yellow-500 text-white', inactive: 'bg-yellow-100 text-yellow-900', badge: 'text-yellow-600 border-yellow-400' },
-      orange: { active: 'bg-orange-500 text-white', inactive: 'bg-orange-100 text-orange-900', badge: 'text-orange-600 border-orange-400' },
-      purple: { active: 'bg-purple-600 text-white', inactive: 'bg-purple-100 text-purple-900', badge: 'text-purple-600 border-purple-400' },
-      pink: { active: 'bg-pink-600 text-white', inactive: 'bg-pink-100 text-pink-900', badge: 'text-pink-600 border-pink-400' },
-      slate: { active: 'bg-slate-600 text-white', inactive: 'bg-slate-200 text-slate-900', badge: 'text-slate-600 border-slate-400' },
+      blue: { active: 'bg-blue-600 dark:bg-blue-700 text-white', inactive: 'bg-blue-100 dark:bg-blue-900/50 text-blue-900 dark:text-blue-300', badge: 'text-blue-600 dark:text-blue-300 border-blue-400 dark:border-blue-600' },
+      green: { active: 'bg-green-600 dark:bg-green-700 text-white', inactive: 'bg-green-100 dark:bg-green-900/50 text-green-900 dark:text-green-300', badge: 'text-green-600 dark:text-green-300 border-green-400 dark:border-green-600' },
+      red: { active: 'bg-red-600 dark:bg-red-700 text-white', inactive: 'bg-red-100 dark:bg-red-900/50 text-red-900 dark:text-red-300', badge: 'text-red-600 dark:text-red-300 border-red-400 dark:border-red-600' },
+      yellow: { active: 'bg-yellow-500 dark:bg-yellow-700 text-white', inactive: 'bg-yellow-100 dark:bg-yellow-900/50 text-yellow-900 dark:text-yellow-300', badge: 'text-yellow-600 dark:text-yellow-300 border-yellow-400 dark:border-yellow-600' },
+      orange: { active: 'bg-orange-500 dark:bg-orange-700 text-white', inactive: 'bg-orange-100 dark:bg-orange-900/50 text-orange-900 dark:text-orange-300', badge: 'text-orange-600 dark:text-orange-300 border-orange-400 dark:border-orange-600' },
+      purple: { active: 'bg-purple-600 dark:bg-purple-700 text-white', inactive: 'bg-purple-100 dark:bg-purple-900/50 text-purple-900 dark:text-purple-300', badge: 'text-purple-600 dark:text-purple-300 border-purple-400 dark:border-purple-600' },
+      pink: { active: 'bg-pink-600 dark:bg-pink-700 text-white', inactive: 'bg-pink-100 dark:bg-pink-900/50 text-pink-900 dark:text-pink-300', badge: 'text-pink-600 dark:text-pink-300 border-pink-400 dark:border-pink-600' },
+      slate: { active: 'bg-slate-600 dark:bg-slate-700 text-white', inactive: 'bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100', badge: 'text-slate-600 dark:text-slate-300 border-slate-400 dark:border-slate-600' },
     };
-    
+
     const theme = colorMap[color] || colorMap['slate'];
-    
+
     if (isActive) {
       return `flex items-center gap-2 ${theme.active}`;
     }
-    return `flex items-center gap-2 ${theme.inactive} data-[state=active]:${theme.active.split(' ')[0]} data-[state=active]:text-white`;
+    const activeStateClasses = theme.active
+      .split(' ')
+      .filter(c => c.startsWith('bg-') || c.startsWith('dark:bg-'))
+      .map(c => `data-[state=active]:${c}`)
+      .join(' ');
+    return `flex items-center gap-2 ${theme.inactive} ${activeStateClasses} data-[state=active]:text-white`;
   };
 
   const filteredWorkOrders = workOrders.filter(wo => {
@@ -1174,7 +1163,7 @@ export default function WorkOrdersPage() {
   }, [noteCards, currentUser?.id, notesStatusFilter]);
 
   return (
-    <div className="p-6 min-h-screen">
+    <div className="p-6 min-h-screen dark:bg-slate-900">
       <div className="max-w-7xl mx-auto space-y-6">
         
         {/* Section 1: Actions, Search, Sort */}
@@ -1191,24 +1180,9 @@ export default function WorkOrdersPage() {
                 }
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 w-full bg-white"
+                className="pl-10 w-full bg-white dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
                 />
             </div>
-            <Select value={getCurrentSort()} onValueChange={setCurrentSort}>
-              <SelectTrigger className="w-auto min-w-[80px] px-4 font-medium bg-white">
-                <span>Sort</span>
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="number_desc">Number (Highest)</SelectItem>
-                <SelectItem value="number_asc">Number (Lowest)</SelectItem>
-                <SelectItem value="customer_az">Customer (A-Z)</SelectItem>
-                <SelectItem value="customer_za">Customer (Z-A)</SelectItem>
-                <SelectItem value="date_newest">Date (Newest)</SelectItem>
-                <SelectItem value="date_oldest">Date (Oldest)</SelectItem>
-                <SelectItem value="amount_highest">Amount (High)</SelectItem>
-                <SelectItem value="amount_lowest">Amount (Low)</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
           {/* Action Buttons */}
@@ -1222,7 +1196,7 @@ export default function WorkOrdersPage() {
                 }
               }}
               disabled={loading || workPROLoading}
-              className="bg-white whitespace-nowrap"
+              className="bg-white dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700 dark:hover:bg-slate-700 whitespace-nowrap"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${(loading || workPROLoading) ? 'animate-spin' : ''}`} />
               Refresh
@@ -1244,9 +1218,9 @@ export default function WorkOrdersPage() {
               <Plus className="w-4 h-4 mr-2" />
               New Counter Sale
             </Button>
-            <Button 
+            <Button
               onClick={() => setShowNewWorkPROModal(true)}
-              className="bg-gray-700 hover:bg-gray-800 whitespace-nowrap"
+              className="bg-gray-700 hover:bg-gray-800 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-100 dark:border dark:border-slate-700 whitespace-nowrap"
             >
               <Plus className="w-4 h-4 mr-2" />
               New Project
@@ -1266,7 +1240,7 @@ export default function WorkOrdersPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Confirm Flush All Locks</DialogTitle>
-              <DialogDescription className="text-red-600 font-medium">
+              <DialogDescription className="text-red-600 dark:text-red-400 font-medium">
                 This will unlock all work orders. Progress of any unsaved work orders may not be saved. 
                 Verify that all open work orders are saved and closed across the platform before executing this.
               </DialogDescription>
@@ -1287,7 +1261,7 @@ export default function WorkOrdersPage() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Confirm Expire/Void Estimate</DialogTitle>
-              <DialogDescription className="text-red-600 font-medium space-y-2">
+              <DialogDescription className="text-red-600 dark:text-red-400 font-medium space-y-2">
                 <p>Are you sure you want to mark this Estimate as Expired/Void?</p>
                 <p>This is a permanent change.</p>
                 <p>It will remove it from the estimate tabs but it will still be visible as void under the vehicle history.</p>
@@ -1313,21 +1287,7 @@ export default function WorkOrdersPage() {
           onCreateWorkOrder={handleCreateNewWorkOrder}
         />
 
-        {showForm && (
-          <WorkOrderForm
-            workOrder={editingWorkOrder}
-            customers={customers}
-            vehicles={vehicles}
-            onSubmit={handleSubmit}
-            onCancel={() => {
-              setShowForm(false);
-              setEditingWorkOrder(null);
-            }}
-          />
-        )}
-
-        {!showForm && (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             
             {/* Section 2: Main Tabs */}
             <div className="w-full">
@@ -1346,7 +1306,7 @@ export default function WorkOrdersPage() {
                 </TabsTrigger>
                 <TabsTrigger 
                   value="workpro"
-                  className="data-[state=active]:bg-black data-[state=active]:text-white transition-all duration-200"
+                  className="data-[state=active]:bg-black dark:data-[state=active]:bg-slate-900 data-[state=active]:text-white transition-all duration-200"
                 >
                   WorkPRO
                 </TabsTrigger>
@@ -1367,7 +1327,7 @@ export default function WorkOrdersPage() {
 
             {/* Section 3: Status Filters - Conditional */}
             {(activeTab === 'estimates' || activeTab === 'work_in_progress' || activeTab === 'workpro' || activeTab === 'board') && (
-              <Card className="mb-6">
+              <Card className="mb-6 dark:bg-slate-900 dark:border-slate-800">
                 <CardContent className="p-1">
                   {/* Estimates Statuses */}
                   {activeTab === 'estimates' && (
@@ -1375,10 +1335,10 @@ export default function WorkOrdersPage() {
                       <TabsList className="flex w-full bg-transparent p-0">
                         <TabsTrigger 
                           value="all"
-                          className="flex-1 flex items-center justify-center gap-2 bg-slate-200 text-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-md m-0.5"
+                          className="flex-1 flex items-center justify-center gap-2 bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100 data-[state=active]:bg-slate-900 dark:data-[state=active]:bg-slate-700 data-[state=active]:text-white rounded-md m-0.5"
                         >
                           <span>All</span>
-                          <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
+                          <Badge variant="outline" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-slate-400 dark:border-slate-600">
                             {getWOCountByStatus('estimate', 'all')}
                           </Badge>
                         </TabsTrigger>
@@ -1389,7 +1349,7 @@ export default function WorkOrdersPage() {
                             className={`flex-1 flex items-center justify-center gap-2 rounded-md m-0.5 ${getStatusColorClasses(status.color, false)}`}
                           >
                             <span>{status.name}</span>
-                            <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
+                            <Badge variant="outline" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-slate-400 dark:border-slate-600">
                               {getWOCountByStatus('estimate', status.name)}
                             </Badge>
                           </TabsTrigger>
@@ -1404,10 +1364,10 @@ export default function WorkOrdersPage() {
                       <TabsList className="flex w-full bg-transparent p-0">
                         <TabsTrigger 
                           value="all"
-                          className="flex-1 flex items-center justify-center gap-2 bg-slate-200 text-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-md m-0.5"
+                          className="flex-1 flex items-center justify-center gap-2 bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100 data-[state=active]:bg-slate-900 dark:data-[state=active]:bg-slate-700 data-[state=active]:text-white rounded-md m-0.5"
                         >
                           <span>All</span>
-                          <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
+                          <Badge variant="outline" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-slate-400 dark:border-slate-600">
                             {getWOCountByStatus('work_order', 'all')}
                           </Badge>
                         </TabsTrigger>
@@ -1418,7 +1378,7 @@ export default function WorkOrdersPage() {
                             className={`flex-1 flex items-center justify-center gap-2 rounded-md m-0.5 ${getStatusColorClasses(status.color, false)}`}
                           >
                             <span>{status.name}</span>
-                            <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
+                            <Badge variant="outline" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-slate-400 dark:border-slate-600">
                               {getWOCountByStatus('work_order', status.name)}
                             </Badge>
                           </TabsTrigger>
@@ -1433,55 +1393,55 @@ export default function WorkOrdersPage() {
                       <TabsList className="flex w-full bg-transparent p-0">
                         <TabsTrigger 
                           value="to_do" 
-                          className="flex-1 flex items-center justify-center gap-2 bg-slate-200 text-slate-900 data-[state=active]:bg-slate-900 data-[state=active]:text-white rounded-md m-0.5"
+                          className="flex-1 flex items-center justify-center gap-2 bg-slate-200 dark:bg-slate-800 text-slate-900 dark:text-slate-100 data-[state=active]:bg-slate-900 dark:data-[state=active]:bg-slate-700 data-[state=active]:text-white rounded-md m-0.5"
                         >
                           <span>To Do</span>
-                          <Badge variant="outline" className="bg-white text-slate-900 border-slate-400">
+                          <Badge variant="outline" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 border-slate-400 dark:border-slate-600">
                             {getProjectCountByStatus('to_do')}
                           </Badge>
                         </TabsTrigger>
                         <TabsTrigger 
                           value="in_progress"
-                          className="flex-1 flex items-center justify-center gap-2 bg-blue-200 text-blue-900 data-[state=active]:bg-blue-600 data-[state=active]:text-white rounded-md m-0.5"
+                          className="flex-1 flex items-center justify-center gap-2 bg-blue-200 dark:bg-blue-900/50 text-blue-900 dark:text-blue-300 data-[state=active]:bg-blue-600 dark:data-[state=active]:bg-blue-700 data-[state=active]:text-white rounded-md m-0.5"
                         >
                           <span>In Progress</span>
-                          <Badge variant="outline" className="bg-white text-blue-600 border-blue-400">
+                          <Badge variant="outline" className="bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-300 border-blue-400 dark:border-blue-600">
                             {getProjectCountByStatus('in_progress')}
                           </Badge>
                         </TabsTrigger>
                         <TabsTrigger 
                           value="parts_needed"
-                          className="flex-1 flex items-center justify-center gap-2 bg-red-200 text-red-900 data-[state=active]:bg-red-600 data-[state=active]:text-white rounded-md m-0.5"
+                          className="flex-1 flex items-center justify-center gap-2 bg-red-200 dark:bg-red-900/50 text-red-900 dark:text-red-300 data-[state=active]:bg-red-600 dark:data-[state=active]:bg-red-700 data-[state=active]:text-white rounded-md m-0.5"
                         >
                           <span>Parts Needed</span>
-                          <Badge variant="outline" className="bg-white text-red-600 border-red-400">
+                          <Badge variant="outline" className="bg-white dark:bg-slate-900 text-red-600 dark:text-red-300 border-red-400 dark:border-red-600">
                             {getProjectCountByStatus('parts_needed')}
                           </Badge>
                         </TabsTrigger>
                         <TabsTrigger 
                           value="on_hold"
-                          className="flex-1 flex items-center justify-center gap-2 bg-orange-200 text-orange-900 data-[state=active]:bg-orange-500 data-[state=active]:text-white rounded-md m-0.5"
+                          className="flex-1 flex items-center justify-center gap-2 bg-orange-200 dark:bg-orange-900/50 text-orange-900 dark:text-orange-300 data-[state=active]:bg-orange-500 dark:data-[state=active]:bg-orange-700 data-[state=active]:text-white rounded-md m-0.5"
                         >
                           <span>On Hold</span>
-                          <Badge variant="outline" className="bg-white text-orange-500 border-orange-400">
+                          <Badge variant="outline" className="bg-white dark:bg-slate-900 text-orange-500 dark:text-orange-300 border-orange-400 dark:border-orange-600">
                             {getProjectCountByStatus('on_hold')}
                           </Badge>
                         </TabsTrigger>
                         <TabsTrigger 
                           value="done"
-                          className="flex-1 flex items-center justify-center gap-2 bg-green-200 text-green-900 data-[state=active]:bg-green-600 data-[state=active]:text-white rounded-md m-0.5"
+                          className="flex-1 flex items-center justify-center gap-2 bg-green-200 dark:bg-green-900/50 text-green-900 dark:text-green-300 data-[state=active]:bg-green-600 dark:data-[state=active]:bg-green-700 data-[state=active]:text-white rounded-md m-0.5"
                         >
                           <span>Done</span>
-                          <Badge variant="outline" className="bg-white text-green-600 border-green-400">
+                          <Badge variant="outline" className="bg-white dark:bg-slate-900 text-green-600 dark:text-green-300 border-green-400 dark:border-green-600">
                             {getProjectCountByStatus('done')}
                           </Badge>
                         </TabsTrigger>
                         <TabsTrigger 
                           value="archived"
-                          className="flex-1 flex items-center justify-center gap-2 bg-gray-300 text-gray-900 data-[state=active]:bg-gray-600 data-[state=active]:text-white rounded-md m-0.5"
+                          className="flex-1 flex items-center justify-center gap-2 bg-gray-300 dark:bg-gray-800 text-gray-900 dark:text-gray-300 data-[state=active]:bg-gray-600 dark:data-[state=active]:bg-gray-700 data-[state=active]:text-white rounded-md m-0.5"
                         >
                           <span>Archived</span>
-                          <Badge variant="outline" className="bg-white text-gray-600 border-gray-400">
+                          <Badge variant="outline" className="bg-white dark:bg-slate-900 text-gray-600 dark:text-gray-300 border-gray-400 dark:border-gray-600">
                             {getProjectCountByStatus('archived')}
                           </Badge>
                         </TabsTrigger>
@@ -1570,8 +1530,8 @@ export default function WorkOrdersPage() {
                   }}
                 />
 
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-lg border bg-white px-4 py-3">
-                  <div className="text-sm text-slate-600">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3">
+                  <div className="text-sm text-slate-600 dark:text-slate-400">
                     Page {invoicePage} of {Math.max(1, Math.ceil(invoiceTotalCount / INVOICES_PER_PAGE))} · {invoiceTotalCount} invoices
                   </div>
                   <div className="flex items-center gap-2">
@@ -1620,11 +1580,11 @@ export default function WorkOrdersPage() {
               ) : filteredWorkPROProjects.length === 0 ? (
                 <Card className="text-center py-12">
                   <CardContent>
-                    <div className="text-slate-400 mb-4">
+                    <div className="text-slate-400 dark:text-slate-600 mb-4">
                       <Wrench className="w-12 h-12 mx-auto" />
                     </div>
-                    <h3 className="text-lg font-semibold text-slate-900 mb-2">No Projects Found</h3>
-                    <p className="text-slate-600">No projects with status "{workPROStatusFilter.replace(/_/g, ' ')}".</p>
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">No Projects Found</h3>
+                    <p className="text-slate-600 dark:text-slate-400">No projects with status "{workPROStatusFilter.replace(/_/g, ' ')}".</p>
                   </CardContent>
                 </Card>
               ) : (
@@ -1640,12 +1600,12 @@ export default function WorkOrdersPage() {
                     return (
                       <Card 
                         key={project.id} 
-                        className="hover:shadow-lg transition-all duration-200 overflow-hidden border border-black shadow-sm"
+                        className="hover:shadow-lg transition-all duration-200 overflow-hidden border border-black dark:border-slate-700 dark:bg-slate-900 shadow-sm"
                       >
                         <CardContent className="p-0">
                           {/* Header Section - Clickable to open WorkPRO Modal */}
                           <div 
-                            className="p-6 border-b border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors"
+                            className="p-6 border-b border-slate-200 dark:border-slate-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleOpenWorkPROModal(e, project, workOrder);
@@ -1653,16 +1613,16 @@ export default function WorkOrdersPage() {
                           >
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex-1">
-                                <h3 className="text-xl font-bold text-slate-900 mb-1">
+                                <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-1">
                                   {project.customer || 'Unknown Customer'}
                                 </h3>
                                 {project.vehicle && (
-                                  <p className="text-sm text-slate-600 mb-1">
+                                  <p className="text-sm text-slate-600 dark:text-slate-400 mb-1">
                                     {project.vehicle}
                                   </p>
                                 )}
                                 {project.vin && (
-                                  <p className="text-xs text-slate-500">
+                                  <p className="text-xs text-slate-500 dark:text-slate-400">
                                     VIN: {project.vin}
                                   </p>
                                 )}
@@ -1670,19 +1630,19 @@ export default function WorkOrdersPage() {
                               <div className="flex items-center gap-2">
                                 {/* Clocked In Badge */}
                                 {projectTechTime[project.id]?.clockedInTechs?.length > 0 && (
-                                  <Badge className="bg-green-100 text-green-800 border-green-200">
+                                  <Badge className="bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800">
                                     Clocked in: {projectTechTime[project.id].clockedInTechs.join(', ')}
                                   </Badge>
                                 )}
                                 {/* Static clock icon - opens tech clock status modal */}
-                                <div 
-                                  className="p-1 rounded hover:bg-slate-200 cursor-pointer transition-colors"
+                                <div
+                                  className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer transition-colors"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     openTechClockStatusModal(project.id);
                                   }}
                                 >
-                                  <Clock className="w-5 h-5 text-blue-500" />
+                                  <Clock className="w-5 h-5 text-blue-500 dark:text-blue-400" />
                                 </div>
                               </div>
                             </div>
@@ -1691,17 +1651,17 @@ export default function WorkOrdersPage() {
                             <div className="grid grid-cols-2 gap-4 text-sm">
                               {/* Left Side: Tech Assigned and Created Date */}
                               <div className="space-y-1">
-                                <div className="flex items-center gap-1 text-slate-600">
+                                <div className="flex items-center gap-1 text-slate-600 dark:text-slate-400">
                                   <Users className="w-4 h-4" />
                                   <span>{employeesDisplay}</span>
                                 </div>
                                 {project.created_date && !isNaN(new Date(project.created_date).getTime()) && (
-                                  <p className="text-xs text-slate-500 pl-5">
+                                  <p className="text-xs text-slate-500 dark:text-slate-400 pl-5">
                                     Created: {format(new Date(project.created_date), 'MMM d, yyyy')}
                                   </p>
                                 )}
                                 {project.status === 'archived' && project.date_archived && !isNaN(new Date(project.date_archived).getTime()) && (
-                                  <p className="text-xs text-slate-500 pl-5">
+                                  <p className="text-xs text-slate-500 dark:text-slate-400 pl-5">
                                     Archived: {format(new Date(project.date_archived), 'MMM d, yyyy')}
                                   </p>
                                 )}
@@ -1711,33 +1671,33 @@ export default function WorkOrdersPage() {
                               <div className="flex items-center justify-end">
                                 {project.work_order ? (
                                   <div 
-                                    className="bg-blue-50 border border-blue-200 rounded-md px-4 py-2 cursor-pointer hover:bg-blue-100 transition-colors min-w-[180px]"
+                                    className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-md px-4 py-2 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors min-w-[180px]"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleOpenWorkOrder(project.work_order);
                                     }}
                                   >
                                     <div className="flex items-center gap-2">
-                                      <FileText className="w-4 h-4 text-blue-600" />
+                                      <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                                       <div>
-                                        <p className="text-xs font-semibold text-blue-900">Work Order Connected</p>
-                                        <p className="text-xs text-blue-700">WO: {project.work_order}</p>
+                                        <p className="text-xs font-semibold text-blue-900 dark:text-blue-100">Work Order Connected</p>
+                                        <p className="text-xs text-blue-700 dark:text-blue-300">WO: {project.work_order}</p>
                                       </div>
                                     </div>
                                   </div>
                                 ) : (
                                   <div 
-                                    className="bg-white border border-slate-300 rounded-md px-4 py-2 cursor-pointer hover:bg-slate-50 transition-colors min-w-[180px]"
+                                    className="bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-md px-4 py-2 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors min-w-[180px]"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       handleOpenConnectorModal(e, project);
                                     }}
                                   >
                                     <div className="flex items-center gap-2">
-                                      <LinkIcon className="w-4 h-4 text-slate-500" />
+                                      <LinkIcon className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                                       <div>
-                                        <p className="text-xs font-semibold text-slate-700">No Work Order</p>
-                                        <p className="text-xs text-slate-500">Click to connect</p>
+                                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">No Work Order</p>
+                                        <p className="text-xs text-slate-500 dark:text-slate-400">Click to connect</p>
                                       </div>
                                     </div>
                                   </div>
@@ -1749,14 +1709,14 @@ export default function WorkOrdersPage() {
                           {/* Appointments Section - Only show if work order is connected AND found */}
                           {workOrder && project.work_order && (
                             <div 
-                              className="px-6 py-3 border-b border-slate-200 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors"
+                              className="px-6 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                               onClick={(e) => handleOpenAppointmentsModal(e, workOrder)}
                             >
                               <div className="flex items-center gap-2">
-                                <Calendar className={`w-4 h-4 ${appointmentInfo?.isFuture ? 'text-green-600' : 'text-slate-400'}`} />
+                                <Calendar className={`w-4 h-4 ${appointmentInfo?.isFuture ? 'text-green-600 dark:text-green-500' : 'text-slate-400 dark:text-slate-500'}`} />
                                 <div>
-                                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Appointments</p>
-                                  <p className={`text-sm ${appointmentInfo?.isFuture ? 'text-green-700 font-medium' : 'text-slate-600'}`}>
+                                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide">Appointments</p>
+                                  <p className={`text-sm ${appointmentInfo?.isFuture ? 'text-green-700 dark:text-green-400 font-medium' : 'text-slate-600 dark:text-slate-300'}`}>
                                     {appointmentInfo?.text || 'No Appointments'}
                                   </p>
                                 </div>
@@ -1767,27 +1727,27 @@ export default function WorkOrdersPage() {
                           {/* Task Section - Clickable */}
                           {project.task ? (
                             <div 
-                              className="px-6 py-4 border-b border-slate-200 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors"
+                              className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                               onClick={(e) => handleOpenTaskModal(e, project, workOrder)}
                             >
                               <div className="flex items-start gap-2">
-                                <FileText className="w-4 h-4 text-slate-600 mt-0.5" />
+                                <FileText className="w-4 h-4 text-slate-600 dark:text-slate-400 mt-0.5" />
                                 <div className="flex-1">
-                                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">Task</p>
-                                  <p className="text-sm text-slate-900">{project.task}</p>
+                                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">Task</p>
+                                  <p className="text-sm text-slate-900 dark:text-slate-200">{project.task}</p>
                                 </div>
                               </div>
                             </div>
                           ) : (
                             <div 
-                              className="px-6 py-4 border-b border-slate-200 bg-slate-50 cursor-pointer hover:bg-slate-100 transition-colors"
+                              className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                               onClick={(e) => handleOpenTaskModal(e, project, workOrder)}
                             >
                               <div className="flex items-start gap-2">
-                                <FileText className="w-4 h-4 text-slate-400 mt-0.5" />
+                                <FileText className="w-4 h-4 text-slate-400 dark:text-slate-500 mt-0.5" />
                                 <div className="flex-1">
-                                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">Task</p>
-                                  <p className="text-sm text-slate-400 italic">No task defined - click to add</p>
+                                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">Task</p>
+                                  <p className="text-sm text-slate-400 dark:text-slate-500 italic">No task defined - click to add</p>
                                 </div>
                               </div>
                             </div>
@@ -1796,42 +1756,42 @@ export default function WorkOrdersPage() {
                           {/* Description Section - Clickable */}
                           {project.description ? (
                             <div 
-                              className="px-6 py-4 border-b border-slate-200 bg-white cursor-pointer hover:bg-slate-50 transition-colors"
+                              className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
                               onClick={(e) => handleOpenDescriptionModal(e, project, workOrder)}
                             >
                               <div className="flex items-start gap-2">
-                                <FileText className="w-4 h-4 text-slate-600 mt-0.5" />
+                                <FileText className="w-4 h-4 text-slate-600 dark:text-slate-400 mt-0.5" />
                                 <div className="flex-1">
-                                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">Description</p>
-                                  <p className="text-sm text-slate-700">{project.description}</p>
+                                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">Description</p>
+                                  <p className="text-sm text-slate-700 dark:text-slate-300">{project.description}</p>
                                 </div>
                               </div>
                             </div>
                           ) : (
                             <div 
-                              className="px-6 py-4 border-b border-slate-200 bg-white cursor-pointer hover:bg-slate-50 transition-colors"
+                              className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
                               onClick={(e) => handleOpenDescriptionModal(e, project, workOrder)}
                             >
                               <div className="flex items-start gap-2">
-                                <FileText className="w-4 h-4 text-slate-400 mt-0.5" />
+                                <FileText className="w-4 h-4 text-slate-400 dark:text-slate-500 mt-0.5" />
                                 <div className="flex-1">
-                                  <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">Description</p>
-                                  <p className="text-sm text-slate-400 italic">No description provided - click to add</p>
+                                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase tracking-wide mb-1">Description</p>
+                                  <p className="text-sm text-slate-400 dark:text-slate-500 italic">No description provided - click to add</p>
                                 </div>
                               </div>
                             </div>
                           )}
 
                           {/* Footer Section */}
-                          <div className="px-6 py-4 bg-slate-50">
+                          <div className="px-6 py-4 bg-slate-50 dark:bg-slate-900/50">
                             <div className="flex items-center justify-between flex-wrap gap-3">
                               <div className="flex items-center gap-3">
                                 {getStatusBadge(project.status)}
                                 {/* Tech Time Logged Badge - Clickable */}
                                 {projectTechTime[project.id] && (
-                                  <Badge 
-                                    variant="outline" 
-                                    className="bg-purple-50 text-purple-700 border-purple-200 cursor-pointer hover:bg-purple-100 transition-colors"
+                                  <Badge
+                                    variant="outline"
+                                    className="bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800 cursor-pointer hover:bg-purple-100 dark:hover:bg-purple-900/50 transition-colors"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setSelectedProject(project);
@@ -1843,13 +1803,13 @@ export default function WorkOrdersPage() {
                                 )}
 
                                 {project.odometer_reading && (
-                                  <span className="text-sm text-slate-600">
+                                  <span className="text-sm text-slate-600 dark:text-slate-400">
                                     {project.odometer_reading.toLocaleString()} km
                                   </span>
                                 )}
                               </div>
                               {project.time_estimate && (
-                                <div className="flex items-center gap-1 text-sm text-slate-600">
+                                <div className="flex items-center gap-1 text-sm text-slate-600 dark:text-slate-400">
                                   <Clock className="w-4 h-4" />
                                   <span>{project.time_estimate}h estimated</span>
                                 </div>
@@ -1858,7 +1818,7 @@ export default function WorkOrdersPage() {
 
                             {/* Warning/Status Messages */}
                             {project.status === 'parts_needed' && (
-                              <div className="mt-3 flex items-center gap-2 text-sm text-orange-700 bg-orange-50 px-3 py-2 rounded-md border border-orange-200">
+                              <div className="mt-3 flex items-center gap-2 text-sm text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-900/30 px-3 py-2 rounded-md border border-orange-200 dark:border-orange-800">
                                 <AlertTriangle className="w-4 h-4" />
                                 <span>Parts needed for completion</span>
                               </div>
@@ -1888,7 +1848,6 @@ export default function WorkOrdersPage() {
             </TabsContent>
 
           </Tabs>
-        )}
       </div>
 
       {/* WorkPRO Modals */}

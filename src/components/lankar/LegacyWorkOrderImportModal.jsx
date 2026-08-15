@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Upload, FileText, Check, AlertCircle, Search } from "lucide-react";
-import { base44 } from "@/api/base44Client";
-import { Customer, Vehicle, InventoryItem, ChartOfAccount } from "@/entities/all";
+import { supabase } from "@/lib/supabase";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -56,10 +55,15 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
     React.useEffect(() => {
         if (open) {
             const loadData = async () => {
-                const accounts = await ChartOfAccount.list();
-                const filtered = accounts
+                const { data: accounts, error } = await supabase.from('ChartOfAccount').select('*');
+                if (error) {
+                    console.error('Error loading chart of accounts:', error);
+                    setGlAccounts([]);
+                    return;
+                }
+                const filtered = (accounts || [])
                     .filter(a => a.is_active && !a.controlled)
-                    .sort((a, b) => (a.account_number || '').localeCompare(b.account_number || '', undefined, { numeric: true }));
+                    .sort((a, b) => String(a.account_number || '').localeCompare(String(b.account_number || ''), undefined, { numeric: true }));
                 setGlAccounts(filtered);
             };
             loadData();
@@ -85,94 +89,58 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                 uploadFile = new File([file], newName, { type: 'application/pdf' });
             }
 
-            // 1. Upload File
-            const { file_url } = await base44.integrations.Core.UploadFile({ file: uploadFile });
-            
-            setProcessingStatus('Extracting data with AI...');
-            
-            // 2. Extract Data using ExtractDataFromUploadedFile (better PDF support)
-            const jsonSchema = {
-                type: "object",
-                properties: {
-                    customer_info: {
-                        type: "object",
-                        properties: {
-                            name: { type: "string" },
-                            phone: { type: "string" },
-                            email: { type: "string" }
-                        },
-                        required: ["name"]
-                    },
-                    vehicle_info: {
-                        type: "object",
-                        properties: {
-                            vin: { type: "string" },
-                            year: { type: "number" },
-                            make: { type: "string" },
-                            model: { type: "string" },
-                            license_plate: { type: "string" },
-                            odometer: { type: "number" }
-                        },
-                        required: ["vin", "make", "model"]
-                    },
-                    invoice_details: {
-                        type: "object",
-                        properties: {
-                            invoice_number: { type: "string" },
-                            invoice_date: { type: "string", format: "date" },
-                            description: { type: "string" },
-                            po_number: { type: "string" }
-                        }
-                    },
-                    line_items: {
-                        type: "array",
-                        description: "Extract ALL rows from the table, including parts, labor, AND descriptive comment lines (lines starting with - or containing notes but no price). For comment lines, quantity and price can be 0 or null.",
-                        items: {
-                            type: "object",
-                            properties: {
-                                part_number: { type: "string" },
-                                description: { type: "string" },
-                                quantity: { type: "number" },
-                                unit_price: { type: "number" },
-                                total_price: { type: "number" },
-                                is_labor: { type: "boolean" },
-                                is_taxable: { type: "boolean" },
-                                is_note: { type: "boolean", description: "True if this is just a comment/note line without a price" }
-                            },
-                            required: ["description"]
-                        }
-                    },
-                    totals: {
-                        type: "object",
-                        properties: {
-                            subtotal: { type: "number" },
-                            tax_amount: { type: "number" },
-                            total_amount: { type: "number" }
-                        }
-                    }
-                },
-                required: ["customer_info", "vehicle_info", "line_items", "totals"]
-            };
+            // 1. Upload File to native Storage
+            const fileExt = uploadFile.name.split('.').pop();
+            const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+            const storagePath = `temp/${fileName}`;
 
-            const extractionRes = await base44.integrations.Core.ExtractDataFromUploadedFile({
-                file_url,
-                json_schema: jsonSchema
-            });
-
-            if (extractionRes.status === 'error') {
-                throw new Error(extractionRes.details || 'Failed to extract data from file');
+            const { error: uploadError } = await supabase.storage
+                .from('kadr-digital_invoice_uploads')
+                .upload(storagePath, uploadFile);
+            if (uploadError) {
+                throw new Error(`Failed to upload file to storage: ${uploadError.message}`);
             }
 
-            const data = extractionRes.output;
+            setProcessingStatus('Extracting data with AI...');
+
+            // 2. Extract Data via the native processLegacyWorkOrder function (extract mode)
+            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+            const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+            const { data: { session } } = await supabase.auth.getSession();
+            const jwtToken = session?.access_token || supabaseAnonKey;
+
+            const extractResponse = await fetch(`${supabaseUrl}/functions/v1/autopro-processLegacyWorkOrder?mode=extract`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${jwtToken}`
+                },
+                body: JSON.stringify({
+                    storagePath,
+                    mimeType: uploadFile.type || 'application/pdf'
+                })
+            });
+
+            const extractionRes = await extractResponse.json();
+
+            if (!extractResponse.ok || !extractionRes.success) {
+                throw new Error(extractionRes.error || 'Failed to extract data from file');
+            }
+
+            const data = extractionRes.data;
 
             // 3. Pre-fetch Matching Records
             setProcessingStatus('Matching records...');
-            
+
             // Fetch all customers/vehicles for client-side search (assuming reasonable size, otherwise search via API)
-            const [allCustomers, allVehicles] = await Promise.all([
-                Customer.list(),
-                Vehicle.list()
+            const [customersResult, vehiclesResult] = await Promise.all([
+                supabase.from('Customer').select('*'),
+                supabase.from('Vehicle').select('*')
             ]);
+            if (customersResult.error) throw customersResult.error;
+            if (vehiclesResult.error) throw vehiclesResult.error;
+            const allCustomers = customersResult.data || [];
+            const allVehicles = vehiclesResult.data || [];
             setCustomers(allCustomers);
             setVehicles(allVehicles);
 
@@ -202,13 +170,17 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                 // If we have a part number, try to match it
                 if (cleanPartNumber && !item.is_labor) {
                     // Try exact match first
-                    let existingParts = await InventoryItem.filter({ part_number: cleanPartNumber });
-                    
+                    const exactResult = await supabase.from('InventoryItem').select('*').eq('part_number', cleanPartNumber);
+                    if (exactResult.error) throw exactResult.error;
+                    let existingParts = exactResult.data || [];
+
                     // If no match, try swapping 'O' and '0' as a fallback
                     if (existingParts.length === 0 && (cleanPartNumber.includes('O') || cleanPartNumber.includes('0'))) {
                         const swappedPartNumber = cleanPartNumber.replace(/O/g, '0'); // Try replacing O with 0 first (most common error)
                         if (swappedPartNumber !== cleanPartNumber) {
-                             const swappedMatch = await InventoryItem.filter({ part_number: swappedPartNumber });
+                             const swappedResult = await supabase.from('InventoryItem').select('*').eq('part_number', swappedPartNumber);
+                             if (swappedResult.error) throw swappedResult.error;
+                             const swappedMatch = swappedResult.data || [];
                              if (swappedMatch.length > 0) {
                                  existingParts = swappedMatch;
                                  cleanPartNumber = swappedPartNumber; // Update to the matched one
@@ -284,13 +256,14 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                 odometer: extractedData.vehicle_info?.odometer // Pass odometer explicitly
             };
 
-            const response = await base44.functions.invoke('processLegacyWorkOrder', payload);
-            
-            if (response.data.success) {
+            const { data, error: invokeError } = await supabase.functions.invoke('autopro-processLegacyWorkOrder', { body: payload });
+            if (invokeError) throw invokeError;
+
+            if (data.success) {
                 alert("Legacy Work Order Imported Successfully!");
                 onClose();
             } else {
-                throw new Error(response.data.error || 'Unknown error');
+                throw new Error(data.error || 'Unknown error');
             }
 
         } catch (error) {
@@ -465,9 +438,9 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
 
                     {step === 1 && (
                         <div className="py-8 space-y-4 text-center">
-                            <div className="border-2 border-dashed border-slate-300 rounded-lg p-10 hover:bg-slate-50 transition-colors">
-                                <Upload className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                                <Label htmlFor="wo-upload" className="block text-lg font-medium text-slate-700 mb-2">
+                            <div className="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg p-10 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                                <Upload className="w-12 h-12 text-slate-400 dark:text-slate-500 mx-auto mb-4" />
+                                <Label htmlFor="wo-upload" className="block text-lg font-medium text-slate-700 dark:text-slate-300 mb-2">
                                     Upload Work Order PDF
                                 </Label>
                                 <Input 
@@ -497,8 +470,8 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                 {/* Customer Selection */}
                                 <div className="space-y-2">
                                     <Label>Customer</Label>
-                                    <div className="text-sm text-slate-500 mb-1">
-                                        Extracted: <span className="font-medium text-slate-900">{extractedData.customer_info?.name}</span>
+                                    <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">
+                                        Extracted: <span className="font-medium text-slate-900 dark:text-slate-100">{extractedData.customer_info?.name}</span>
                                     </div>
                                     <Popover>
                                         <PopoverTrigger asChild>
@@ -537,8 +510,8 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                 {/* Vehicle Selection */}
                                 <div className="space-y-2">
                                     <Label>Vehicle</Label>
-                                    <div className="text-sm text-slate-500 mb-1">
-                                        Extracted: <span className="font-medium text-slate-900">{extractedData.vehicle_info?.make} {extractedData.vehicle_info?.model} ({extractedData.vehicle_info?.vin})</span>
+                                    <div className="text-sm text-slate-500 dark:text-slate-400 mb-1">
+                                        Extracted: <span className="font-medium text-slate-900 dark:text-slate-100">{extractedData.vehicle_info?.make} {extractedData.vehicle_info?.model} ({extractedData.vehicle_info?.vin})</span>
                                     </div>
                                     <Popover>
                                         <PopoverTrigger asChild>
@@ -578,21 +551,21 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                             </div>
 
                             {/* Invoice Details */}
-                            <div className="grid grid-cols-3 gap-4 p-4 bg-slate-50 rounded-md">
+                            <div className="grid grid-cols-3 gap-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-md">
                                 <div>
-                                    <Label className="text-xs text-slate-500">Document #</Label>
+                                    <Label className="text-xs text-slate-500 dark:text-slate-400">Document #</Label>
                                     <div className="font-medium">{extractedData.invoice_details?.invoice_number || 'N/A'}</div>
                                 </div>
                                 <div>
-                                    <Label className="text-xs text-slate-500">Date</Label>
+                                    <Label className="text-xs text-slate-500 dark:text-slate-400">Date</Label>
                                     <div className="font-medium">{extractedData.invoice_details?.invoice_date || 'N/A'}</div>
                                 </div>
                                 <div>
-                                    <Label className="text-xs text-slate-500">Total Amount</Label>
+                                    <Label className="text-xs text-slate-500 dark:text-slate-400">Total Amount</Label>
                                     <div className="font-medium">${extractedData.totals?.total_amount?.toFixed(2) || '0.00'}</div>
                                 </div>
                                 <div>
-                                    <Label className="text-xs text-slate-500">Odometer</Label>
+                                    <Label className="text-xs text-slate-500 dark:text-slate-400">Odometer</Label>
                                     <Input 
                                         type="number"
                                         className="h-8 mt-1"
@@ -634,13 +607,13 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                                             <>
                                                                 {item.part_number}
                                                                 {item.inventory_match && (
-                                                                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-800">
+                                                                    <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300">
                                                                         Found
                                                                     </span>
                                                                 )}
                                                             </>
                                                         ) : (
-                                                            <span className="italic text-slate-500">
+                                                            <span className="italic text-slate-500 dark:text-slate-400">
                                                                 {item.is_other_charge ? 'Other Charge' : (item.is_labor ? 'Labour' : 'Unclassified')}
                                                             </span>
                                                         )}
@@ -667,7 +640,7 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                                                         />
                                                                         <label 
                                                                             htmlFor={`new-part-${idx}`} 
-                                                                            className="text-xs cursor-pointer select-none text-blue-600 font-medium"
+                                                                            className="text-xs cursor-pointer select-none text-blue-600 dark:text-blue-400 font-medium"
                                                                         >
                                                                             Add
                                                                         </label>
@@ -677,7 +650,7 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                                                     variant="ghost" 
                                                                     size="sm" 
                                                                     onClick={() => handleOpenPartInfo(idx)}
-                                                                    className="text-blue-600 h-7 px-2 text-xs"
+                                                                    className="text-blue-600 dark:text-blue-400 h-7 px-2 text-xs"
                                                                 >
                                                                     Part Info
                                                                 </Button>
@@ -687,7 +660,7 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                                                 variant="ghost" 
                                                                 size="sm" 
                                                                 onClick={() => handleOpenClassify(idx)}
-                                                                className="text-blue-600 h-8 px-2"
+                                                                className="text-blue-600 dark:text-blue-400 h-8 px-2"
                                                             >
                                                                 Classify
                                                             </Button>
@@ -791,7 +764,7 @@ export default function LegacyWorkOrderImportModal({ open, onClose }) {
                                 onChange={(e) => setQtyOnOrder(e.target.value)} 
                                 placeholder="0"
                             />
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
                                 Enter quantity currently on order (max {extractedData?.line_items[costItemIndex]?.quantity || 0}).
                             </p>
                         </div>

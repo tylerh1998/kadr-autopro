@@ -42,7 +42,7 @@ export default function WorkOrderHistoryDetailModal({ open, onClose, record, all
         <div className="flex items-start justify-between gap-6 pb-4 pr-1">
           <DialogHeader className="flex-1 space-y-1 pt-1 text-left">
             <DialogTitle>{currentVersionTitle}</DialogTitle>
-            <p className="text-sm leading-snug text-slate-500">
+            <p className="text-sm leading-snug text-slate-500 dark:text-slate-400">
               Comparing this version to {comparisonRecord ? `${comparisonRecord.changed_by_display || 'System'} on ${formatDateTime?.(comparisonRecord.changed_at) || 'the previous saved version'}` : 'the previous saved version'}.
             </p>
           </DialogHeader>
@@ -54,7 +54,7 @@ export default function WorkOrderHistoryDetailModal({ open, onClose, record, all
                 variant="outline"
                 disabled={!previousRecord}
                 onClick={() => previousRecord && onSelectRecord?.(previousRecord)}
-                className="h-11 border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-11 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 text-sm font-semibold text-slate-700 dark:text-slate-300 shadow-sm hover:bg-slate-100 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 &lt; Prev Version
               </Button>
@@ -63,7 +63,7 @@ export default function WorkOrderHistoryDetailModal({ open, onClose, record, all
                 variant="outline"
                 disabled={!nextRecord}
                 onClick={() => nextRecord && onSelectRecord?.(nextRecord)}
-                className="h-11 border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                className="h-11 border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 text-sm font-semibold text-slate-700 dark:text-slate-300 shadow-sm hover:bg-slate-100 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 Next Version &gt;
               </Button>
@@ -77,7 +77,7 @@ export default function WorkOrderHistoryDetailModal({ open, onClose, record, all
               </Button>
             </div>
             {record?.session_id && (
-              <div className="w-full text-right text-xs font-mono text-slate-400">
+              <div className="w-full text-right text-xs font-mono text-slate-400 dark:text-slate-500">
                 {record.session_id}
               </div>
             )}

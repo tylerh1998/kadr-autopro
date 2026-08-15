@@ -1,3 +1,4 @@
+import { supabase } from '@/lib/supabase';
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -7,7 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { CalendarIcon, Save, X, Loader2, AlertCircle } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 
 
 // Helper function to format date for input field (MM/DD/YYYY)
@@ -128,6 +129,7 @@ const extractQuantityFromDescription = (description) => {
 };
 
 export default function EditInventoryTransactionModal({ isOpen, onClose, transaction, onUpdate }) {
+  const { employee } = useAuth();
   const [formData, setFormData] = useState({
     invoice_number: '',
     invoice_date: '',
@@ -148,16 +150,13 @@ export default function EditInventoryTransactionModal({ isOpen, onClose, transac
     const checkLock = async () => {
       if (transaction?.supplier_id) {
         try {
-          const [currentUser, response] = await Promise.all([
-            base44.auth.me(),
-            base44.functions.invoke('SupabaseProxy', {
-              action: 'read',
-              table: 'Supplier',
-              match: { id: transaction.supplier_id }
-            })
-          ]);
-          const supplier = response.data?.data?.[0];
-          const userEmail = currentUser?.email || null;
+          const { data: supplierRows, error: supplierError } = await supabase
+            .from('Supplier')
+            .select('*')
+            .eq('id', transaction.supplier_id);
+          if (supplierError) throw supplierError;
+          const supplier = supplierRows?.[0];
+          const userEmail = employee?.email || null;
           setCurrentUserEmail(userEmail);
 
           if (supplier?.LockedByUser && supplier.LockedByUser !== userEmail) {
@@ -304,13 +303,15 @@ export default function EditInventoryTransactionModal({ isOpen, onClose, transac
     setError(null);
 
     try {
-      const response = await base44.functions.invoke('processInventoryReceipt', {
-        action: 'edit',
-        supplier_invoice_line_id: transaction.id,
-        invoice_number: formData.invoice_number,
-        invoice_date: formData.invoice_date,
-        quantity: parseFloat(formData.quantity),
-        amount_per_unit: parseFloat(formData.amount_per_unit)
+      const response = await supabase.functions.invoke('autopro-processInventoryReceipt', {
+        body: {
+          action: 'edit',
+          supplier_invoice_line_id: transaction.id,
+          invoice_number: formData.invoice_number,
+          invoice_date: formData.invoice_date,
+          quantity: parseFloat(formData.quantity),
+          amount_per_unit: parseFloat(formData.amount_per_unit)
+        }
       });
 
       if (response.data && response.data.success) {
@@ -353,11 +354,11 @@ export default function EditInventoryTransactionModal({ isOpen, onClose, transac
         <div className="space-y-4 py-4">
           {/* Error Message */}
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-3 flex items-start gap-2">
+              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
               <div className="flex-1">
-                <p className="text-sm font-medium text-red-800">Error</p>
-                <p className="text-sm text-red-700 mt-1">{error}</p>
+                <p className="text-sm font-medium text-red-800 dark:text-red-300">Error</p>
+                <p className="text-sm text-red-700 dark:text-red-400 mt-1">{error}</p>
               </div>
             </div>
           )}
@@ -384,7 +385,7 @@ export default function EditInventoryTransactionModal({ isOpen, onClose, transac
                 onChange={(e) => handleInvoiceDateChange(e.target.value)}
                 onBlur={handleInvoiceDateBlur}
                 placeholder="MM/DD/YYYY"
-                className={`flex-1 ${dateError ? 'text-red-600 border-red-500' : ''}`}
+                className={`flex-1 ${dateError ? 'text-red-600 dark:text-red-400 border-red-500 dark:border-red-700' : ''}`}
                 title={dateError || ''}
                 disabled={saving}
               />
@@ -410,7 +411,7 @@ export default function EditInventoryTransactionModal({ isOpen, onClose, transac
               </Popover>
             </div>
             {dateError && (
-              <p className="text-sm text-red-600">{dateError}</p>
+              <p className="text-sm text-red-600 dark:text-red-400">{dateError}</p>
             )}
           </div>
 
@@ -443,10 +444,10 @@ export default function EditInventoryTransactionModal({ isOpen, onClose, transac
           </div>
 
           {/* Calculated Total */}
-          <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
+          <div className="bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-3">
             <div className="flex justify-between items-center">
-              <span className="text-sm font-medium text-slate-700">Total Charge:</span>
-              <span className="text-lg font-bold text-slate-900">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Total Charge:</span>
+              <span className="text-lg font-bold text-slate-900 dark:text-slate-100">
                 ${(parseFloat(formData.quantity || 0) * parseFloat(formData.amount_per_unit || 0)).toFixed(2)}
               </span>
             </div>

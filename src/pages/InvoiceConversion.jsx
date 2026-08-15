@@ -1,12 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { WorkOrder, SystemSettings } from '@/entities/all';
-import { getworkorderdata } from '@/functions/getworkorderdata';
-import { saveworkorderdata } from '@/functions/saveworkorderdata';
+import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Copy, Printer, Mail, ExternalLink, Loader2, X, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
-import { base44 } from '@/api/base44Client';
 import WorkOrderReport from '../components/work-orders/WorkOrderReport';
 import SESEmailModal from '../components/work-orders/SESEmailModal';
 import WorkOrderPdfModal from '../components/work-orders/WorkOrderPdfModal';
@@ -42,19 +39,39 @@ export default function InvoiceConversion() {
         console.log('RO Number:', roNumber);
 
         // Fetch work order
-        const workOrderResponse = await getworkorderdata({ ro_number: roNumber });
-        const wo = workOrderResponse?.data?.data;
+        const { data: workOrderData, error: workOrderError } = await supabase
+          .from('WorkOrder')
+          .select('*')
+          .eq('ro_number', roNumber)
+          .limit(1)
+          .maybeSingle();
+        if (workOrderError) console.error('Error fetching WorkOrder:', workOrderError);
+
+        let wo = workOrderData;
         if (!wo) {
           setError(`Work order with RO number ${roNumber} not found.`);
           setLoading(false);
           return;
+        }
+
+        if (wo.customer_id) {
+          const { data: customerData, error: customerError } = await supabase
+            .from('Customer').select('*').eq('id', wo.customer_id).limit(1).maybeSingle();
+          if (customerError) console.error('Error fetching Customer:', customerError);
+          wo = { ...wo, customer_details: customerData };
+        }
+        if (wo.vehicle_id) {
+          const { data: vehicleData, error: vehicleError } = await supabase
+            .from('Vehicle').select('*').eq('id', wo.vehicle_id).limit(1).maybeSingle();
+          if (vehicleError) console.error('Error fetching Vehicle:', vehicleError);
+          wo = { ...wo, vehicle_details: vehicleData };
         }
         console.log('Work Order fetched:', wo);
 
         // Parse line items early and store in state
         let parsedLineItems = [];
         try {
-          parsedLineItems = wo.line_items ? JSON.parse(wo.line_items) : [];
+          parsedLineItems = wo.line_items ? (typeof wo.line_items === 'string' ? JSON.parse(wo.line_items) : wo.line_items) : [];
           console.log('Parsed line items:', parsedLineItems.length);
         } catch (e) {
           console.error('Error parsing line_items:', e);
@@ -72,22 +89,26 @@ export default function InvoiceConversion() {
           } else {
             console.log('=== Creating missing customer portal snapshot ===');
             try {
-              const snapshotResponse = await base44.functions.invoke('createPortalSnapshot', {
-                work_order_id: currentWo.id
+              const { data: snapshotData, error: snapshotInvokeError } = await supabase.functions.invoke('autopro-createPortalSnapshot', {
+                body: { work_order_id: currentWo.id }
               });
-              
-              if (snapshotResponse.data && snapshotResponse.data.cp_id) {
-                console.log('Portal snapshot created:', snapshotResponse.data.cp_id);
-                const newPortalUrl = `https://portal.kensauto.ca/WorkOrder?cp_id=${snapshotResponse.data.cp_id}`;
+              if (snapshotInvokeError) throw snapshotInvokeError;
+
+              if (snapshotData && snapshotData.cp_id) {
+                console.log('Portal snapshot created:', snapshotData.cp_id);
+                const newPortalUrl = `https://portal.kensauto.ca/WorkOrder?cp_id=${snapshotData.cp_id}`;
                 setPortalUrl(newPortalUrl);
-                
-                await saveworkorderdata({
-                  ro_number: currentWo.ro_number,
-                  data: { cp_id: snapshotResponse.data.cp_id }
+
+                const { error: saveError } = await supabase.functions.invoke('autopro-saveworkorderdata', {
+                  body: {
+                    ro_number: currentWo.ro_number,
+                    data: { cp_id: snapshotData.cp_id }
+                  }
                 });
-                currentWo.cp_id = snapshotResponse.data.cp_id;
+                if (saveError) throw new Error(saveError.message || JSON.stringify(saveError));
+                currentWo.cp_id = snapshotData.cp_id;
               } else {
-                console.error('Portal snapshot creation failed:', snapshotResponse.data?.error);
+                console.error('Portal snapshot creation failed:', snapshotData?.error);
               }
             } catch (snapshotError) {
               console.error('Error creating portal snapshot:', snapshotError);
@@ -100,7 +121,9 @@ export default function InvoiceConversion() {
           
           // Parse and display accounting summary if available
           try {
-            const accountingDetails = JSON.parse(currentWo.accounting_details);
+            const accountingDetails = typeof currentWo.accounting_details === 'string'
+              ? JSON.parse(currentWo.accounting_details)
+              : currentWo.accounting_details;
             const summary = {
               total_transactions: accountingDetails.length,
               message: 'Accounting entries already posted'
@@ -121,7 +144,8 @@ export default function InvoiceConversion() {
 
         // Fetch system settings
         console.log('Fetching system settings');
-        const systemSettingsList = await SystemSettings.list();
+        const { data: systemSettingsList, error: systemSettingsError } = await supabase.from('SystemSettings').select('*');
+        if (systemSettingsError) console.error('Error fetching SystemSettings:', systemSettingsError);
         const systemSettings = systemSettingsList && systemSettingsList.length > 0 ? systemSettingsList[0] : {};
         setWipLegal(systemSettings?.wip_legal || '');
         setDefaultMessage(systemSettings?.default_message || '');
@@ -131,7 +155,7 @@ export default function InvoiceConversion() {
         let payments = [];
         
         try {
-          payments = wo.payments ? JSON.parse(wo.payments) : [];
+          payments = wo.payments ? (typeof wo.payments === 'string' ? JSON.parse(wo.payments) : wo.payments) : [];
           console.log('Parsed payments:', payments.length);
         } catch (e) {
           console.error('Error parsing payments:', e);
@@ -172,30 +196,28 @@ export default function InvoiceConversion() {
           
           // Increment and save next_inv_number
           if (systemSettingsList && systemSettingsList.length > 0) {
-            await SystemSettings.update(systemSettingsList[0].id, {
-              next_inv_number: nextInv + 1
-            });
+            await supabase.from('SystemSettings').update({ next_inv_number: nextInv + 1 }).eq('id', systemSettingsList[0].id);
             console.log('Incremented next_inv_number to:', nextInv + 1);
           } else {
-            await SystemSettings.create({
-              next_inv_number: nextInv + 1
-            });
+            await supabase.from('SystemSettings').insert([{ id: crypto.randomUUID(), next_inv_number: nextInv + 1 }]);
             console.log('Created SystemSettings with next_inv_number:', nextInv + 1);
           }
         }
 
         // Update work order to invoice stage BEFORE calling GL function
-        console.log('Updating work order to invoice stage');
-        await saveworkorderdata({
-          ro_number: wo.ro_number,
-          data: {
-            stage: 'invoice',
-            converted: true,
-            inv_number: invNumber,
-            invoice_date: invoiceDate,
-            status: 'Completed'
+        const { error: saveError } = await supabase.functions.invoke('autopro-saveworkorderdata', {
+          body: {
+            ro_number: wo.ro_number,
+            data: {
+              stage: 'invoice',
+              converted: true,
+              inv_number: invNumber,
+              invoice_date: invoiceDate,
+              status: 'Completed'
+            }
           }
         });
+        if (saveError) throw new Error(saveError.message || JSON.stringify(saveError));
 
         const updatedWorkOrder = { 
           ...wo, 
@@ -206,8 +228,11 @@ export default function InvoiceConversion() {
           status: 'Completed' 
         };
 
-        base44.functions.invoke('archiveWorkOrderProjects', {
-          wo_number: wo.wo_number
+        supabase.functions.invoke('autopro-archiveWorkOrderProjects', {
+          body: { wo_number: wo.wo_number }
+        }).then(({ error: invokeError, data: archiveData }) => {
+          if (invokeError) console.error('Error archiving related projects:', invokeError);
+          else if (archiveData?.error) console.error('Error archiving related projects:', archiveData.error);
         }).catch((archiveError) => {
           console.error('Error archiving related projects:', archiveError);
         });
@@ -215,12 +240,14 @@ export default function InvoiceConversion() {
         // Call handleInvoiceConversionGL backend function
         console.log('=== Calling handleInvoiceConversionGL ===');
         try {
-          const glResponse = await base44.functions.invoke('handleInvoiceConversionGL', {
-            workOrder: updatedWorkOrder,
-            lineItems: parsedLineItems,
-            payments: payments,
-            systemSettings: systemSettings,
-            action: 'convert'
+          const glResponse = await supabase.functions.invoke('autopro-handleInvoiceConversionGL', {
+            body: {
+              workOrder: updatedWorkOrder,
+              lineItems: parsedLineItems,
+              payments: payments,
+              systemSettings: systemSettings,
+              action: 'convert'
+            }
           });
 
           console.log('GL function response:', glResponse);
@@ -230,12 +257,15 @@ export default function InvoiceConversion() {
             console.log('Summary:', glResponse.data.summary);
             
             // Save accounting_details back to work order
-            await saveworkorderdata({
-              ro_number: wo.ro_number,
-              data: {
-                accounting_details: glResponse.data.accounting_details
-              }
-            });
+             const { error: saveError } = await supabase.functions.invoke('autopro-saveworkorderdata', {
+               body: {
+                 ro_number: wo.ro_number,
+                 data: {
+                   accounting_details: glResponse.data.accounting_details
+                 }
+               }
+             });
+             if (saveError) throw new Error(saveError.message || JSON.stringify(saveError));
 
             console.log('Accounting details saved to work order');
             
@@ -248,23 +278,27 @@ export default function InvoiceConversion() {
             // Create portal snapshot after GL conversion
             console.log('=== Creating customer portal snapshot ===');
             try {
-              const snapshotResponse = await base44.functions.invoke('createPortalSnapshot', {
-                work_order_id: wo.id
+              const { data: snapshotData, error: snapshotInvokeError } = await supabase.functions.invoke('autopro-createPortalSnapshot', {
+                body: { work_order_id: wo.id }
               });
-              
-              if (snapshotResponse.data && snapshotResponse.data.cp_id) {
-                console.log('Portal snapshot created:', snapshotResponse.data.cp_id);
-                const portalUrl = `https://portal.kensauto.ca/WorkOrder?cp_id=${snapshotResponse.data.cp_id}`;
+              if (snapshotInvokeError) throw snapshotInvokeError;
+
+              if (snapshotData && snapshotData.cp_id) {
+                console.log('Portal snapshot created:', snapshotData.cp_id);
+                const portalUrl = `https://portal.kensauto.ca/WorkOrder?cp_id=${snapshotData.cp_id}`;
                 setPortalUrl(portalUrl);
-                
+
                 // Update work order with cp_id
-                await saveworkorderdata({
-                  ro_number: wo.ro_number,
-                  data: { cp_id: snapshotResponse.data.cp_id }
+                const { error: saveError } = await supabase.functions.invoke('autopro-saveworkorderdata', {
+                  body: {
+                    ro_number: wo.ro_number,
+                    data: { cp_id: snapshotData.cp_id }
+                  }
                 });
-                updatedWorkOrder.cp_id = snapshotResponse.data.cp_id;
+                if (saveError) throw new Error(saveError.message || JSON.stringify(saveError));
+                updatedWorkOrder.cp_id = snapshotData.cp_id;
               } else {
-                console.error('Portal snapshot creation failed:', snapshotResponse.data?.error);
+                console.error('Portal snapshot creation failed:', snapshotData?.error);
               }
             } catch (snapshotError) {
               console.error('Error creating portal snapshot:', snapshotError);

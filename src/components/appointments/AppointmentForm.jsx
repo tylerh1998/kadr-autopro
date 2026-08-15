@@ -9,17 +9,16 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
-import { Trash2, Plus, Search, Calendar as CalendarIcon, AlertTriangle, ExternalLink } from 'lucide-react';
+import { Trash2, Plus, Search, Calendar as CalendarIcon, AlertTriangle, ExternalLink, CheckCircle, Clock } from 'lucide-react';
 
 import SelectCustomerModal from './SelectCustomerModal';
 import SelectWorkOrderModal from './SelectWorkOrderModal';
 import WorkPROModal from '../work-orders/WorkPROModal';
 import CustomerForm from '../customers/CustomerForm';
 import VehicleForm from '../vehicles/VehicleForm';
-import { WorkOrder, SystemSettings } from '@/entities/all';
-import { createworkorderdata } from '@/functions/createworkorderdata';
-import { getworkorderlist } from '@/functions/getworkorderlist';
-import { base44 } from '@/api/base44Client';
+import { createworkorderdata, getworkorderlist } from '@/api/workOrderFunctions';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function AppointmentForm({
   open,
@@ -37,6 +36,7 @@ export default function AppointmentForm({
   customerForNew,   // New prop
   vehicleForNew,    // New prop
 }) {
+  const { employee: currentEmployee } = useAuth();
   const [formData, setFormData] = useState({
     title: '',
     notes: '',
@@ -118,6 +118,70 @@ export default function AppointmentForm({
     });
   }, [formData.start_time, formData.reminders_email, formData.reminders_text, formData.reminder_days_before]);
 
+  // Look up whether a reminder for this appointment has actually been sent, instead of just
+  // guessing from the days-before math (which can't tell a successful send from one that never fired).
+  const [sentReminderLogs, setSentReminderLogs] = useState([]);
+
+  useEffect(() => {
+    if (!open || !appointment?.id) {
+      setSentReminderLogs([]);
+      return;
+    }
+    let cancelled = false;
+    supabase
+      .from('SentEmailLog')
+      .select('*')
+      .eq('appointment_id', appointment.id)
+      .order('sent_date', { ascending: false })
+      .then(({ data, error }) => {
+        if (!cancelled && !error) setSentReminderLogs(data || []);
+      });
+    return () => { cancelled = true; };
+  }, [open, appointment?.id]);
+
+  // Rows are sorted newest-first, so find() picks up the most recent attempt per channel.
+  // Email/SMS share this table with no dedicated channel column, so split on to_email's shape.
+  const emailReminderLog = sentReminderLogs.find(l => (l.to_email || '').includes('@'));
+  const textReminderLog = sentReminderLogs.find(l => l.to_email && !l.to_email.includes('@'));
+
+  const describeReminderLog = (log) => {
+    if (!log) return null;
+    const sentAt = log.sent_date ? format(new Date(log.sent_date), 'MMM d, h:mm a') : '';
+    if (['sent', 'delivered', 'opened', 'clicked'].includes(log.status)) {
+      return { tone: 'success', label: `Sent ${sentAt}` };
+    }
+    if (log.status === 'skipped_test_mode') {
+      return { tone: 'testmode', label: `Skipped (test mode) ${sentAt}` };
+    }
+    if (['failed', 'bounced'].includes(log.status)) {
+      return { tone: 'error', label: `Failed to send${log.status_message ? `: ${log.status_message}` : ''}` };
+    }
+    return { tone: 'neutral', label: `Status: ${log.status}` };
+  };
+
+  const emailReminderStatus = describeReminderLog(emailReminderLog);
+  const textReminderStatus = describeReminderLog(textReminderLog);
+  // Only treat the days-before math as an actionable warning when nothing was ever actually
+  // attempted - if we have a real log entry (success, test-mode, or failure) that's more accurate.
+  const reminderTrulyUnresolved = reminderInfo?.isPast && !emailReminderStatus && !textReminderStatus;
+
+  const reminderToneClasses = {
+    success: 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border-green-200 dark:border-green-900/50',
+    testmode: 'bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-900/50',
+    error: 'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900/50',
+    neutral: 'bg-gray-50 dark:bg-slate-800/50 text-gray-700 dark:text-slate-400 border-gray-200 dark:border-slate-700',
+  };
+  const reminderToneIcons = { success: CheckCircle, testmode: Clock, error: AlertTriangle, neutral: Clock };
+  const renderReminderStatusLine = (tone, label) => {
+    const Icon = reminderToneIcons[tone] || AlertTriangle;
+    return (
+      <div className={`flex items-start gap-2 p-2 text-sm rounded border ${reminderToneClasses[tone]}`}>
+        <Icon className="w-4 h-4 mt-0.5 flex-shrink-0" />
+        <p>{label}</p>
+      </div>
+    );
+  };
+
   // Bay options with new names
   const bayOptions = ['Main Floor', 'Main Hoist', 'North Floor', 'North Hoist', 'Other'];
 
@@ -146,9 +210,12 @@ export default function AppointmentForm({
     const customer = customers?.find(c => c.id === customerId);
     if (customer) {
       try {
-        const res = await base44.functions.invoke('supabaseVehicle', { action: 'filter', match: { customer_id: customerId } });
-        const customerVehicles = res.data?.data || [];
-        setAvailableVehicles(customerVehicles);
+        const { data: customerVehicles, error: vehiclesError } = await supabase
+          .from('Vehicle')
+          .select('*')
+          .eq('customer_id', customerId);
+        if (vehiclesError) throw vehiclesError;
+        setAvailableVehicles(customerVehicles || []);
         
         setTimeout(() => {
           setFormData(prev => ({
@@ -194,8 +261,11 @@ export default function AppointmentForm({
     // Load vehicles for the work order's customer first
     if (workOrder.customer_id) {
       try {
-        const res = await base44.functions.invoke('supabaseVehicle', { action: 'filter', match: { customer_id: workOrder.customer_id } });
-        const customerVehicles = res.data?.data || [];
+        const { data: customerVehicles, error: vehiclesError } = await supabase
+          .from('Vehicle')
+          .select('*')
+          .eq('customer_id', workOrder.customer_id);
+        if (vehiclesError) throw vehiclesError;
         
         // Set available vehicles FIRST
         setAvailableVehicles(customerVehicles);
@@ -271,9 +341,10 @@ export default function AppointmentForm({
             setAvailableVehicles(propVehicles);
 
             // Then fetch from server to ensure completeness (async)
-            base44.functions.invoke('supabaseVehicle', { action: 'filter', match: { customer_id: appointment.customer_id } })
-              .then(res => {
-                 setAvailableVehicles(res.data?.data || []);
+            supabase.from('Vehicle').select('*').eq('customer_id', appointment.customer_id)
+              .then(({ data, error }) => {
+                 if (error) throw error;
+                 setAvailableVehicles(data || []);
               })
               .catch(error => {
                  console.error('Error loading vehicles:', error);
@@ -315,9 +386,12 @@ export default function AppointmentForm({
           // Load vehicles if we have a customer
           if (customerId) {
             try {
-              const res = await base44.functions.invoke('supabaseVehicle', { action: 'filter', match: { customer_id: customerId } });
-              const customerVehicles = res.data?.data || [];
-              setAvailableVehicles(customerVehicles);
+              const { data: customerVehicles, error: vehiclesError } = await supabase
+                .from('Vehicle')
+                .select('*')
+                .eq('customer_id', customerId);
+              if (vehiclesError) throw vehiclesError;
+              setAvailableVehicles(customerVehicles || []);
             } catch (error) {
               console.error('Error loading vehicles:', error);
               setAvailableVehicles([]);
@@ -440,8 +514,8 @@ export default function AppointmentForm({
       }
     }
 
-    // Check for past reminder warning
-    if (reminderInfo?.isPast) {
+    // Check for past reminder warning - skip if a log shows a reminder actually went out already
+    if (reminderTrulyUnresolved) {
       const confirmed = window.confirm(
           "The reminder that has been set will be not sent because the Days Before field is set in the past. Either correct the Days Before field or manually remind the customer.\n\nDo you want to proceed anyway?"
       );
@@ -452,6 +526,10 @@ export default function AppointmentForm({
 
     // Format phone number with +1 prefix if it exists
     const submissionData = { ...formData };
+    // employee_id is a bigint column; an empty string (unassigned) must be null, not ''
+    if (submissionData.employee_id === '') {
+      submissionData.employee_id = null;
+    }
     if (submissionData.reminders_phone) {
       // Ensure only digits are kept and prepend +1
       const digitsOnly = submissionData.reminders_phone.replace(/[^0-9]/g, '');
@@ -491,29 +569,35 @@ export default function AppointmentForm({
   const handleCreateCustomer = async (customerData) => {
     setIsCreatingCustomer(true);
     try {
-      const user = await base44.auth.me();
+      const user = currentEmployee;
       const payload = {
         ...customerData,
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
         created_date: new Date().toISOString(),
+        updated_date: new Date().toISOString(),
         created_by: user?.email || '',
+        created_by_id: user?.autopro_user_id,
       };
-      const custRes = await base44.functions.invoke('SupabaseProxy', { 
-        action: 'create', 
-        table: 'Customer',
-        data: payload 
-      });
-      const newCustomer = custRes.data?.data?.[0];
-      
+      const { data: newCustomer, error: createCustomerError } = await supabase
+        .from('Customer')
+        .insert(payload)
+        .select()
+        .single();
+      if (createCustomerError) throw new Error(createCustomerError.message);
+
       // Refresh customer and vehicle data from parent
       if (onDataRefresh) {
         await onDataRefresh();
       }
-      
+
       // Load vehicles for the new customer
       try {
-        const res = await base44.functions.invoke('supabaseVehicle', { action: 'filter', match: { customer_id: newCustomer.id } });
-        const customerVehicles = res.data?.data || [];
-        setAvailableVehicles(customerVehicles);
+        const { data: customerVehicles, error: vehiclesError } = await supabase
+          .from('Vehicle')
+          .select('*')
+          .eq('customer_id', newCustomer.id);
+        if (vehiclesError) throw vehiclesError;
+        setAvailableVehicles(customerVehicles || []);
       } catch (error) {
         console.error('Error loading vehicles:', error);
         setAvailableVehicles([]);
@@ -540,24 +624,30 @@ export default function AppointmentForm({
   const handleCreateVehicle = async (vehicleData) => {
     setIsCreatingVehicle(true);
     try {
-      const user = await base44.auth.me();
+      const user = currentEmployee;
       const payload = {
         ...vehicleData,
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
         created_date: new Date().toISOString(),
+        updated_date: new Date().toISOString(),
         created_by: user?.email || '',
+        created_by_id: user?.autopro_user_id,
       };
-      const vehRes = await base44.functions.invoke('SupabaseProxy', { 
-        action: 'create', 
-        table: 'Vehicle',
-        data: payload 
-      });
-      const newVehicle = vehRes.data?.data?.[0];
-      
+      const { data: newVehicle, error: createVehicleError } = await supabase
+        .from('Vehicle')
+        .insert(payload)
+        .select()
+        .single();
+      if (createVehicleError) throw new Error(createVehicleError.message);
+
       // Update local available vehicles list
       try {
-        const res = await base44.functions.invoke('supabaseVehicle', { action: 'filter', match: { customer_id: formData.customer_id } });
-        const customerVehicles = res.data?.data || [];
-        setAvailableVehicles(customerVehicles);
+        const { data: customerVehicles, error: vehiclesError } = await supabase
+          .from('Vehicle')
+          .select('*')
+          .eq('customer_id', formData.customer_id);
+        if (vehiclesError) throw vehiclesError;
+        setAvailableVehicles(customerVehicles || []);
         
         // Auto-select the new vehicle after state update completes
         setTimeout(() => {
@@ -587,18 +677,17 @@ export default function AppointmentForm({
 
   const generateWorkOrderNumbers = async (stage) => {
     // Fetch next RO number from SystemSettings
-    const settings = await SystemSettings.list();
-    const systemSettings = settings && settings.length > 0 ? settings[0] : null;
-    
+    const { data: settingsRows } = await supabase.from('SystemSettings').select('*');
+    const systemSettings = settingsRows && settingsRows.length > 0 ? settingsRows[0] : null;
+
     const nextRo = systemSettings?.next_ro_number || 1001;
-    
+
     // Increment and save back to SystemSettings
     if (systemSettings) {
-      await SystemSettings.update(systemSettings.id, {
-        next_ro_number: nextRo + 1
-      });
+      await supabase.from('SystemSettings').update({ next_ro_number: nextRo + 1 }).eq('id', systemSettings.id);
     } else {
-      await SystemSettings.create({
+      await supabase.from('SystemSettings').insert({
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
         next_ro_number: nextRo + 1
       });
     }
@@ -644,7 +733,7 @@ export default function AppointmentForm({
         status: 'Open',
         priority: 'medium',
         stage: stage,
-        description: '',
+        description: formData.notes || '',
         customer_complaint: '',
         internal_notes: '',
         estimated_hours: null,
@@ -742,17 +831,6 @@ export default function AppointmentForm({
             <div className="grid grid-cols-2 gap-6">
               {/* Left Column - Form Fields */}
               <div className="space-y-4">
-                {/* Title */}
-                <div className="space-y-2">
-                  <Label htmlFor="title">Title</Label>
-                  <Input
-                    id="title"
-                    value={formData.title}
-                    onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                    placeholder="Appointment title..."
-                  />
-                </div>
-
                 {/* Customer Selection */}
                 <div className="space-y-2">
                   <Label>Customer</Label>
@@ -761,7 +839,7 @@ export default function AppointmentForm({
                       value={selectedCustomer ? getCustomerDisplayName(selectedCustomer) : ''}
                       placeholder="No customer selected"
                       readOnly
-                      className="flex-1 bg-slate-50"
+                      className="flex-1 bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
                     />
                     <Button
                       type="button"
@@ -794,10 +872,12 @@ export default function AppointmentForm({
                         // Check for open work orders or estimates for this vehicle (if no WO already linked)
                         if (!formData.work_order_id && value) {
                           try {
-                            const openWOs = await WorkOrder.filter({
-                              vehicle_id: value,
-                              stage: { $in: ['estimate', 'work_order'] }
-                            });
+                            const { data: openWOs, error: openWOsError } = await supabase
+                              .from('WorkOrder')
+                              .select('id')
+                              .eq('vehicle_id', value)
+                              .in('stage', ['estimate', 'work_order']);
+                            if (openWOsError) throw openWOsError;
                             if (openWOs && openWOs.length > 0) {
                               setHasOpenWO(true);
                             }
@@ -838,7 +918,7 @@ export default function AppointmentForm({
                       value={selectedWorkOrder ? `${selectedWorkOrder.wo_number || selectedWorkOrder.est_number} - ${selectedWorkOrder.description}` : ''}
                       placeholder="No work order attached"
                       readOnly
-                      className="flex-1 bg-slate-50"
+                      className="flex-1 bg-slate-50 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
                     />
                     <Button
                       type="button"
@@ -854,7 +934,7 @@ export default function AppointmentForm({
                         <Button
                           type="button"
                           onClick={() => setShowWorkPROModal(true)}
-                          className="flex-1 bg-black hover:bg-slate-800 text-white"
+                          className="flex-1 bg-black hover:bg-slate-800 dark:bg-slate-750 dark:hover:bg-slate-700 dark:border-slate-600 text-white"
                         >
                           Open WorkPRO
                         </Button>
@@ -891,7 +971,7 @@ export default function AppointmentForm({
                     )}
                   </div>
                   {!formData.work_order_id && hasOpenWO && (
-                    <div className="bg-orange-100 text-orange-700 px-3 py-2 rounded-md text-sm flex items-center gap-2 mt-2">
+                    <div className="bg-orange-100 dark:bg-orange-950/30 text-orange-700 dark:text-orange-400 border border-orange-250 dark:border-orange-900/50 px-3 py-2 rounded-md text-sm flex items-center gap-2 mt-2">
                       <span className="font-semibold">⚠</span>
                       A work order or estimate is already open for this vehicle.
                     </div>
@@ -909,8 +989,8 @@ export default function AppointmentForm({
                         onClick={() => setFormData(prev => ({ ...prev, bay }))}
                         className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
                           formData.bay === bay
-                            ? 'bg-slate-900 text-white shadow-md'
-                            : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                            ? 'bg-slate-900 dark:bg-slate-700 text-white shadow-md'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                         }`}
                       >
                         {bay}
@@ -1108,7 +1188,7 @@ export default function AppointmentForm({
                   </div>
                   
                   {/* Duration Links Below */}
-                  <div className="flex gap-3 text-sm text-blue-600">
+                  <div className="flex gap-3 text-sm text-blue-600 dark:text-blue-400">
                     <button type="button" onClick={() => handleDurationClick(30)} className="hover:underline">30min</button>
                     <button type="button" onClick={() => handleDurationClick(60)} className="hover:underline">1hr</button>
                     <button type="button" onClick={() => handleDurationClick(120)} className="hover:underline">2hr</button>
@@ -1169,7 +1249,7 @@ export default function AppointmentForm({
                     </Label>
                     {formData.reminders_text && (
                       <div className="flex items-center gap-1 flex-1">
-                        <span className="text-sm text-slate-500 font-medium">+1</span>
+                        <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">+1</span>
                         <Input
                           id="reminders_phone"
                           value={formData.reminders_phone}
@@ -1202,23 +1282,25 @@ export default function AppointmentForm({
                         />
                         {reminderInfo && (
                           <div className="flex items-center gap-2 ml-2">
-                            <span className="text-sm text-gray-500">Send Date:</span>
-                            <Input 
-                              readOnly 
-                              value={reminderInfo.displayDate} 
-                              className={`h-8 w-40 ${reminderInfo.isPast ? 'text-red-600 border-red-300 bg-red-50' : 'bg-gray-50'}`}
+                            <span className="text-sm text-gray-500 dark:text-slate-400">Send Date:</span>
+                            <Input
+                              readOnly
+                              value={reminderInfo.displayDate}
+                              className={`h-8 w-40 ${reminderTrulyUnresolved ? 'text-red-600 dark:text-red-400 border-red-300 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30' : 'bg-gray-50 dark:bg-slate-800'}`}
                             />
                           </div>
                         )}
                       </div>
-                      {reminderInfo?.isPast && (
-                        <div className="flex items-start gap-2 p-2 bg-red-50 text-red-700 text-sm rounded border border-red-200">
-                          <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                          <p>
-                            The reminder that has been set will be not sent because the Days Before field is set in the past. Either correct the Days Before field or manually remind the customer.
-                          </p>
-                        </div>
-                      )}
+                      <div className="space-y-1.5">
+                        {formData.reminders_email && emailReminderStatus &&
+                          renderReminderStatusLine(emailReminderStatus.tone, `Email reminder: ${emailReminderStatus.label}`)}
+                        {formData.reminders_email && !emailReminderStatus && reminderInfo?.isPast &&
+                          renderReminderStatusLine('error', 'Email reminder will not be sent - the Days Before field is set in the past. Correct it or remind the customer manually.')}
+                        {formData.reminders_text && textReminderStatus &&
+                          renderReminderStatusLine(textReminderStatus.tone, `Text reminder: ${textReminderStatus.label}`)}
+                        {formData.reminders_text && !textReminderStatus && reminderInfo?.isPast &&
+                          renderReminderStatusLine('error', 'Text reminder will not be sent - the Days Before field is set in the past. Correct it or remind the customer manually.')}
+                      </div>
                     </div>
                   )}
                 </div>

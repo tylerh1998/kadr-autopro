@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Save, AlertCircle } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 
 export default function WorkPROTaskModal({ open, onClose, workOrder, project, onUpdate }) {
   const [task, setTask] = useState('');
@@ -36,14 +36,12 @@ export default function WorkPROTaskModal({ open, onClose, workOrder, project, on
     try {
       if (project) {
         // Update existing project
-        const response = await base44.functions.invoke('workProProxy', {
-          entityName: 'Project',
-          method: 'update',
-          id: project.id,
-          params: { task: task }
-        });
+        const { error } = await supabase
+          .from('Project')
+          .update({ task: task })
+          .eq('id', project.id);
 
-        if (!response.data.success) throw new Error(response.data.error || 'Failed to update WorkPRO task');
+        if (error) throw error;
         
         onUpdate('task', task);
       } else {
@@ -55,13 +53,11 @@ export default function WorkPROTaskModal({ open, onClose, workOrder, project, on
           priority: workOrder.priority || 'medium',
         };
 
-        const response = await base44.functions.invoke('workProProxy', {
-          entityName: 'Project',
-          method: 'create',
-          params: projectData
-        });
+        const { error } = await supabase
+          .from('Project')
+          .insert(projectData);
 
-        if (!response.data.success) throw new Error(response.data.error || 'Failed to create WorkPRO project');
+        if (error) throw error;
         
         // This will trigger a refresh of the parent component
         window.location.reload();
@@ -86,25 +82,25 @@ export default function WorkPROTaskModal({ open, onClose, workOrder, project, on
             <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
             WorkPRO Task
             {project ? (
-              <Badge variant="outline" className="bg-green-100 text-green-800">Connected</Badge>
+              <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Connected</Badge>
             ) : (
-              <Badge variant="outline" className="bg-yellow-100 text-yellow-800">Not Connected</Badge>
+              <Badge variant="outline" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">Not Connected</Badge>
             )}
           </DialogTitle>
         </DialogHeader>
 
         <div className="py-4 space-y-4">
           {!project && (
-            <div className="flex items-center gap-2 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-              <AlertCircle className="w-5 h-5 text-yellow-600" />
-              <p className="text-sm text-yellow-800">
+            <div className="flex items-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800/50">
+              <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-500" />
+              <p className="text-sm text-yellow-800 dark:text-yellow-400">
                 This work order is not connected to WorkPRO. Creating a task will automatically create and connect a new WorkPRO project.
               </p>
             </div>
           )}
 
           <div className="space-y-2">
-            <label className="text-sm font-medium text-slate-700">Task Name</label>
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Task Name</label>
             <Textarea
               value={task}
               onChange={(e) => handleTaskChange(e.target.value)}
@@ -114,9 +110,9 @@ export default function WorkPROTaskModal({ open, onClose, workOrder, project, on
           </div>
 
           {project && (
-            <div className="text-sm text-slate-600 space-y-1">
+            <div className="text-sm text-slate-600 dark:text-slate-400 space-y-1">
               <p><strong>Status:</strong> {project.status}</p>
-              <p><strong>Assigned:</strong> {project.employee_assigned || 'Not assigned'}</p>
+              <p><strong>Assigned:</strong> {Array.isArray(project.employees_assigned) && project.employees_assigned.length > 0 ? project.employees_assigned.join(', ') : (project.employee_assigned || 'Not assigned')}</p>
               <p><strong>Priority:</strong> {project.priority}</p>
             </div>
           )}

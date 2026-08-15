@@ -7,17 +7,18 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Loader2, Clock, User, AlertCircle, Trash2 } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 import { Plus } from 'lucide-react';
 
 const CATEGORIES = {
-  billable: { label: 'Billable', color: 'bg-blue-100 text-blue-800' },
-  rework: { label: 'Rework', color: 'bg-red-100 text-red-800' },
-  warranty: { label: 'Warranty', color: 'bg-orange-100 text-orange-800' },
-  training: { label: 'Training', color: 'bg-purple-100 text-purple-800' },
-  internal: { label: 'Internal', color: 'bg-slate-100 text-slate-800' },
-  shop_work: { label: 'Shop Work', color: 'bg-green-100 text-green-800' },
-  split: { label: 'Split', color: 'bg-yellow-100 text-yellow-800' }
+  billable: { label: 'Billable', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300' },
+  rework: { label: 'Rework', color: 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300' },
+  warranty: { label: 'Warranty', color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300' },
+  training: { label: 'Training', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300' },
+  internal: { label: 'Internal', color: 'bg-slate-100 text-slate-800 dark:bg-slate-700/60 dark:text-slate-300' },
+  shop_work: { label: 'Shop Work', color: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' },
+  split: { label: 'Split', color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300' }
 };
 
 function SplitTimeDialog({ open, onClose, onSave, log }) {
@@ -82,14 +83,14 @@ function SplitTimeDialog({ open, onClose, onSave, log }) {
         </DialogHeader>
         
         <div className="py-4 space-y-4">
-          <div className="bg-slate-50 p-3 rounded-md mb-4 flex justify-between items-center">
+          <div className="bg-slate-50 p-3 rounded-md mb-4 flex justify-between items-center dark:bg-slate-800">
              <div>
-               <p className="text-sm font-medium text-slate-500">Total Time</p>
+               <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Total Time</p>
                <p className="text-xl font-bold">{totalHours.toFixed(2)} hrs</p>
              </div>
              <div className="text-right">
-               <p className="text-sm font-medium text-slate-500">Remaining</p>
-               <p className={`text-xl font-bold ${Math.abs(remaining) < 0.01 ? 'text-green-600' : 'text-red-600'}`}>
+               <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Remaining</p>
+               <p className={`text-xl font-bold ${Math.abs(remaining) < 0.01 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                  {remaining.toFixed(2)} hrs
                </p>
              </div>
@@ -118,16 +119,16 @@ function SplitTimeDialog({ open, onClose, onSave, log }) {
                     placeholder="0.0"
                     value={allocations[key] || ''}
                     onChange={(e) => handleAllocationChange(key, e.target.value)}
-                    className={allocations[key] > 0 ? "border-blue-500 bg-blue-50 font-medium" : ""}
+                    className={allocations[key] > 0 ? "border-blue-500 bg-blue-50 font-medium dark:border-blue-600 dark:bg-blue-950/30" : ""}
                   />
-                  <span className="absolute right-3 top-2.5 text-xs text-slate-400">hrs</span>
+                  <span className="absolute right-3 top-2.5 text-xs text-slate-400 dark:text-slate-500">hrs</span>
                 </div>
               </div>
             ))}
           </div>
-          
+
           {!isValid && (
-            <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 p-2 rounded">
+            <div className="flex items-center gap-2 text-red-600 text-sm bg-red-50 p-2 rounded dark:bg-red-950/30 dark:text-red-400">
               <AlertCircle className="w-4 h-4" />
               <span>Total allocation must equal {totalHours.toFixed(2)} hrs</span>
             </div>
@@ -144,6 +145,7 @@ function SplitTimeDialog({ open, onClose, onSave, log }) {
 }
 
 export default function TechTimeModal({ open, onClose, project, projects = [], workOrder, onTimeChange }) {
+  const { employee } = useAuth();
   const [timeLogs, setTimeLogs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -155,16 +157,8 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
   const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const user = await base44.auth.me();
-        setCurrentUser(user);
-      } catch (e) {
-        console.error("Failed to load user", e);
-      }
-    };
-    fetchUser();
-  }, []);
+    setCurrentUser(employee);
+  }, [employee]);
 
   // Manual Add Form State
   const [manualDate, setManualDate] = useState(() => {
@@ -188,9 +182,12 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
 
   const loadEmployees = async () => {
     try {
-      const allEmployees = await base44.entities.Employee.list();
-      // Filter for techs as requested
-      const techs = allEmployees.filter(e => e.employee_type === 'tech' && e.is_active !== false);
+      const { data: techs, error } = await supabase
+        .from('Employee')
+        .select('*')
+        .eq('employee_type', 'tech')
+        .eq('status', 'active');
+      if (error) throw error;
       setEmployees(techs);
     } catch (err) {
       console.error('Error loading employees:', err);
@@ -212,16 +209,25 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
         for (let i = 0; i < projectsToLoad.length; i += BATCH_SIZE) {
           const batch = projectsToLoad.slice(i, i + BATCH_SIZE);
           const promises = batch.map(p => 
-            base44.functions.invoke('getProjectTimeSessions', { projectId: p.id })
+            supabase
+              .from('ProjectTimeSession')
+              .select('*')
+              .eq('project_id', p.id)
           );
           
           const responses = await Promise.all(promises);
           
           responses.forEach(response => {
-             if (response.data?.success && Array.isArray(response.data.logs)) {
-               fetchedLogs = [...fetchedLogs, ...response.data.logs];
+             if (!response.error && response.data) {
+               const mappedLogs = response.data.map(session => ({
+                 ...session,
+                 hours: session.total_hours || 0,
+                 workpro_user_name: session.user_name || session.user_email,
+                 email: session.user_email
+               }));
+               fetchedLogs = [...fetchedLogs, ...mappedLogs];
              } else {
-               console.error('Failed to fetch WorkPRO logs for a project:', response.data?.error);
+               console.error('Failed to fetch WorkPRO logs for a project:', response.error);
              }
           });
 
@@ -241,34 +247,36 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
 
       if (workOrder?.id) {
         try {
-           const response = await base44.functions.invoke('SupabaseProxy', {
-             action: 'read',
-             table: 'WorkOrder',
-             match: { id: workOrder.id }
-           });
-           const wos = response.data?.data || [];
-           targetWO = (wos && wos.length > 0) ? wos[0] : workOrder;
+          const { data: wos, error } = await supabase
+            .from('WorkOrder')
+            .select('*')
+            .eq('id', workOrder.id)
+            .limit(1);
+          if (error) throw error;
+          targetWO = (wos && wos.length > 0) ? wos[0] : workOrder;
         } catch (e) {
-           console.error("Error fetching latest WO:", e);
-           targetWO = workOrder;
+          console.error('Error fetching latest WO:', e);
+          targetWO = workOrder;
         }
       } else {
         const proj = projects.length > 0 ? projects[0] : project;
         if (proj?.work_order) {
-          let response = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'WorkOrder',
-            match: { wo_number: proj.work_order }
-          });
-          let wos = response.data?.data || [];
+          let { data: wos, error } = await supabase
+            .from('WorkOrder')
+            .select('*')
+            .eq('wo_number', proj.work_order)
+            .limit(1);
 
-          if ((!wos || wos.length === 0) && proj.work_order) {
-             response = await base44.functions.invoke('SupabaseProxy', {
-               action: 'read',
-               table: 'WorkOrder',
-               match: { ro_number: proj.work_order }
-             });
-             wos = response.data?.data || [];
+          if (error) console.error('WO lookup by wo_number error:', error);
+
+          if (!wos || wos.length === 0) {
+            const { data: wos2, error: error2 } = await supabase
+              .from('WorkOrder')
+              .select('*')
+              .eq('ro_number', proj.work_order)
+              .limit(1);
+            if (error2) console.error('WO lookup by ro_number error:', error2);
+            wos = wos2 || [];
           }
 
           if (wos && wos.length > 0) {
@@ -321,26 +329,23 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
       // 1. Fetch fresh data
       let currentLogs = [];
       try {
-          const response = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'WorkOrder',
-            match: { id: targetId }
-          });
-          const wos = response.data?.data || [];
-          if (wos && wos.length > 0) {
-             const freshWO = wos[0];
-             if (freshWO.tech_time) {
-                 currentLogs = typeof freshWO.tech_time === 'string' ? JSON.parse(freshWO.tech_time) : freshWO.tech_time;
-             }
-          } else {
-             throw new Error(`WorkOrder ${targetId} not found`);
+        const { data: wos, error } = await supabase
+          .from('WorkOrder')
+          .select('tech_time')
+          .eq('id', targetId)
+          .limit(1);
+        if (error) throw error;
+        if (wos && wos.length > 0) {
+          const freshWO = wos[0];
+          if (freshWO.tech_time) {
+            currentLogs = typeof freshWO.tech_time === 'string' ? JSON.parse(freshWO.tech_time) : freshWO.tech_time;
           }
+        } else {
+          throw new Error(`WorkOrder ${targetId} not found`);
+        }
       } catch (e) {
-          console.error("Error fetching fresh WO for save:", e);
-          // Only fallback to local state if fetch failed (e.g. network)
-          // But safer to fail if we can't confirm state? 
-          // Let's assume empty if we can't fetch, or use existing manualLogs if array
-          currentLogs = Array.isArray(manualLogs) ? manualLogs : [];
+        console.error('Error fetching fresh WO for save:', e);
+        currentLogs = Array.isArray(manualLogs) ? manualLogs : [];
       }
 
       // Ensure array
@@ -350,14 +355,11 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
       const jsonString = JSON.stringify(updatedLogs);
       
       // 2. Update DB
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'WorkOrder',
-        id: targetId,
-        data: {
-          tech_time: jsonString
-        }
-      });
+      const { error: updateError } = await supabase
+        .from('WorkOrder')
+        .update({ tech_time: jsonString })
+        .eq('id', targetId);
+      if (updateError) throw updateError;
 
       // 3. Update local state
       setManualLogs(updatedLogs);
@@ -389,23 +391,23 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
       // 1. Fetch fresh data
       let currentLogs = [];
       try {
-          const response = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'WorkOrder',
-            match: { id: targetId }
-          });
-          const wos = response.data?.data || [];
-          if (wos && wos.length > 0) {
-             const freshWO = wos[0];
-             if (freshWO.tech_time) {
-                 currentLogs = typeof freshWO.tech_time === 'string' ? JSON.parse(freshWO.tech_time) : freshWO.tech_time;
-             }
-          } else {
-             throw new Error("WorkOrder not found");
+        const { data: wos, error } = await supabase
+          .from('WorkOrder')
+          .select('tech_time')
+          .eq('id', targetId)
+          .limit(1);
+        if (error) throw error;
+        if (wos && wos.length > 0) {
+          const freshWO = wos[0];
+          if (freshWO.tech_time) {
+            currentLogs = typeof freshWO.tech_time === 'string' ? JSON.parse(freshWO.tech_time) : freshWO.tech_time;
           }
+        } else {
+          throw new Error('WorkOrder not found');
+        }
       } catch (e) {
-          console.error("Error fetching fresh WO for delete:", e);
-          currentLogs = Array.isArray(manualLogs) ? manualLogs : [];
+        console.error('Error fetching fresh WO for delete:', e);
+        currentLogs = Array.isArray(manualLogs) ? manualLogs : [];
       }
 
       if (!Array.isArray(currentLogs)) currentLogs = [];
@@ -414,14 +416,11 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
       const jsonString = JSON.stringify(updatedLogs);
 
       // 2. Update DB
-      await base44.functions.invoke('SupabaseProxy', {
-        action: 'update',
-        table: 'WorkOrder',
-        id: targetId,
-        data: {
-          tech_time: jsonString
-        }
-      });
+      const { error: updateError } = await supabase
+        .from('WorkOrder')
+        .update({ tech_time: jsonString })
+        .eq('id', targetId);
+      if (updateError) throw updateError;
 
       // 3. Update local state
       setManualLogs(updatedLogs);
@@ -557,12 +556,11 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
         params.notes = newNotes;
       }
 
-      await base44.functions.invoke('workProProxy', {
-        entityName: 'ProjectTimeSession',
-        method: 'update',
-        id: log.id,
-        params: params
-      });
+      const { error } = await supabase
+        .from('ProjectTimeSession')
+        .update(params)
+        .eq('id', log.id);
+      if (error) throw error;
     } catch (error) {
       console.error('Error updating log:', error);
       alert(`Failed to update: ${error.message}`);
@@ -605,14 +603,14 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
             </div>
           </DialogTitle>
           {project && (
-            <p className="text-sm text-slate-600 mt-1">
+            <p className="text-sm text-slate-600 mt-1 dark:text-slate-400">
               {project.name || project.customer}
             </p>
           )}
         </DialogHeader>
 
         {showManualAdd && (
-          <div className="bg-slate-50 p-4 rounded-lg mb-4 border border-slate-200">
+          <div className="bg-slate-50 p-4 rounded-lg mb-4 border border-slate-200 dark:bg-slate-800 dark:border-slate-700">
             <h3 className="font-semibold mb-3 text-sm">Add Manual Time Record</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
               <div>
@@ -657,30 +655,30 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
         )}
 
         {error && (
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <p className="text-yellow-800 text-sm">{error}</p>
-            <p className="text-yellow-600 text-xs mt-1">Showing cached data if available.</p>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 dark:bg-yellow-950/30 dark:border-yellow-800">
+            <p className="text-yellow-800 text-sm dark:text-yellow-300">{error}</p>
+            <p className="text-yellow-600 text-xs mt-1 dark:text-yellow-400">Showing cached data if available.</p>
           </div>
         )}
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400" />
           </div>
         ) : allLogs.length === 0 ? (
           <div className="text-center py-12">
-            <Clock className="w-12 h-12 mx-auto text-slate-300 mb-3" />
-            <p className="text-slate-600">No tech time sessions recorded yet.</p>
+            <Clock className="w-12 h-12 mx-auto text-slate-300 mb-3 dark:text-slate-600" />
+            <p className="text-slate-600 dark:text-slate-400">No tech time sessions recorded yet.</p>
           </div>
         ) : (
           <div className="space-y-3 py-4">
             {showBreakdown && (
-              <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200">
-                <h3 className="text-sm font-semibold text-slate-700 mb-2">Technician Breakdown</h3>
+              <div className="mb-4 p-4 bg-slate-50 rounded-lg border border-slate-200 dark:bg-slate-800 dark:border-slate-700">
+                <h3 className="text-sm font-semibold text-slate-700 mb-2 dark:text-slate-300">Technician Breakdown</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {techBreakdown.map(([name, hours]) => (
-                    <div key={name} className="flex justify-between items-center bg-white p-2 rounded border border-slate-100">
-                      <span className="text-sm text-slate-600 truncate mr-2" title={name}>{name}</span>
+                    <div key={name} className="flex justify-between items-center bg-white p-2 rounded border border-slate-100 dark:bg-slate-900 dark:border-slate-700">
+                      <span className="text-sm text-slate-600 truncate mr-2 dark:text-slate-400" title={name}>{name}</span>
                       <Badge variant="secondary" className="font-mono">
                         {hours.toFixed(1)}h
                       </Badge>
@@ -695,15 +693,15 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-slate-600" />
-                        <span className="font-semibold text-slate-900">
+                        <User className="w-4 h-4 text-slate-600 dark:text-slate-400" />
+                        <span className="font-semibold text-slate-900 dark:text-slate-100">
                           {log.workpro_user_name || 'Unknown User'}
                         </span>
                         {log.source === 'manual' && (
-                          <Badge variant="outline" className="text-[10px] h-5 px-1 bg-gray-50">Manual</Badge>
+                          <Badge variant="outline" className="text-[10px] h-5 px-1 bg-gray-50 dark:bg-slate-700/60">Manual</Badge>
                         )}
                       </div>
-                      <div className="flex items-center gap-3 text-sm text-slate-600">
+                      <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
                         <span>{formatDate(log.date)}</span>
                         {log.workpro_start_time && (
                           <span>
@@ -718,7 +716,7 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/30"
                           onClick={() => handleDeleteManualTime(log)}
                           title="Delete manual entry"
                         >
@@ -731,7 +729,7 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
                           onValueChange={(val) => handleCategoryChange(log, val)}
                           disabled={log.source === 'manual'}
                         >
-                          <SelectTrigger className={`w-[120px] h-8 text-xs font-medium border-0 ${log.source === 'manual' ? 'bg-gray-100 text-gray-800' : CATEGORIES[getCategory(log)]?.color}`}>
+                          <SelectTrigger className={`w-[120px] h-8 text-xs font-medium border-0 ${log.source === 'manual' ? 'bg-gray-100 text-gray-800 dark:bg-slate-700/60 dark:text-slate-300' : CATEGORIES[getCategory(log)]?.color}`}>
                             <SelectValue>
                                 {log.source === 'manual' ? 'Manual' : undefined}
                             </SelectValue>
@@ -749,17 +747,17 @@ export default function TechTimeModal({ open, onClose, project, projects = [], w
                         </Select>
                       )}
                       
-                      <Badge className={`font-bold ${log.isRunning ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'}`}>
+                      <Badge className={`font-bold ${log.isRunning ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' : 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300'}`}>
                         {getDisplayHours(log)} hrs
                       </Badge>
-                      <Badge className={log.isRunning ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-600"}>
+                      <Badge className={log.isRunning ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300" : "bg-slate-100 text-slate-600 dark:bg-slate-700/60 dark:text-slate-300"}>
                         {log.isRunning ? "Running" : "Completed"}
                       </Badge>
                     </div>
                   </div>
                   {log.notes && (
-                    <div className="mt-2 p-2 bg-slate-50 rounded-md border border-slate-200">
-                      <p className="text-sm text-slate-700">{log.notes}</p>
+                    <div className="mt-2 p-2 bg-slate-50 rounded-md border border-slate-200 dark:bg-slate-800 dark:border-slate-700">
+                      <p className="text-sm text-slate-700 dark:text-slate-300">{log.notes}</p>
                     </div>
                   )}
                 </CardContent>

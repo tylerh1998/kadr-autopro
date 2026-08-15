@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import moment from 'moment-timezone';
-import { User as UserEntity } from '@/entities/User';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 import { 
   FileText, 
   Users, 
@@ -46,7 +46,9 @@ import {
   ChevronRight,
   Sun,
   Moon,
-  Shield
+  Shield,
+  User as UserIcon,
+  AlertCircle
   } from 'lucide-react';
 import {
   DropdownMenu,
@@ -68,8 +70,9 @@ import NewWorkOrderModal from './components/work-orders/NewWorkOrderModal';
 import TechClockStatusModal from './components/work-orders/TechClockStatusModal';
 import GlobalClockInModal from './components/work-orders/GlobalClockInModal';
 import { TechClockStatusProvider, useTechClockStatus } from './components/context/TechClockStatusContext';
-import { createworkorderdata } from '@/functions/createworkorderdata';
+import { createworkorderdata } from '@/api/workOrderFunctions';
 import { SupplierLockProvider, useSupplierLock } from './components/context/SupplierLockContext';
+import ReportIssueModal from './components/layout/ReportIssueModal';
 
 function LayoutContent({ children, currentPageName }) {
   const [showFindPartModal, setShowFindPartModal] = useState(false);
@@ -81,11 +84,12 @@ function LayoutContent({ children, currentPageName }) {
   const [reportType, setReportType] = useState('');
   const { isOpen: showTechClockStatusModal, openTechClockStatusModal, closeTechClockStatusModal } = useTechClockStatus();
   const [showGlobalClockInModal, setShowGlobalClockInModal] = useState(false);
+  const [showReportIssueModal, setShowReportIssueModal] = useState(false);
   const [hoveredItem, setHoveredItem] = useState(null);
-  const [user, setUser] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
   const { lockState, clearSupplierLock } = useSupplierLock();
+  const { logout, employee, updateEmployeePrefs, user } = useAuth();
 
   const [isClockedIn, setIsClockedIn] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -95,20 +99,6 @@ function LayoutContent({ children, currentPageName }) {
   const [clockLoading, setClockLoading] = useState(false);
 
   const getCurrentMountainTimeISO = () => moment.tz('America/Edmonton').toISOString();
-
-  const sbCall = async (method, entityName, params = {}) => {
-    const response = await base44.functions.invoke('workProProxy', {
-      entityName,
-      method,
-      ...params,
-    });
-
-    if (!response.data?.success) {
-      throw new Error(response.data?.error || `Failed ${method} on ${entityName}`);
-    }
-
-    return response.data?.data;
-  };
 
   // Mobile menu state
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -122,58 +112,40 @@ function LayoutContent({ children, currentPageName }) {
   const [isTraining, setIsTraining] = useState(false);
 
   useEffect(() => {
-    const fetchUserAndSettings = async () => {
+    const fetchSettings = async () => {
       try {
-        const currentUser = await UserEntity.me();
-        setUser(currentUser);
-        // Load dark mode preference from user data
-        if (currentUser?.dark_mode) {
-          setDarkMode(true);
-        }
-
         // Fetch System Settings to check for training environment
-        const settings = await base44.entities.SystemSettings.list();
+        const { data: settings, error: settingsError } = await supabase.from('SystemSettings').select('*');
+        if (settingsError) throw settingsError;
         if (settings && settings.length > 0 && settings[0].training_enviro) {
           setIsTraining(true);
         }
       } catch (error) {
-        console.error("Failed to fetch user or settings", error);
+        console.error("Failed to fetch settings", error);
       }
     };
-    fetchUserAndSettings();
+    fetchSettings();
   }, []);
+
+  useEffect(() => {
+    if (employee?.dark_mode) {
+      setDarkMode(true);
+    }
+  }, [employee]);
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
 
   const handleToggleDarkMode = async () => {
     const newDarkMode = !darkMode;
     setDarkMode(newDarkMode);
-    try {
-      await base44.auth.updateMe({ dark_mode: newDarkMode });
-    } catch (error) {
-      console.error("Failed to save dark mode preference", error);
-    }
-  };
-
-  const handleToggleOpenNewWindow = async () => {
-    const newOpenNewWindow = !user?.OpenNewWindow;
-    try {
-      await base44.auth.updateMe({ OpenNewWindow: newOpenNewWindow });
-      setUser({ ...user, OpenNewWindow: newOpenNewWindow });
-    } catch (error) {
-      console.error("Failed to save OpenNewWindow preference", error);
-    }
-  };
-
-  const handleToggleWOCards = async () => {
-    const currentVal = user?.wo_cards === true;
-    const newVal = !currentVal;
-
-    try {
-      await base44.auth.updateMe({ wo_cards: newVal });
-      setUser({ ...user, wo_cards: newVal });
-      window.location.reload(); 
-    } catch (error) {
-      console.error("Failed to save WO Cards preference", error);
-    }
+    const { error } = await updateEmployeePrefs({ dark_mode: newDarkMode });
+    if (error) console.error("Failed to save dark mode preference", error);
   };
 
   useEffect(() => {
@@ -186,31 +158,35 @@ function LayoutContent({ children, currentPageName }) {
 
   useEffect(() => {
     const checkClockStatus = async () => {
-      if (!user) return;
+      if (!employee) return;
       setClockLoading(true);
 
       try {
-        let employee = null;
+        let workproEmployeeRecord = null;
 
-        if (user?.id) {
-          const byUserId = await sbCall('filter', 'Employee', {
-            params: { autopro_user_id: user.id }
-          });
-          employee = Array.isArray(byUserId) ? byUserId[0] : null;
+        if (employee?.autopro_user_id) {
+          const { data: byUserId, error: byUserIdError } = await supabase
+            .from('Employee')
+            .select('*')
+            .eq('autopro_user_id', employee.autopro_user_id);
+          if (byUserIdError) console.error('Employee lookup by autopro_user_id failed', byUserIdError);
+          workproEmployeeRecord = Array.isArray(byUserId) ? byUserId[0] : null;
         }
 
-        if (!employee && user?.email) {
-          const byEmail = await sbCall('filter', 'Employee', {
-            params: { email: user.email }
-          });
-          employee = Array.isArray(byEmail) ? byEmail[0] : null;
+        if (!workproEmployeeRecord && employee?.email) {
+          const { data: byEmail, error: byEmailError } = await supabase
+            .from('Employee')
+            .select('*')
+            .eq('email', employee.email);
+          if (byEmailError) console.error('Employee lookup by email failed', byEmailError);
+          workproEmployeeRecord = Array.isArray(byEmail) ? byEmail[0] : null;
         }
 
-        const employeeName = employee?.full_name || null;
+        const employeeName = workproEmployeeRecord?.full_name || null;
         const employeeExists = !!employeeName;
 
         setIsEmployee(employeeExists);
-        setWorkProEmployee(employee || null);
+        setWorkProEmployee(workproEmployeeRecord || null);
 
         if (!employeeExists) {
           setIsClockedIn(false);
@@ -218,12 +194,12 @@ function LayoutContent({ children, currentPageName }) {
           return;
         }
 
-        const records = await sbCall('filter', 'TimeRecord', {
-          params: {
-            employee_name: employeeName,
-            status: 'clocked_in'
-          }
-        });
+        const { data: records, error: recordsError } = await supabase
+          .from('TimeRecord')
+          .select('*')
+          .eq('employee_name', employeeName)
+          .eq('status', 'clocked_in');
+        if (recordsError) console.error('TimeRecord lookup failed', recordsError);
 
         const activeRecord = Array.isArray(records)
           ? records.find((record) => record.status === 'clocked_in') || null
@@ -242,10 +218,10 @@ function LayoutContent({ children, currentPageName }) {
       }
     };
 
-    if (user) {
+    if (employee) {
       checkClockStatus();
     }
-  }, [user]);
+  }, [employee]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -266,28 +242,28 @@ function LayoutContent({ children, currentPageName }) {
   }, []);
 
   const handlePayrollClick = (e) => {
-    // If Paypro_user is true, allow default navigation to /Payroll
-    if (user?.Paypro_user === true) {
+    // If paypro_user is true, allow default navigation to /Payroll
+    if (employee?.paypro_user === true) {
       return;
     }
 
-    // If false or null/undefined, redirect to WorkPro
+    // If false or null/undefined, redirect to external WorkPRO TimeRecords
     e.preventDefault();
-    window.location.href = createPageUrl("WorkPro");
+    window.location.href = 'https://workpro.kensauto.ca/TimeRecords';
   };
 
   const handleClockToggle = async () => {
-    if (!user || !isEmployee || clockLoading || !workProEmployee?.full_name) return;
+    if (!employee || !isEmployee || clockLoading || !workProEmployee?.full_name) return;
 
     setClockLoading(true);
 
     try {
-      const latestRecords = await sbCall('filter', 'TimeRecord', {
-        params: {
-          employee_name: workProEmployee.full_name,
-          status: 'clocked_in'
-        }
-      });
+      const { data: latestRecords, error: latestRecordsError } = await supabase
+        .from('TimeRecord')
+        .select('*')
+        .eq('employee_name', workProEmployee.full_name)
+        .eq('status', 'clocked_in');
+      if (latestRecordsError) console.error('TimeRecord lookup failed', latestRecordsError);
 
       const activeRecord = Array.isArray(latestRecords)
         ? latestRecords.find((record) => record.status === 'clocked_in') || null
@@ -300,33 +276,39 @@ function LayoutContent({ children, currentPageName }) {
         const clockOutTime = getCurrentMountainTimeISO();
         const totalHours = Math.round(((new Date(clockOutTime) - new Date(activeRecord.clock_in_time)) / 3600000) * 100) / 100;
 
-        await sbCall('update', 'TimeRecord', {
-          id: activeRecord.id,
-          params: {
+        const { error: updateError } = await supabase
+          .from('TimeRecord')
+          .update({
             clock_out_time: clockOutTime,
             total_hours: totalHours,
-            status: 'clocked_out'
-          }
-        });
+            status: 'clocked_out',
+            updated_date: new Date().toISOString()
+          })
+          .eq('id', activeRecord.id);
+        if (updateError) console.error('TimeRecord update failed', updateError);
 
         setIsClockedIn(false);
         setCurrentTimeRecord(null);
       } else {
         const clockInTime = getCurrentMountainTimeISO();
 
-        const newRecord = await sbCall('create', 'TimeRecord', {
-          params: {
-            created_by_id: user.id,
+        const { data: createdRecord, error: createError } = await supabase
+          .from('TimeRecord')
+          .insert({
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+            created_date: new Date().toISOString(),
+            created_by: employee?.email,
+            created_by_id: employee?.autopro_user_id,
             employee_name: workProEmployee.full_name,
             clock_in_time: clockInTime,
             status: 'clocked_in',
             total_hours: 0,
             pto_hours: 0,
             stat_hours: 0
-          }
-        });
-
-        const createdRecord = Array.isArray(newRecord) ? newRecord[0] : newRecord;
+          })
+          .select()
+          .single();
+        if (createError) console.error('TimeRecord create failed', createError);
         setIsClockedIn(true);
         setCurrentTimeRecord(createdRecord || null);
       }
@@ -527,7 +509,7 @@ const navigationItems = [
       activePaths: ["/CashDrawer", "/ChequeRegister", "/Taxes", "/JournalEntries", "/ChartOfAccounts", "/Bank", "/FiscalPeriods", "/Reconcile", "/ReconcileReport", "/ChequeWriter", "/PLReport", "/BalanceSheet", "/FinancialDashboard", "/GLAcct", "/CashFlow"],
     };
 
-    if (user?.access_level === 'lvl3_user') {
+    if (employee?.autopro_access_lvl === 'lvl3_user') {
       return {
         ...accountingBase,
         dropdown: [
@@ -538,7 +520,7 @@ const navigationItems = [
           { title: "Reports", action: "openFinancialDashboard", icon: BarChart3 },
         ]
       };
-    } else if (user?.AcctsPayAccess === true) {
+    } else if (employee?.accts_pay_access === true) {
       return {
         ...accountingBase,
         dropdown: [
@@ -571,15 +553,19 @@ const navigationItems = [
 
   const handleLogout = async () => {
     try {
-      await UserEntity.logout();
+      await logout();
       window.location.reload();
     } catch (error) {
       console.error("Logout failed", error);
     }
   };
 
-  const getUserInitials = (user) => {
-    return user?.Initials || "?";
+  const getUserInitials = (fullName) => {
+    if (!fullName) return "?";
+    const parts = fullName.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return "?";
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
   };
 
   const toggleMobileDropdown = (itemTitle) => {
@@ -612,16 +598,16 @@ const navigationItems = [
 
   if (pagesWithoutNavbar.includes(currentPageName)) {
     return (
-      <div className={`min-h-screen ${darkMode ? 'bg-slate-400' : 'bg-slate-50'}`}>
+      <div className="min-h-screen bg-background">
         <main>{children}</main>
       </div>
     );
   }
 
   return (
-    <div className={`min-h-screen ${darkMode ? 'bg-slate-400' : 'bg-slate-50'}`}>
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="no-print bg-white shadow-sm border-b border-slate-200 sticky top-0 z-40">
+      <header className="no-print bg-white dark:bg-slate-950 shadow-sm border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40">
         {isTraining && (
           <div className="bg-orange-500 text-white text-center py-1 text-sm font-bold shadow-inner">
             Training Version of AutoPRO. No changes in this application will affect the live database.
@@ -632,39 +618,38 @@ const navigationItems = [
             {/* Left: Logo, AutoPRO, and Mobile Menu Button */}
             <div className="flex items-center gap-4">
               <div 
-                                    onClick={() => {
-                                      openTechClockStatusModal();
-                                    }}
-                                    className="flex items-center cursor-pointer"
-                                  >
-                                    <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b90236f4d7e6ac0de4a262/094d1d78c_KensLogoOnly.jpg" alt="Logo" className="h-10" />
-                                  </div>
+                onClick={() => {
+                  openTechClockStatusModal();
+                }}
+                className="flex items-center cursor-pointer"
+              >
+                <img src="https://hbcrwkmgsazqrvsrmxyr.supabase.co/storage/v1/object/public/KADR/KADRLogoOnly.jpg" alt="Logo" className="h-10 dark:hidden" />
+                <img src="/dark_logo.png" alt="Logo" className="h-10 hidden dark:block" />
+              </div>
 
-              {/* AutoPRO Area */}
               <div
                 onClick={() => {
                   handleLockedNavigation(createPageUrl("Home"));
                 }}
-                className="flex flex-col justify-center px-3 py-2 rounded-lg transition-all duration-300 cursor-pointer hover:bg-slate-100"
+                className="flex flex-col justify-center px-3 py-2 rounded-lg transition-all duration-300 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
               >
-                <div className="text-lg font-bold text-slate-800 leading-tight">
+                <div className="text-lg font-bold text-slate-800 dark:text-slate-100 leading-tight">
                   AutoPRO
                 </div>
-                <div className="text-xs text-gray-500 leading-tight">
+                <div className="text-xs text-gray-500 dark:text-slate-400 leading-tight">
                   Ken's Auto
                 </div>
               </div>
 
-              {/* Mobile Menu Button */}
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="lg:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors"
+                className="lg:hidden p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 aria-label="Toggle mobile menu"
               >
                 {isMobileMenuOpen ? (
-                  <X className="w-6 h-6 text-slate-700" />
+                  <X className="w-6 h-6 text-slate-700 dark:text-slate-300" />
                 ) : (
-                  <Menu className="w-6 h-6 text-slate-700" />
+                  <Menu className="w-6 h-6 text-slate-700 dark:text-slate-300" />
                 )}
               </button>
             </div>
@@ -694,7 +679,7 @@ const navigationItems = [
                             className={`flex flex-col items-center gap-1 px-3 py-2 transition-colors duration-200 cursor-pointer rounded-md ${
                               isActive
                                 ? 'bg-blue-600 text-white'
-                                : 'text-slate-600 hover:text-blue-700'
+                                : 'text-slate-600 dark:text-slate-300 hover:text-blue-700 dark:hover:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-800'
                             }`}
                           >
                             <item.icon className="w-5 h-5" />
@@ -705,7 +690,7 @@ const navigationItems = [
                       
                       {hoveredItem === item.title && (
                         <div 
-                          className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 w-56 bg-white rounded-lg shadow-lg border border-slate-200 py-2 z-50"
+                          className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 w-56 bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-slate-200 dark:border-slate-800 py-2 z-50"
                           onMouseEnter={() => handleMouseEnter(item.title)}
                           onMouseLeave={handleMouseLeave}
                         >
@@ -721,7 +706,7 @@ const navigationItems = [
                                     });
                                     handleLockedNavigation(subItem.url);
                                   }}
-                                  className="flex items-center gap-3 px-4 py-2 text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors cursor-pointer"
+                                  className="flex items-center gap-3 px-4 py-2 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:text-blue-700 dark:hover:text-blue-400 transition-colors cursor-pointer"
                                 >
                                   <subItem.icon className="w-4 h-4" />
                                   {subItem.title}
@@ -729,7 +714,7 @@ const navigationItems = [
                               ) : (
                                 <div
                                   onClick={() => handleMenuClick(subItem.action)}
-                                  className="flex items-center gap-3 px-4 py-2 text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition-colors cursor-pointer"
+                                  className="flex items-center gap-3 px-4 py-2 text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-900/50 hover:text-blue-700 dark:hover:text-blue-400 transition-colors cursor-pointer"
                                 >
                                   <subItem.icon className="w-4 h-4" />
                                   {subItem.title}
@@ -763,7 +748,7 @@ const navigationItems = [
                           className={`flex flex-col items-center gap-1 px-3 py-2 transition-colors duration-200 cursor-pointer rounded-md ${
                             isActive
                               ? 'bg-blue-600 text-white'
-                              : 'text-slate-600 hover:text-blue-700'
+                              : 'text-slate-600 dark:text-slate-300 hover:text-blue-700 dark:hover:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-800'
                           }`}
                         >
                           <item.icon className="w-5 h-5" />
@@ -786,8 +771,8 @@ const navigationItems = [
                   !isEmployee || clockLoading
                     ? 'bg-blue-600 text-white opacity-90 cursor-not-allowed'
                     : isClockedIn 
-                      ? 'bg-red-100 text-red-700 hover:bg-red-200' 
-                      : 'bg-green-600 text-white hover:bg-green-700 shadow-sm'
+                      ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/60' 
+                      : 'bg-green-600 dark:bg-green-700 text-white hover:bg-green-700 dark:hover:bg-green-600 shadow-sm'
                 }`}
               >
                 {clockLoading ? (
@@ -811,23 +796,36 @@ const navigationItems = [
                 <DropdownMenuTrigger asChild>
                   <button className="focus:outline-none">
                     <Avatar>
-                      <AvatarImage src={user?.avatar_url} />
                       <AvatarFallback className="bg-slate-200 text-slate-700 font-bold">
-                        {getUserInitials(user)}
+                        {getUserInitials(employee?.full_name)}
                       </AvatarFallback>
                     </Avatar>
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuLabel className="flex flex-col gap-0.5">
-                    <span>{user?.User_name || user?.full_name || 'My Account'}</span>
-                    <span className="text-xs font-normal text-slate-500">
-                      {user?.role === 'admin' ? "Program Administrator" :
-                       user?.access_level === 'lvl3_user' ? "Executive Access" :
-                       user?.access_level === 'lvl2_user' ? "Supervisor Access" :
-                       "Standard Access"}
-                    </span>
-                  </DropdownMenuLabel>
+                  <DropdownMenuItem asChild className="focus:bg-slate-50 dark:focus:bg-slate-800 cursor-pointer !p-0">
+                    <a href="https://my.kensauto.ca" className="flex items-center gap-3 w-full p-3 select-none">
+                      <Avatar className="h-9 w-9 border border-slate-200">
+                        <AvatarFallback className="bg-[#1c2c54] text-white">
+                          <UserIcon className="w-5 h-5" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col text-left gap-1">
+                        <span className="font-semibold text-slate-900 dark:text-slate-100 text-sm leading-none">
+                          {employee?.full_name || 'User Profile'}
+                        </span>
+                        <span className="text-xs font-normal text-slate-500 dark:text-slate-400 leading-none">
+                          {employee?.admin === true ? "Program Administrator" :
+                           employee?.autopro_access_lvl === 'lvl3_user' ? "Executive Access" :
+                           employee?.autopro_access_lvl === 'lvl2_user' ? "Supervisor Access" :
+                           "Standard Access"}
+                        </span>
+                        <span className="text-[11px] font-medium text-[#1fa291] leading-none mt-0.5">
+                          Manage Account &rarr;
+                        </span>
+                      </div>
+                    </a>
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem asChild>
                     <a href="https://workpro.kensauto.ca" target="_blank" rel="noopener noreferrer" className="cursor-pointer">
@@ -858,23 +856,20 @@ const navigationItems = [
                       {darkMode ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
                       <span>{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
                       </DropdownMenuItem>
-                      {user?.role === 'admin' && (
+                      <DropdownMenuItem onClick={() => setShowReportIssueModal(true)} className="cursor-pointer">
+                        <AlertCircle className="mr-2 h-4 w-4" />
+                        <span>Report Issue</span>
+                      </DropdownMenuItem>
+                      {employee?.admin === true && (
                         <>
                           <DropdownMenuItem onClick={() => window.location.href = createPageUrl('Admin')} className="cursor-pointer">
                             <Shield className="mr-2 h-4 w-4" />
                             <span>Admin Dashboard</span>
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={handleToggleOpenNewWindow} className="cursor-pointer">
-                            <span className="mr-2">{user?.OpenNewWindow ? '☑' : '☐'}</span>
-                            <span>Open New Windows</span>
-                          </DropdownMenuItem>
                           </>
                           )}
-                          <DropdownMenuItem onClick={handleToggleWOCards} className="cursor-pointer">
-                            <span className="mr-2">{user?.wo_cards === true ? 'Work Order Table View' : 'Work Order Card View'}</span>
-                          </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer bg-red-600 text-white font-bold focus:bg-red-700 focus:text-white">
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Logout</span>
                   </DropdownMenuItem>
@@ -887,7 +882,7 @@ const navigationItems = [
 
       {/* Mobile Navigation Menu */}
       {isMobileMenuOpen && (
-        <div className="no-print lg:hidden fixed top-16 left-0 w-full bg-white shadow-lg z-30 overflow-y-auto h-[calc(100vh-4rem)] border-t border-slate-200">
+        <div className="no-print lg:hidden fixed top-16 left-0 w-full bg-white dark:bg-slate-950 shadow-lg z-30 overflow-y-auto h-[calc(100vh-4rem)] border-t border-slate-200 dark:border-slate-800">
           <nav className="py-4">
             {navigationItems.map((item) => (
               <div key={item.title} className="border-b border-slate-100">
@@ -991,7 +986,7 @@ const navigationItems = [
       <FindPartModal
         open={showFindPartModal}
         onClose={() => setShowFindPartModal(false)}
-        currentUser={user}
+        currentUser={employee}
       />
 
       <NewCustomerModal
@@ -1008,7 +1003,7 @@ const navigationItems = [
         open={showReportModal}
         onClose={() => setShowReportModal(false)}
         reportType={reportType}
-        currentUser={user}
+        currentUser={employee}
       />
 
       <OpenROModal
@@ -1026,7 +1021,7 @@ const navigationItems = [
             const pageName = newWorkOrder?.stage === 'estimate' ? "EstimateEdit" : "WorkOrderEdit";
             const url = createPageUrl(pageName) + "?id=" + newWorkOrder.ro_number;
             
-            if (user?.OpenNewWindow === false) {
+            if (employee?.OpenNewWindow === false) {
               window.location.href = url;
             } else {
               const windowFeatures = 'width=1600,height=1000,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=no,status=no';
@@ -1047,8 +1042,16 @@ const navigationItems = [
       <GlobalClockInModal
         open={showGlobalClockInModal}
         onClose={() => setShowGlobalClockInModal(false)}
-        user={user}
+        user={employee}
         onClockIn={handleGlobalClockInSuccess}
+      />
+
+      <ReportIssueModal
+        isOpen={showReportIssueModal}
+        onClose={() => setShowReportIssueModal(false)}
+        user={user}
+        currentEmployeeData={employee}
+        isGloballyClockedIn={isClockedIn}
       />
     </div>
   );

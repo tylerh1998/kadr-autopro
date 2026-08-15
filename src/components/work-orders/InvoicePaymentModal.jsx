@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DollarSign, CreditCard, Loader2, PlusCircle, Trash2, AlertTriangle, X } from 'lucide-react';
 import { format } from 'date-fns';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 
 const paymentMethodOptions = [
   { value: 'cash', label: 'Cash' },
@@ -197,8 +197,12 @@ export default function InvoicePaymentModal({
       setLoading(true);
 
       // Validation: Check CustomerPayments entity
-      const cpRes = await base44.functions.invoke('supabaseCustomerPayments', { action: 'get', id: payment.id });
-      const cp = cpRes.data?.data;
+      const { data: cp, error: cpError } = await supabase
+        .from('CustomerPayments')
+        .select('*')
+        .eq('id', payment.id)
+        .maybeSingle();
+      if (cpError) throw cpError;
       if (cp) {
         if (cp.deposited) {
           alert("Cannot delete this payment as it has already been deposited.");
@@ -284,7 +288,7 @@ export default function InvoicePaymentModal({
                   <button
                     type="button"
                     onClick={() => handleNewPaymentChange('amount', 0)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-slate-300 p-1"
                     disabled={loading}
                   >
                     <X className="w-4 h-4" />
@@ -306,8 +310,8 @@ export default function InvoicePaymentModal({
                     disabled={loading}
                     className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
                       newPayment.method === method.value
-                        ? 'bg-slate-900 text-white shadow-md'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        ? 'bg-slate-900 text-white shadow-md dark:bg-slate-100 dark:text-slate-900'
+                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700'
                     } ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     {method.label}
@@ -383,7 +387,7 @@ export default function InvoicePaymentModal({
                   <p className="p-4 text-center text-muted-foreground">No payments applied yet.</p>
                 ) : (
                   payments.map((payment, index) => (
-                    <div key={payment.id || `temp-${index}`} className="flex items-center justify-between p-3 border-b last:border-b-0">
+                    <div key={payment.id || `temp-${index}`} className="flex items-center justify-between p-3 border-b dark:border-slate-800 last:border-b-0">
                       <div className="flex items-center gap-3">
                         <CreditCard className="w-4 h-4 text-muted-foreground" />
                         <div>
@@ -429,13 +433,13 @@ export default function InvoicePaymentModal({
 
         {/* Warning if balance not zero */}
         {Math.abs(balanceDue) > 0.005 && (
-        <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-md">
+        <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 text-amber-800 dark:text-amber-400 rounded-md">
         <AlertTriangle className="w-5 h-5 flex-shrink-0" />
         <div>
           <p className="font-semibold">Balance must be zero to continue</p>
           <p className="text-sm">Please add or remove payments until the balance due is $0.00</p>
           {newPayment.method === 'cash' && Math.abs(balanceDue) <= 0.02 && (
-            <p className="text-xs text-amber-700 mt-1 font-medium">Tip: Use the "Pay remaining balance" link then select Cash to auto-apply rounding.</p>
+            <p className="text-xs text-amber-700 dark:text-amber-500 mt-1 font-medium">Tip: Use the "Pay remaining balance" link then select Cash to auto-apply rounding.</p>
           )}
         </div>
         </div>

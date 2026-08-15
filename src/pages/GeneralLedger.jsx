@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChartOfAccount, GLTransaction } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,9 +25,8 @@ export default function GeneralLedgerPage({ isEmbedded = false }) {
   const loadData = async () => {
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('getGeneralLedgerData', {
-        startDate,
-        endDate
+      const response = await supabase.functions.invoke('autopro-getGeneralLedgerData', {
+        body: { startDate, endDate }
       });
 
       if (!response.data?.success) {
@@ -102,11 +100,11 @@ export default function GeneralLedgerPage({ isEmbedded = false }) {
   };
 
   const accountTypeColors = {
-    'Asset': 'bg-blue-100 text-blue-800',
-    'Liability': 'bg-red-100 text-red-800',
-    'Equity': 'bg-purple-100 text-purple-800',
-    'Revenue': 'bg-green-100 text-green-800',
-    'Expense': 'bg-orange-100 text-orange-800'
+    'Asset': 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
+    'Liability': 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300',
+    'Equity': 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300',
+    'Revenue': 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
+    'Expense': 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300'
   };
 
   const filteredAccounts = accounts.filter(account => {
@@ -159,8 +157,8 @@ export default function GeneralLedgerPage({ isEmbedded = false }) {
     
     return (
       <React.Fragment>
-        <tr 
-          className="border-b hover:bg-slate-50 cursor-pointer"
+        <tr
+          className="border-b hover:bg-slate-50 dark:hover:bg-slate-800/60 cursor-pointer"
           onClick={() => onAccountClick(account.account_number)}
         >
           <td className="p-3 font-mono text-sm" style={{ paddingLeft: `${12 + level * 24}px` }}>
@@ -168,16 +166,16 @@ export default function GeneralLedgerPage({ isEmbedded = false }) {
           </td>
           <td className="p-3">
             <div>
-              <span className={`text-slate-900 ${level === 0 ? 'font-medium' : ''} ${account.is_synthetic ? 'italic' : ''}`}>
+              <span className={`text-slate-900 dark:text-slate-100 ${level === 0 ? 'font-medium' : ''} ${account.is_synthetic ? 'italic' : ''}`}>
                 {account.account_name}
               </span>
               {!account.is_synthetic && account.description && (
-                <p className="text-xs text-slate-500">{account.description}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{account.description}</p>
               )}
             </div>
           </td>
           <td className="p-3 text-right font-semibold">
-            <span className={Math.abs(balance) > 0.001 ? (balance < -0.001 ? 'text-red-600' : 'text-slate-900') : 'text-slate-400'}>
+            <span className={Math.abs(balance) > 0.001 ? (balance < -0.001 ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-slate-100') : 'text-slate-400'}>
               ${Math.abs(balance).toFixed(2)}
               {isCr && <span className="ml-1">CR</span>}
               {isDr && <span className="ml-1">DR</span>}
@@ -361,11 +359,11 @@ export default function GeneralLedgerPage({ isEmbedded = false }) {
               </Button>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" size="sm" className="h-8 text-xs bg-blue-100 text-blue-800 hover:bg-blue-200 border-blue-200" onClick={() => setSearchTerm('Asset')}>Assets</Button>
-                <Button variant="outline" size="sm" className="h-8 text-xs bg-red-100 text-red-800 hover:bg-red-200 border-red-200" onClick={() => setSearchTerm('Liability')}>Liabilities</Button>
-                <Button variant="outline" size="sm" className="h-8 text-xs bg-purple-100 text-purple-800 hover:bg-purple-200 border-purple-200" onClick={() => setSearchTerm('Equity')}>Equity</Button>
-                <Button variant="outline" size="sm" className="h-8 text-xs bg-green-100 text-green-800 hover:bg-green-200 border-green-200" onClick={() => setSearchTerm('Revenue')}>Revenue</Button>
-                <Button variant="outline" size="sm" className="h-8 text-xs bg-orange-100 text-orange-800 hover:bg-orange-200 border-orange-200" onClick={() => setSearchTerm('Expense')}>Expense</Button>
+                <Button variant="outline" size="sm" className="h-8 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/50 border-blue-200 dark:border-blue-800" onClick={() => setSearchTerm('Asset')}>Assets</Button>
+                <Button variant="outline" size="sm" className="h-8 text-xs bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/50 border-red-200 dark:border-red-800" onClick={() => setSearchTerm('Liability')}>Liabilities</Button>
+                <Button variant="outline" size="sm" className="h-8 text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/50 border-purple-200 dark:border-purple-800" onClick={() => setSearchTerm('Equity')}>Equity</Button>
+                <Button variant="outline" size="sm" className="h-8 text-xs bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/50 border-green-200 dark:border-green-800" onClick={() => setSearchTerm('Revenue')}>Revenue</Button>
+                <Button variant="outline" size="sm" className="h-8 text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-300 hover:bg-orange-200 dark:hover:bg-orange-900/50 border-orange-200 dark:border-orange-800" onClick={() => setSearchTerm('Expense')}>Expense</Button>
               </div>
             </div>
           </CardContent>
@@ -376,15 +374,15 @@ export default function GeneralLedgerPage({ isEmbedded = false }) {
           <Card>
             <CardContent className="p-12 text-center">
               <Loader2 className="w-8 h-8 animate-spin text-slate-400 mx-auto mb-4" />
-              <p className="text-slate-600">Loading accounts...</p>
+              <p className="text-slate-600 dark:text-slate-400">Loading accounts...</p>
             </CardContent>
           </Card>
         ) : sortedGroups.length === 0 ? (
           <Card>
             <CardContent className="p-12 text-center">
               <BookOpen className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-slate-900 mb-2">No Accounts Found</h3>
-              <p className="text-slate-600">No accounts match your search criteria</p>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">No Accounts Found</h3>
+              <p className="text-slate-600 dark:text-slate-400">No accounts match your search criteria</p>
             </CardContent>
           </Card>
         ) : (
@@ -396,7 +394,7 @@ export default function GeneralLedgerPage({ isEmbedded = false }) {
                     <Badge className={accountTypeColors[accountType]}>
                       {accountType}
                     </Badge>
-                    <span className="text-sm font-normal text-slate-600">
+                    <span className="text-sm font-normal text-slate-600 dark:text-slate-400">
                       ({groupedAccounts[accountType].length} accounts)
                     </span>
                   </CardTitle>
@@ -404,13 +402,13 @@ export default function GeneralLedgerPage({ isEmbedded = false }) {
                 <CardContent className="p-0">
                   <div className="overflow-x-auto">
                     <table className="w-full">
-                      <thead className="bg-slate-50 border-b">
+                      <thead className="bg-slate-50 dark:bg-slate-800 border-b">
                         <tr>
-                          <th className="text-left p-3 font-semibold text-slate-700">Account #</th>
-                          <th className="text-left p-3 font-semibold text-slate-700">Account Name</th>
-                          <th className="text-right p-3 font-semibold text-slate-700">Balance</th>
-                          <th className="text-center p-3 font-semibold text-slate-700">Transactions</th>
-                          <th className="text-center p-3 font-semibold text-slate-700">Action</th>
+                          <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Account #</th>
+                          <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Account Name</th>
+                          <th className="text-right p-3 font-semibold text-slate-700 dark:text-slate-300">Balance</th>
+                          <th className="text-center p-3 font-semibold text-slate-700 dark:text-slate-300">Transactions</th>
+                          <th className="text-center p-3 font-semibold text-slate-700 dark:text-slate-300">Action</th>
                         </tr>
                       </thead>
                       <tbody>

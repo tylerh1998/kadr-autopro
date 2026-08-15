@@ -67,7 +67,7 @@ export default function SupplierCombobox({ suppliers, currentValue, onChange, di
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[360px] p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
-        <div className="p-2 bg-white">
+        <div className="p-2 bg-white dark:bg-slate-800">
           <Input
             placeholder="Search supplier..."
             value={search}
@@ -77,7 +77,7 @@ export default function SupplierCombobox({ suppliers, currentValue, onChange, di
           />
           <div ref={listRef} className="max-h-[260px] overflow-y-auto space-y-1">
             {filteredSuppliers.length === 0 ? (
-              <div className="py-6 text-center text-sm text-slate-500">No suppliers found.</div>
+              <div className="py-6 text-center text-sm text-slate-500 dark:text-slate-400">No suppliers found.</div>
             ) : (
               filteredSuppliers.map((supplier) => {
                 const isSelected = String(currentValue) === String(supplier.id);
@@ -90,9 +90,9 @@ export default function SupplierCombobox({ suppliers, currentValue, onChange, di
                       setOpen(false);
                       setSearch('');
                     }}
-                    className="flex items-center justify-between rounded-sm px-2 py-2 text-sm outline-none hover:bg-slate-100 cursor-pointer border-b border-slate-50 last:border-0"
+                    className="flex items-center justify-between rounded-sm px-2 py-2 text-sm outline-none hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer border-b border-slate-50 dark:border-slate-700 last:border-0"
                   >
-                    <span className="font-medium text-slate-900 truncate">{supplier.name}</span>
+                    <span className="font-medium text-slate-900 dark:text-slate-100 truncate">{supplier.name}</span>
                     {isSelected && <Check className="h-4 w-4 text-green-600 shrink-0" />}
                   </div>
                 );

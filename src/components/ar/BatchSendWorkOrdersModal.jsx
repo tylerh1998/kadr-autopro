@@ -6,8 +6,7 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Send, Copy, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
-import { createBatchPortalSnapshot } from '@/functions/createBatchPortalSnapshot';
-import { sendBatchWorkOrderEmails } from '@/functions/sendBatchWorkOrderEmails';
+import { supabase } from '@/lib/supabase';
 
 function getStageTitle(workOrder) {
   if (workOrder?.stage === 'estimate') return 'Estimate';
@@ -23,7 +22,7 @@ function getPaidAmount(workOrder) {
   let paid = 0;
   try {
     if (workOrder?.payments) {
-      const paymentsList = JSON.parse(workOrder.payments);
+      const paymentsList = typeof workOrder.payments === 'string' ? JSON.parse(workOrder.payments) : workOrder.payments;
       if (Array.isArray(paymentsList)) {
         paid = paymentsList.reduce((sum, p) => {
           const method = p.payment_method || p.method;
@@ -67,11 +66,14 @@ export default function BatchSendWorkOrdersModal({ open, onClose, customer, sele
 
       for (const workOrder of selectedWorkOrders) {
         try {
-          const response = await createBatchPortalSnapshot({ work_order_id: workOrder.id });
-          if (response.data?.success) {
-            nextLinks[workOrder.id] = response.data.portal_url || `https://portal.kensauto.ca/WorkOrder?cp_id=${response.data.cp_id}`;
+          const { data, error: invokeError } = await supabase.functions.invoke('autopro-createPortalSnapshot', {
+            body: { work_order_id: workOrder.id }
+          });
+          if (invokeError) throw invokeError;
+          if (data?.success) {
+            nextLinks[workOrder.id] = data.portal_url || `https://portal.kensauto.ca/WorkOrder?cp_id=${data.cp_id}`;
           } else {
-            nextErrors[workOrder.id] = response.data?.error || 'Failed to create portal link';
+            nextErrors[workOrder.id] = data?.error || 'Failed to create portal link';
           }
         } catch (error) {
           nextErrors[workOrder.id] = error.message || 'Failed to create portal link';
@@ -98,24 +100,27 @@ export default function BatchSendWorkOrdersModal({ open, onClose, customer, sele
   const handleSend = async () => {
     setSending(true);
     try {
-      const response = await sendBatchWorkOrderEmails({
-        to: emailTo,
-        customer,
-        workOrders: selectedWorkOrders.map((workOrder) => ({
-          id: workOrder.id,
-          customer_id: workOrder.customer_id,
-          stage: workOrder.stage,
-          ro_number: workOrder.ro_number,
-          wo_number: workOrder.wo_number,
-          est_number: workOrder.est_number,
-          inv_number: workOrder.inv_number,
-          total_amount: workOrder.total_amount || 0,
-          amount_paid: getPaidAmount(workOrder),
-          portal_url: portalLinks[workOrder.id] || null
-        }))
+      const { data, error: invokeError } = await supabase.functions.invoke('autopro-sendBatchWorkOrderEmails', {
+        body: {
+          to: emailTo,
+          customer,
+          workOrders: selectedWorkOrders.map((workOrder) => ({
+            id: workOrder.id,
+            customer_id: workOrder.customer_id,
+            stage: workOrder.stage,
+            ro_number: workOrder.ro_number,
+            wo_number: workOrder.wo_number,
+            est_number: workOrder.est_number,
+            inv_number: workOrder.inv_number,
+            total_amount: workOrder.total_amount || 0,
+            amount_paid: getPaidAmount(workOrder),
+            portal_url: portalLinks[workOrder.id] || null
+          }))
+        }
       });
+      if (invokeError) throw invokeError;
 
-      const nextResults = response.data?.results || [];
+      const nextResults = data?.results || [];
       setResults(nextResults);
       if (nextResults.some((item) => item.success)) {
         onSent?.(nextResults);
@@ -150,9 +155,9 @@ export default function BatchSendWorkOrdersModal({ open, onClose, customer, sele
             </div>
 
             {creatingSnapshots && (
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-3 flex items-center gap-2">
-                <Loader2 className="w-5 h-5 text-blue-600 animate-spin" />
-                <span className="text-sm text-blue-800">Creating customer portal links...</span>
+              <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-md p-3 flex items-center gap-2">
+                <Loader2 className="w-5 h-5 text-blue-600 dark:text-blue-400 animate-spin" />
+                <span className="text-sm text-blue-800 dark:text-blue-300">Creating customer portal links...</span>
               </div>
             )}
 
@@ -167,10 +172,10 @@ export default function BatchSendWorkOrdersModal({ open, onClose, customer, sele
                     <div key={workOrder.id} className="rounded-md border p-3 space-y-2">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="font-medium text-slate-900">{label}</p>
-                          <p className="text-sm text-slate-500">${(workOrder.total_amount || 0).toFixed(2)}</p>
+                          <p className="font-medium text-slate-900 dark:text-slate-100">{label}</p>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">${(workOrder.total_amount || 0).toFixed(2)}</p>
                         </div>
-                        {url && <CheckCircle2 className="w-5 h-5 text-green-600" />}
+                        {url && <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />}
                       </div>
 
                       {url && (
@@ -184,9 +189,9 @@ export default function BatchSendWorkOrdersModal({ open, onClose, customer, sele
                       )}
 
                       {error && (
-                        <div className="bg-red-50 border border-red-200 rounded-md p-3 flex items-start gap-2">
-                          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                          <p className="text-sm text-red-800">{error}</p>
+                        <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md p-3 flex items-start gap-2">
+                          <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                          <p className="text-sm text-red-800 dark:text-red-300">{error}</p>
                         </div>
                       )}
                     </div>
@@ -203,10 +208,10 @@ export default function BatchSendWorkOrdersModal({ open, onClose, customer, sele
                 {results.map((result) => (
                   <div key={result.work_order_id} className="flex items-center justify-between gap-3 p-3 text-sm">
                     <div>
-                      <p className="font-medium text-slate-900">{result.label}</p>
-                      <p className="text-slate-500">{result.message}</p>
+                      <p className="font-medium text-slate-900 dark:text-slate-100">{result.label}</p>
+                      <p className="text-slate-500 dark:text-slate-400">{result.message}</p>
                     </div>
-                    <Badge className={result.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
+                    <Badge className={result.success ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300' : 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300'}>
                       {result.success ? 'Sent' : 'Failed'}
                     </Badge>
                   </div>

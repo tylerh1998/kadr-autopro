@@ -6,8 +6,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Send, AlertCircle, Plus } from 'lucide-react';
 import { format } from 'date-fns';
-import { Employee } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 
 export default function WorkPROCommentsModal({ open, onClose, workOrder, project, comments, onUpdate }) {
   const [newComment, setNewComment] = useState('');
@@ -17,8 +16,9 @@ export default function WorkPROCommentsModal({ open, onClose, workOrder, project
   useEffect(() => {
     const loadEmployees = async () => {
       try {
-        const allEmployees = await Employee.list();
-        setEmployees(allEmployees);
+        const { data: allEmployees, error: employeesError } = await supabase.from('Employee').select('*');
+        if (employeesError) throw employeesError;
+        setEmployees(allEmployees || []);
       } catch (error) {
         console.error('Error loading employees:', error);
       }
@@ -50,33 +50,26 @@ export default function WorkPROCommentsModal({ open, onClose, workOrder, project
 
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('workProProxy', {
-        entityName: 'ProjectComment',
-        method: 'create',
-        params: {
+      const { error: insertError } = await supabase
+        .from('ProjectComment')
+        .insert({
           project_id: project.id,
           comment: newComment,
           user: 'AutoShop User'
-        }
-      });
+        });
 
-      if (!response.data.success) throw new Error(response.data.error || 'Failed to add comment');
+      if (insertError) throw insertError;
 
       // Refresh comments list
-      const commentsResponse = await base44.functions.invoke('workProProxy', {
-        entityName: 'ProjectComment',
-        method: 'filter',
-        params: {
-          project_id: project.id
-        }
-      });
-      
-      if (commentsResponse.data.success) {
-        const commentsArray = commentsResponse.data.data || [];
-        const sortedComments = commentsArray.sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
-        onUpdate(sortedComments);
-      }
+      const { data: commentsArray, error: fetchError } = await supabase
+        .from('ProjectComment')
+        .select('*')
+        .eq('project_id', project.id)
+        .order('created_date', { ascending: true });
 
+      if (fetchError) throw fetchError;
+
+      onUpdate(commentsArray || []);
       setNewComment('');
       alert('Comment added successfully');
     } catch (error) {
@@ -95,20 +88,20 @@ export default function WorkPROCommentsModal({ open, onClose, workOrder, project
             <div className="w-3 h-3 bg-green-500 rounded-full"></div>
             WorkPRO Comments
             {project ? (
-              <Badge variant="outline" className="bg-green-100 text-green-800">
+              <Badge variant="outline" className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
                 {comments.length} {comments.length === 1 ? 'comment' : 'comments'}
               </Badge>
             ) : (
-              <Badge variant="outline" className="bg-yellow-100 text-yellow-800">Not Connected</Badge>
+              <Badge variant="outline" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400">Not Connected</Badge>
             )}
           </DialogTitle>
         </DialogHeader>
 
         <div className="py-4 space-y-4">
           {!project && (
-            <div className="flex items-center gap-2 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-              <AlertCircle className="w-5 h-5 text-yellow-600" />
-              <p className="text-sm text-yellow-800">
+            <div className="flex items-center gap-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800/50">
+              <AlertCircle className="w-5 h-5 text-yellow-600 dark:text-yellow-500" />
+              <p className="text-sm text-yellow-800 dark:text-yellow-400">
                 This work order is not connected to WorkPRO. Please create a task first to establish the connection.
               </p>
             </div>
@@ -118,27 +111,27 @@ export default function WorkPROCommentsModal({ open, onClose, workOrder, project
             <>
               {/* Existing Comments */}
               <div className="space-y-3">
-                <h4 className="font-semibold text-slate-900">Comments History</h4>
-                <ScrollArea className="h-64 border rounded-lg p-4">
+                <h4 className="font-semibold text-slate-900 dark:text-slate-100">Comments History</h4>
+                <ScrollArea className="h-64 border dark:border-slate-800 rounded-lg p-4">
                   {comments.length > 0 ? (
                     <div className="space-y-4">
                       {comments.map((comment) => (
-                        <div key={comment.id} className="border-b border-slate-200 pb-3 last:border-b-0">
+                        <div key={comment.id} className="border-b border-slate-200 dark:border-slate-800 pb-3 last:border-b-0">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="font-medium text-sm text-blue-600">
+                            <span className="font-medium text-sm text-blue-600 dark:text-blue-400">
                               {getEmployeeName(comment.created_by || comment.user)}
                             </span>
-                            <span className="text-xs text-slate-500">
+                            <span className="text-xs text-slate-500 dark:text-slate-400">
                               {format(new Date(comment.created_date), 'MMM d, yyyy h:mm a')}
                             </span>
                           </div>
-                          <p className="text-slate-700 whitespace-pre-wrap">{comment.comment}</p>
+                          <p className="text-slate-700 dark:text-slate-300 whitespace-pre-wrap">{comment.comment}</p>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center text-slate-500 py-8">
-                      <Plus className="w-8 h-8 mx-auto mb-2 text-slate-400" />
+                    <div className="text-center text-slate-500 dark:text-slate-400 py-8">
+                      <Plus className="w-8 h-8 mx-auto mb-2 text-slate-400 dark:text-slate-500" />
                       <p>No comments yet. Add the first comment below.</p>
                     </div>
                   )}
@@ -146,8 +139,8 @@ export default function WorkPROCommentsModal({ open, onClose, workOrder, project
               </div>
 
               {/* Add New Comment */}
-              <div className="space-y-3 border-t pt-4">
-                <h4 className="font-semibold text-slate-900">Add New Comment</h4>
+              <div className="space-y-3 border-t dark:border-slate-800 pt-4">
+                <h4 className="font-semibold text-slate-900 dark:text-slate-100">Add New Comment</h4>
                 <Textarea
                   value={newComment}
                   onChange={(e) => setNewComment(e.target.value)}
@@ -159,7 +152,7 @@ export default function WorkPROCommentsModal({ open, onClose, workOrder, project
           )}
 
           {project && (
-            <div className="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg">
+            <div className="text-sm text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 p-3 rounded-lg">
               <p><strong>Task:</strong> {project.name || 'No task name'}</p>
               <p><strong>Status:</strong> {project.status}</p>
             </div>

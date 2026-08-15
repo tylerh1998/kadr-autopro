@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { createPageUrl } from '../../utils';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -19,8 +19,10 @@ export default function InventoryOnOrder() {
       setError('');
       try {
         // Use backend function for real-time calculation from Work Orders
-        const response = await base44.functions.invoke('getRealTimeInventoryOnOrder');
-        
+        const response = await supabase.functions.invoke('autopro-getRealTimeInventoryOnOrder');
+
+        if (response.error) throw response.error;
+
         if (response.data && response.data.success) {
            setInventoryData(response.data.data);
         } else {
@@ -146,7 +148,7 @@ export default function InventoryOnOrder() {
 
   if (error) {
     return (
-      <div className="text-center py-8 text-red-600">
+      <div className="text-center py-8 text-red-600 dark:text-red-400">
         <AlertCircle className="w-12 h-12 mx-auto mb-4" /><p className="text-lg font-semibold mb-2">Error Loading Data</p><p>{error}</p>
       </div>
     );
@@ -156,12 +158,12 @@ export default function InventoryOnOrder() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-2">
-          <Package className="w-6 h-6 text-blue-600" />
-          <h2 className="text-2xl font-bold text-gray-900">Inventory On Order</h2>
+          <Package className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-slate-100">Inventory On Order</h2>
         </div>
         <div className="flex items-center gap-4">
           <div className="relative w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-slate-500" />
             <Input
               placeholder="Search report..."
               value={searchTerm}
@@ -178,16 +180,16 @@ export default function InventoryOnOrder() {
 
       <div className="space-y-6 pr-2">
         {sortedSuppliers.map(supplier => (
-          <div key={supplier} className="border border-slate-200 rounded-lg overflow-hidden bg-white shadow-sm">
-             <div className="bg-slate-50 px-4 py-2 font-semibold text-slate-800 border-b border-slate-200 flex justify-between items-center">
+          <div key={supplier} className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
+             <div className="bg-slate-50 dark:bg-slate-800 px-4 py-2 font-semibold text-slate-800 dark:text-slate-200 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
                <span>{supplier}</span>
-               <span className="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full">
+               <span className="text-xs bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-full">
                  {groupedItems[supplier].length} items
                </span>
              </div>
              <div className="overflow-x-auto">
                <table className="w-full text-sm text-left">
-                 <thead className="bg-white text-slate-500 font-medium border-b border-slate-100">
+                 <thead className="bg-white dark:bg-slate-900 text-slate-500 dark:text-slate-400 font-medium border-b border-slate-100 dark:border-slate-800">
                    <tr>
                      <th className="px-4 py-2">Part #</th>
                      <th className="px-4 py-2">Description</th>
@@ -196,19 +198,19 @@ export default function InventoryOnOrder() {
                      <th className="px-4 py-2 text-center">WO#</th>
                    </tr>
                  </thead>
-                 <tbody className="divide-y divide-slate-100">
+                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                    {groupedItems[supplier].map(item => (
-                     <tr key={item.id} className="hover:bg-slate-50">
-                       <td className="px-4 py-2 font-medium text-slate-700">{item.part_number}</td>
-                       <td className="px-4 py-2 text-slate-600">{item.description}</td>
-                       <td className="px-4 py-2 text-center text-slate-700 font-medium">{item.quantity_on_order}</td>
-                       <td className="px-4 py-2 text-center text-slate-500">
+                     <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                       <td className="px-4 py-2 font-medium text-slate-700 dark:text-slate-300">{item.part_number}</td>
+                       <td className="px-4 py-2 text-slate-600 dark:text-slate-400">{item.description}</td>
+                       <td className="px-4 py-2 text-center text-slate-700 dark:text-slate-300 font-medium">{item.quantity_on_order}</td>
+                       <td className="px-4 py-2 text-center text-slate-500 dark:text-slate-400">
                          {item.last_ordered_date ? format(new Date(item.last_ordered_date), 'MMM d, yyyy') : '-'}
                        </td>
-                       <td className="px-4 py-2 text-center text-slate-500">
+                       <td className="px-4 py-2 text-center text-slate-500 dark:text-slate-400">
                          {item.last_ordered_ro ? (
-                           <span 
-                             className="text-blue-600 hover:underline cursor-pointer"
+                           <span
+                             className="text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                              onClick={() => window.open(createPageUrl('WorkOrderEdit') + '?id=' + item.last_ordered_ro, '_blank')}
                            >
                              {item.last_ordered_ro}
@@ -224,8 +226,8 @@ export default function InventoryOnOrder() {
         ))}
         
         {filteredItems.length === 0 && (
-           <div className="text-center py-12 text-gray-500 border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
-             <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+           <div className="text-center py-12 text-gray-500 dark:text-slate-400 border-2 border-dashed border-gray-200 dark:border-slate-700 rounded-lg bg-gray-50 dark:bg-slate-800">
+             <Package className="w-12 h-12 text-gray-300 dark:text-slate-600 mx-auto mb-3" />
              <p>No items found matching your search.</p>
            </div>
         )}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +21,7 @@ export default function BalanceSheet({ isEmbedded = false }) {
   const handleEmailReport = async () => {
     setSendingEmail(true);
     try {
-      const response = await base44.functions.invoke('findGLImbalances', {});
+      const response = await supabase.functions.invoke('autopro-findGLImbalances', { body: {} });
       if (response.data?.success) {
         alert('Imbalance report emailed successfully!');
       } else {
@@ -40,8 +40,8 @@ export default function BalanceSheet({ isEmbedded = false }) {
     try {
       console.log('Loading Balance Sheet as of:', asOfDate);
       
-      const response = await base44.functions.invoke('getBalanceSheetData', {
-        asOfDate: asOfDate
+      const response = await supabase.functions.invoke('autopro-getBalanceSheetData', {
+        body: { asOfDate: asOfDate }
       });
 
       console.log('Backend response:', response);
@@ -129,14 +129,14 @@ export default function BalanceSheet({ isEmbedded = false }) {
     return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  const AccountRow = ({ account, level = 0, colorClass = 'text-slate-900' }) => (
+  const AccountRow = ({ account, level = 0, colorClass = 'text-slate-900 dark:text-slate-100' }) => (
     <>
-      <div className="flex justify-between items-center p-4 border-b hover:bg-slate-50 print-line-item">
+      <div className="flex justify-between items-center p-4 border-b hover:bg-slate-50 dark:hover:bg-slate-800/60 print-line-item">
         <div style={{ paddingLeft: `${level * 24}px` }}>
-          <span className={`text-slate-900 ${level === 0 ? 'font-semibold' : 'font-medium'}`}>
+          <span className={`text-slate-900 dark:text-slate-100 ${level === 0 ? 'font-semibold' : 'font-medium'}`}>
             {account.account_number}
           </span>
-          <span className={`text-slate-600 ml-2 ${account.is_synthetic ? 'italic' : ''}`}>
+          <span className={`text-slate-600 dark:text-slate-400 ml-2 ${account.is_synthetic ? 'italic' : ''}`}>
             {account.account_name}
           </span>
           {!account.is_synthetic && (
@@ -379,7 +379,7 @@ export default function BalanceSheet({ isEmbedded = false }) {
             <CardContent className="p-6">
               <div className="flex flex-wrap items-end gap-4">
                 <div className="space-y-1 flex-1 min-w-[160px]">
-                  <Label htmlFor="as-of-date" className="text-xs text-slate-600">As of Date</Label>
+                  <Label htmlFor="as-of-date" className="text-xs text-slate-600 dark:text-slate-400">As of Date</Label>
                   <Input
                     id="as-of-date"
                     type="date"
@@ -410,12 +410,12 @@ export default function BalanceSheet({ isEmbedded = false }) {
           </Card>
 
           {warnings && (
-            <div className="bg-red-50 border-l-4 border-red-500 p-4 mb-4 no-print">
+            <div className="bg-red-50 dark:bg-red-950/30 border-l-4 border-red-500 dark:border-red-700 p-4 mb-4 no-print">
               <div className="flex items-center">
-                <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
-                <p className="text-red-700 font-bold">Data Integrity Warning</p>
+                <AlertTriangle className="h-5 w-5 text-red-500 dark:text-red-400 mr-2" />
+                <p className="text-red-700 dark:text-red-400 font-bold">Data Integrity Warning</p>
               </div>
-              <p className="text-red-600 mt-1 ml-7">{warnings}</p>
+              <p className="text-red-600 dark:text-red-400 mt-1 ml-7">{warnings}</p>
             </div>
           )}
 
@@ -423,7 +423,7 @@ export default function BalanceSheet({ isEmbedded = false }) {
             <Card>
               <CardContent className="p-12 text-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                <p className="text-slate-600">Loading Balance Sheet...</p>
+                <p className="text-slate-600 dark:text-slate-400">Loading Balance Sheet...</p>
               </CardContent>
             </Card>
           ) : reportData ? (
@@ -431,7 +431,7 @@ export default function BalanceSheet({ isEmbedded = false }) {
               {/* Assets Section */}
               <Card className="print-card">
                 <CardHeader className="no-print">
-                  <CardTitle className="flex items-center gap-2 text-blue-700">
+                  <CardTitle className="flex items-center gap-2 text-blue-700 dark:text-blue-400">
                     <Building2 className="w-5 h-5" />
                     Assets
                   </CardTitle>
@@ -441,17 +441,17 @@ export default function BalanceSheet({ isEmbedded = false }) {
                   {reportData.assets.length > 0 ? (
                     <div>
                       {reportData.assets.map((account) => (
-                        <AccountRow key={account.account_number} account={account} colorClass="text-blue-700" />
+                        <AccountRow key={account.account_number} account={account} colorClass="text-blue-700 dark:text-blue-400" />
                       ))}
-                      <div className="flex justify-between items-center p-4 bg-blue-50 border-t-2 border-blue-600 print-line-item total">
-                        <span className="font-bold text-slate-900">Total Assets</span>
-                        <span className="font-bold text-blue-700 text-lg">
+                      <div className="flex justify-between items-center p-4 bg-blue-50 dark:bg-blue-950/30 border-t-2 border-blue-600 dark:border-blue-700 print-line-item total">
+                        <span className="font-bold text-slate-900 dark:text-slate-100">Total Assets</span>
+                        <span className="font-bold text-blue-700 dark:text-blue-400 text-lg">
                           {formatMoney(reportData.summary.totalAssets)}
                         </span>
                       </div>
                     </div>
                   ) : (
-                    <div className="p-12 text-center text-slate-500">
+                    <div className="p-12 text-center text-slate-500 dark:text-slate-400">
                       No asset accounts with balances
                     </div>
                   )}
@@ -461,7 +461,7 @@ export default function BalanceSheet({ isEmbedded = false }) {
               {/* Liabilities Section */}
               <Card className="print-card">
                 <CardHeader className="no-print">
-                  <CardTitle className="flex items-center gap-2 text-red-700">
+                  <CardTitle className="flex items-center gap-2 text-red-700 dark:text-red-400">
                     <CreditCard className="w-5 h-5" />
                     Liabilities
                   </CardTitle>
@@ -471,17 +471,17 @@ export default function BalanceSheet({ isEmbedded = false }) {
                   {reportData.liabilities.length > 0 ? (
                     <div>
                       {reportData.liabilities.map((account) => (
-                        <AccountRow key={account.account_number} account={account} colorClass="text-red-700" />
+                        <AccountRow key={account.account_number} account={account} colorClass="text-red-700 dark:text-red-400" />
                       ))}
-                      <div className="flex justify-between items-center p-4 bg-red-50 border-t-2 border-red-600 print-line-item total">
-                        <span className="font-bold text-slate-900">Total Liabilities</span>
-                        <span className="font-bold text-red-700 text-lg">
+                      <div className="flex justify-between items-center p-4 bg-red-50 dark:bg-red-950/30 border-t-2 border-red-600 dark:border-red-700 print-line-item total">
+                        <span className="font-bold text-slate-900 dark:text-slate-100">Total Liabilities</span>
+                        <span className="font-bold text-red-700 dark:text-red-400 text-lg">
                           {formatMoney(reportData.summary.totalLiabilities)}
                         </span>
                       </div>
                     </div>
                   ) : (
-                    <div className="p-12 text-center text-slate-500">
+                    <div className="p-12 text-center text-slate-500 dark:text-slate-400">
                       No liability accounts with balances
                     </div>
                   )}
@@ -491,7 +491,7 @@ export default function BalanceSheet({ isEmbedded = false }) {
               {/* Equity Section */}
               <Card className="print-card">
                 <CardHeader className="no-print">
-                  <CardTitle className="flex items-center gap-2 text-purple-700">
+                  <CardTitle className="flex items-center gap-2 text-purple-700 dark:text-purple-400">
                     <PiggyBank className="w-5 h-5" />
                     Equity
                   </CardTitle>
@@ -501,17 +501,17 @@ export default function BalanceSheet({ isEmbedded = false }) {
                   {reportData.equity.length > 0 ? (
                     <div>
                       {reportData.equity.map((account) => (
-                        <AccountRow key={account.account_number} account={account} colorClass="text-purple-700" />
+                        <AccountRow key={account.account_number} account={account} colorClass="text-purple-700 dark:text-purple-400" />
                       ))}
-                      <div className="flex justify-between items-center p-4 bg-purple-50 border-t-2 border-purple-600 print-line-item total">
-                        <span className="font-bold text-slate-900">Total Equity</span>
-                        <span className="font-bold text-purple-700 text-lg">
+                      <div className="flex justify-between items-center p-4 bg-purple-50 dark:bg-purple-950/30 border-t-2 border-purple-600 dark:border-purple-700 print-line-item total">
+                        <span className="font-bold text-slate-900 dark:text-slate-100">Total Equity</span>
+                        <span className="font-bold text-purple-700 dark:text-purple-400 text-lg">
                           {formatMoney(reportData.summary.totalEquity)}
                         </span>
                       </div>
                     </div>
                   ) : (
-                    <div className="p-12 text-center text-slate-500">
+                    <div className="p-12 text-center text-slate-500 dark:text-slate-400">
                       No equity accounts with balances
                     </div>
                   )}
@@ -519,16 +519,16 @@ export default function BalanceSheet({ isEmbedded = false }) {
               </Card>
 
               {/* Total Liabilities & Equity */}
-              <Card className="print-card border-2 border-slate-400">
+              <Card className="print-card border-2 border-slate-400 dark:border-slate-600">
                 <CardContent className="p-6">
                   <div className="flex justify-between items-center print-line-item grand-total">
                     <div className="flex items-center gap-3">
-                      <DollarSign className="w-8 h-8 text-slate-700" />
-                      <span className="text-2xl font-bold text-slate-900">
+                      <DollarSign className="w-8 h-8 text-slate-700 dark:text-slate-300" />
+                      <span className="text-2xl font-bold text-slate-900 dark:text-slate-100">
                         Total Liabilities & Equity
                       </span>
                     </div>
-                    <span className="text-3xl font-bold text-slate-900">
+                    <span className="text-3xl font-bold text-slate-900 dark:text-slate-100">
                       {formatMoney(reportData.summary.totalLiabilitiesAndEquity)}
                     </span>
                   </div>
@@ -536,28 +536,28 @@ export default function BalanceSheet({ isEmbedded = false }) {
               </Card>
 
               {/* Balance Check */}
-              <Card className={`print-card no-print ${reportData.summary.isBalanced ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'} border-2`}>
+              <Card className={`print-card no-print ${reportData.summary.isBalanced ? 'border-green-500 dark:border-green-700 bg-green-50 dark:bg-green-950/30' : 'border-red-500 dark:border-red-700 bg-red-50 dark:bg-red-950/30'} border-2`}>
                 <CardContent className="p-6">
                   <div className="flex items-center gap-3">
                     {reportData.summary.isBalanced ? (
                       <>
-                        <CheckCircle className="w-8 h-8 text-green-700" />
+                        <CheckCircle className="w-8 h-8 text-green-700 dark:text-green-400" />
                         <div>
-                          <h3 className="text-lg font-bold text-green-900">Balance Sheet is Balanced</h3>
-                          <p className="text-sm text-green-700">
+                          <h3 className="text-lg font-bold text-green-900 dark:text-green-300">Balance Sheet is Balanced</h3>
+                          <p className="text-sm text-green-700 dark:text-green-400">
                             Assets ({formatMoney(reportData.summary.totalAssets)}) = Liabilities + Equity ({formatMoney(reportData.summary.totalLiabilitiesAndEquity)})
                           </p>
                         </div>
                       </>
                     ) : (
                       <>
-                        <AlertTriangle className="w-8 h-8 text-red-700" />
+                        <AlertTriangle className="w-8 h-8 text-red-700 dark:text-red-400" />
                         <div>
-                          <h3 className="text-lg font-bold text-red-900">Balance Sheet is Unbalanced</h3>
-                          <p className="text-sm text-red-700">
+                          <h3 className="text-lg font-bold text-red-900 dark:text-red-300">Balance Sheet is Unbalanced</h3>
+                          <p className="text-sm text-red-700 dark:text-red-400">
                             Assets ({formatMoney(reportData.summary.totalAssets)}) ≠ Liabilities + Equity ({formatMoney(reportData.summary.totalLiabilitiesAndEquity)})
                           </p>
-                          <p className="text-xs text-red-600 mt-1">
+                          <p className="text-xs text-red-600 dark:text-red-400 mt-1">
                             Difference: {formatMoney(Math.abs(reportData.summary.totalAssets - reportData.summary.totalLiabilitiesAndEquity))}
                           </p>
                         </div>
@@ -580,8 +580,8 @@ export default function BalanceSheet({ isEmbedded = false }) {
             <Card>
               <CardContent className="p-12 text-center">
                 <Calendar className="w-12 h-12 mx-auto mb-4 text-slate-400" />
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">No Data Available</h3>
-                <p className="text-slate-600">Select an as-of date to generate the Balance Sheet.</p>
+                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">No Data Available</h3>
+                <p className="text-slate-600 dark:text-slate-400">Select an as-of date to generate the Balance Sheet.</p>
               </CardContent>
             </Card>
           )}

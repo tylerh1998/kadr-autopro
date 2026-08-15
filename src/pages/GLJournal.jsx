@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -42,16 +42,19 @@ export default function GLJournalPage() {
       console.log('Date range:', appliedStartDate, 'to', appliedEndDate);
       
       // Fetch chart of accounts for tooltips
-      const accounts = await base44.entities.ChartOfAccount.list();
+      const { data: accounts, error: accountsError } = await supabase.from('ChartOfAccount').select('*');
+      if (accountsError) throw accountsError;
       const accountMap = {};
-      accounts.forEach(acc => {
+      (accounts || []).forEach(acc => {
         accountMap[acc.account_number] = acc.account_name;
       });
       setAccountsMap(accountMap);
       
-      const response = await base44.functions.invoke('getGLJournalData', {
-        appliedStartDate,
-        appliedEndDate
+      const response = await supabase.functions.invoke('autopro-getGLJournalData', {
+        body: {
+          appliedStartDate,
+          appliedEndDate
+        }
       });
 
       if (!response.data?.success) {
@@ -369,19 +372,19 @@ export default function GLJournalPage() {
         {/* Header with Date Filters - Hidden when printing */}
         <div className="flex flex-col lg:flex-row lg:items-center gap-4 lg:gap-6 no-print">
           <div className="flex-1 flex items-center gap-4">
-            <Link to={createPageUrl('ChartOfAccounts')}>
+            <Link to={createPageUrl('FinancialDashboard')}>
               <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
             </Link>
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">GL Journal</h1>
-              <p className="text-slate-600 mt-1">All general ledger transactions</p>
+              <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">GL Journal</h1>
+              <p className="text-slate-600 dark:text-slate-400 mt-1">All general ledger transactions</p>
             </div>
           </div>
-          
+
           {/* Search and Date Range Filters */}
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-1">
-              <Label htmlFor="search" className="text-xs text-slate-600">Search</Label>
+              <Label htmlFor="search" className="text-xs text-slate-600 dark:text-slate-400">Search</Label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                 <Input
@@ -389,39 +392,39 @@ export default function GLJournalPage() {
                   placeholder="Account, description, ref..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 w-56 bg-white"
+                  className="pl-10 w-56 bg-white dark:bg-slate-900"
                 />
               </div>
             </div>
             <div className="space-y-1">
-              <Label htmlFor="days-back" className="text-xs text-slate-600">Days Back</Label>
+              <Label htmlFor="days-back" className="text-xs text-slate-600 dark:text-slate-400">Days Back</Label>
               <Input
                 id="days-back"
                 type="number"
                 value={daysBack}
                 onChange={(e) => handleDaysBackChange(e.target.value)}
                 placeholder="365"
-                className="w-24 bg-white"
+                className="w-24 bg-white dark:bg-slate-900"
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="start-date" className="text-xs text-slate-600">Start Date</Label>
+              <Label htmlFor="start-date" className="text-xs text-slate-600 dark:text-slate-400">Start Date</Label>
               <Input
                 id="start-date"
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
-                className="w-40 bg-white"
+                className="w-40 bg-white dark:bg-slate-900"
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="end-date" className="text-xs text-slate-600">End Date</Label>
+              <Label htmlFor="end-date" className="text-xs text-slate-600 dark:text-slate-400">End Date</Label>
               <Input
                 id="end-date"
                 type="date"
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="w-40 bg-white"
+                className="w-40 bg-white dark:bg-slate-900"
               />
             </div>
             <Button onClick={handleApplyDateRange} className="bg-blue-600 hover:bg-blue-700" size="sm">
@@ -432,7 +435,7 @@ export default function GLJournalPage() {
         </div>
 
         {hasReachedJournalRowCap && (
-          <div className="no-print rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <div className="no-print rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-sm text-amber-900 dark:text-amber-300">
             This date range hit the current {JOURNAL_ROW_CAP.toLocaleString()} transaction fetch cap, so you may be viewing only part of the journal. Narrow the date range to review the full set.
           </div>
         )}
@@ -470,32 +473,32 @@ export default function GLJournalPage() {
           <CardContent className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 border-b">
+                <thead className="bg-slate-50 dark:bg-slate-800 border-b">
                   <tr>
-                    <th className="w-[7.75rem] text-left p-3 font-semibold text-slate-700">Date</th>
-                    <th className="w-[4.25rem] text-left p-3 font-semibold text-slate-700">Account</th>
-                    <th className="text-left p-3 font-semibold text-slate-700">Description</th>
-                    <th className="text-right p-3 font-semibold text-slate-700">Debit</th>
-                    <th className="text-right p-3 font-semibold text-slate-700">Credit</th>
+                    <th className="w-[7.75rem] text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Date</th>
+                    <th className="w-[4.25rem] text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Account</th>
+                    <th className="text-left p-3 font-semibold text-slate-700 dark:text-slate-300">Description</th>
+                    <th className="text-right p-3 font-semibold text-slate-700 dark:text-slate-300">Debit</th>
+                    <th className="text-right p-3 font-semibold text-slate-700 dark:text-slate-300">Credit</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loading ? (
                     Array(10).fill(0).map((_, i) => (
                       <tr key={i} className="border-b animate-pulse">
-                        <td className="p-3"><div className="h-4 bg-slate-200 rounded w-24"></div></td>
-                        <td className="p-3"><div className="h-4 bg-slate-200 rounded w-20"></div></td>
-                        <td className="p-3"><div className="h-4 bg-slate-200 rounded w-48"></div></td>
-                        <td className="p-3"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
-                        <td className="p-3"><div className="h-4 bg-slate-200 rounded w-16"></div></td>
+                        <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-24"></div></td>
+                        <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-20"></div></td>
+                        <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-48"></div></td>
+                        <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16"></div></td>
+                        <td className="p-3"><div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-16"></div></td>
                       </tr>
                     ))
                   ) : filteredDisplayTransactions.length > 0 ? (
                     <>
                       {filteredDisplayTransactions.map((tx) => (
-                        <tr key={tx.id} className="border-b hover:bg-slate-50">
+                        <tr key={tx.id} className="border-b hover:bg-slate-50 dark:hover:bg-slate-800/60">
                         <td className="w-[7.75rem] whitespace-nowrap p-3 align-top">{formatTransactionDate(tx.transaction_date)}</td>
-                        <td className="w-[4.25rem] p-3 align-top font-medium text-slate-900">
+                        <td className="w-[4.25rem] p-3 align-top font-medium text-slate-900 dark:text-slate-100">
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -509,28 +512,28 @@ export default function GLJournalPage() {
                         </td>
                         <td className="p-3">
                           <div>
-                            <span className="font-medium text-slate-900">{tx.description}</span>
+                            <span className="font-medium text-slate-900 dark:text-slate-100">{tx.description}</span>
                             {tx.reference && (
-                              <span className="text-slate-500 text-xs ml-2">Ref: {tx.reference}</span>
+                              <span className="text-slate-500 dark:text-slate-400 text-xs ml-2">Ref: {tx.reference}</span>
                             )}
                           </div>
                         </td>
                         <td className="p-3 text-right">
                           {tx.debit_amount > 0 && (
-                            <span className="font-medium text-red-600">${tx.debit_amount.toFixed(2)}</span>
+                            <span className="font-medium text-red-600 dark:text-red-400">${tx.debit_amount.toFixed(2)}</span>
                           )}
                         </td>
                         <td className="p-3 text-right">
                           {tx.credit_amount > 0 && (
-                            <span className="font-medium text-green-600">${tx.credit_amount.toFixed(2)}</span>
+                            <span className="font-medium text-green-600 dark:text-green-400">${tx.credit_amount.toFixed(2)}</span>
                           )}
                         </td>
                       </tr>
                       ))}
-                      <tr className="bg-slate-100 font-bold border-t-2 border-slate-300">
-                        <td colSpan="3" className="p-3 text-right text-slate-700">Totals:</td>
-                        <td className="p-3 text-right text-red-600">${totalDebit.toFixed(2)}</td>
-                        <td className="p-3 text-right text-green-600">${totalCredit.toFixed(2)}</td>
+                      <tr className="bg-slate-100 dark:bg-slate-800 font-bold border-t-2 border-slate-300 dark:border-slate-700">
+                        <td colSpan="3" className="p-3 text-right text-slate-700 dark:text-slate-300">Totals:</td>
+                        <td className="p-3 text-right text-red-600 dark:text-red-400">${totalDebit.toFixed(2)}</td>
+                        <td className="p-3 text-right text-green-600 dark:text-green-400">${totalCredit.toFixed(2)}</td>
                       </tr>
                     </>
                   ) : (
@@ -539,8 +542,8 @@ export default function GLJournalPage() {
                         <div className="text-slate-400 mb-4">
                           <BookOpen className="w-12 h-12 mx-auto" />
                         </div>
-                        <h3 className="text-lg font-semibold text-slate-900 mb-2">No Transactions</h3>
-                        <p className="text-slate-600 mb-4">No transactions found in the selected date range.</p>
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">No Transactions</h3>
+                        <p className="text-slate-600 dark:text-slate-400 mb-4">No transactions found in the selected date range.</p>
                       </td>
                     </tr>
                   )}

@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ArrowLeftRight, AlertCircle, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { checkBankAccountLock } from '../utils/mountainTimeUtils';
 
 export default function BankTransferModal({ open, onClose, bankAccounts, onSubmit, currentUser }) {
@@ -27,21 +27,19 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const getBankAccount = async (accountId) => {
-    const response = await base44.functions.invoke('SupabaseProxy', {
-      action: 'filter',
-      table: 'BankAccount',
-      params: { id: accountId }
-    });
-    return response.data?.data?.[0] || null;
+    const { data, error } = await supabase
+      .from('BankAccount')
+      .select('*')
+      .eq('id', accountId);
+    if (error) throw error;
+    return data?.[0] || null;
   };
 
   const updateBankAccount = async (accountId, data) => {
-    await base44.functions.invoke('SupabaseProxy', {
-      action: 'update',
-      table: 'BankAccount',
-      id: accountId,
-      data
-    });
+    await supabase
+      .from('BankAccount')
+      .update(data)
+      .eq('id', accountId);
   };
 
   const releaseLock = async (accountId) => {
@@ -249,7 +247,7 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <ArrowLeftRight className="w-5 h-5 text-blue-600" />
+            <ArrowLeftRight className="w-5 h-5 text-blue-600 dark:text-blue-400" />
             Transfer Funds Between Accounts
           </DialogTitle>
         </DialogHeader>
@@ -270,7 +268,7 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
                 onValueChange={(value) => handleChange('fromAccountId', value)}
                 required
               >
-                <SelectTrigger className={!formData.fromAccountId ? 'border-red-300' : ''}>
+                <SelectTrigger className={!formData.fromAccountId ? 'border-red-300 dark:border-red-700' : ''}>
                   <SelectValue placeholder="Select source account..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -282,7 +280,7 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
                 </SelectContent>
               </Select>
               {fromAccount && (
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   Available Balance: ${(fromAccount.current_balance || 0).toFixed(2)}
                 </p>
               )}
@@ -295,7 +293,7 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
                 onValueChange={(value) => handleChange('toAccountId', value)}
                 required
               >
-                <SelectTrigger className={!formData.toAccountId ? 'border-red-300' : ''}>
+                <SelectTrigger className={!formData.toAccountId ? 'border-red-300 dark:border-red-700' : ''}>
                   <SelectValue placeholder="Select destination account..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -307,7 +305,7 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
                 </SelectContent>
               </Select>
               {toAccount && (
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   Current Balance: ${(toAccount.current_balance || 0).toFixed(2)}
                 </p>
               )}
@@ -325,7 +323,7 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
                 value={formData.amount}
                 onChange={(e) => handleChange('amount', e.target.value)}
                 required
-                className={!formData.amount || parseFloat(formData.amount) <= 0 ? 'border-red-300' : ''}
+                className={!formData.amount || parseFloat(formData.amount) <= 0 ? 'border-red-300 dark:border-red-700' : ''}
               />
             </div>
 
@@ -353,36 +351,36 @@ export default function BankTransferModal({ open, onClose, bankAccounts, onSubmi
           </div>
 
           {formData.fromAccountId && formData.toAccountId && formData.amount && parseFloat(formData.amount) > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
-              <h4 className="font-semibold text-blue-900 flex items-center gap-2">
+            <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-2">
+              <h4 className="font-semibold text-blue-900 dark:text-blue-300 flex items-center gap-2">
                 <ArrowLeftRight className="w-4 h-4" />
                 Transfer Summary
               </h4>
               <div className="text-sm space-y-1">
                 <div className="flex justify-between">
-                  <span className="text-slate-600">From:</span>
+                  <span className="text-slate-600 dark:text-slate-400">From:</span>
                   <span className="font-medium">{fromAccount?.name}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-600">To:</span>
+                  <span className="text-slate-600 dark:text-slate-400">To:</span>
                   <span className="font-medium">{toAccount?.name}</span>
                 </div>
                 <div className="flex justify-between border-t pt-2 mt-2">
-                  <span className="text-slate-600">Amount:</span>
-                  <span className="font-bold text-blue-700">${parseFloat(formData.amount).toFixed(2)}</span>
+                  <span className="text-slate-600 dark:text-slate-400">Amount:</span>
+                  <span className="font-bold text-blue-700 dark:text-blue-400">${parseFloat(formData.amount).toFixed(2)}</span>
                 </div>
                 {fromAccount && (
                   <div className="flex justify-between text-xs">
-                    <span className="text-slate-500">New {fromAccount.name} balance:</span>
-                    <span className="text-slate-700">
+                    <span className="text-slate-500 dark:text-slate-400">New {fromAccount.name} balance:</span>
+                    <span className="text-slate-700 dark:text-slate-300">
                       ${((fromAccount.current_balance || 0) - parseFloat(formData.amount)).toFixed(2)}
                     </span>
                   </div>
                 )}
                 {toAccount && (
                   <div className="flex justify-between text-xs">
-                    <span className="text-slate-500">New {toAccount.name} balance:</span>
-                    <span className="text-slate-700">
+                    <span className="text-slate-500 dark:text-slate-400">New {toAccount.name} balance:</span>
+                    <span className="text-slate-700 dark:text-slate-300">
                       ${((toAccount.current_balance || 0) + parseFloat(formData.amount)).toFixed(2)}
                     </span>
                   </div>

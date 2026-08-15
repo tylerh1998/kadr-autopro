@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { FiscalPeriod } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { format } from 'date-fns';
 import { History, RefreshCw, Undo2, Ban, Printer, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -22,17 +21,25 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
   const loadDeposits = useCallback(async () => {
     setLoading(true);
     try {
-      const [bankTransactionsResponse, fiscalPeriods] = await Promise.all([
-        base44.functions.invoke('getBankTransactions', {
-          sourceType: 'deposit',
-          fromDate: '1900-01-01',
-          sortField: 'transaction_date',
-          sortDirection: 'desc'
+      const [bankTransactionsResult, fiscalPeriodsResult] = await Promise.all([
+        supabase.functions.invoke('autopro-getBankTransactions', {
+          body: {
+            sourceType: 'deposit',
+            fromDate: '1900-01-01',
+            sortField: 'transaction_date',
+            sortDirection: 'desc'
+          }
         }),
-        FiscalPeriod.list()
+        supabase.from('FiscalPeriod').select('*')
       ]);
 
-      const recentDeposits = bankTransactionsResponse?.data?.transactions || [];
+      if (bankTransactionsResult.error) throw bankTransactionsResult.error;
+      if (bankTransactionsResult.data?.error) throw new Error(bankTransactionsResult.data.error);
+      if (fiscalPeriodsResult.error) throw fiscalPeriodsResult.error;
+
+      const fiscalPeriods = fiscalPeriodsResult.data || [];
+
+      const recentDeposits = bankTransactionsResult.data?.transactions || [];
 
       const depositsWithStatus = recentDeposits.map((dep) => {
         let canReverse = true;
@@ -91,13 +98,13 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
   const handleReverseDeposit = useCallback(async (depositId, bankAccountId) => {
     // Check if bank account is locked before confirming
     try {
-      const accountResponse = await base44.functions.invoke('SupabaseProxy', {
-        action: 'filter',
-        table: 'BankAccount',
-        params: { id: bankAccountId }
-      });
-      const account = accountResponse.data?.data?.[0];
-      
+      const { data: accountData, error: accountError } = await supabase
+        .from('BankAccount')
+        .select('*')
+        .eq('id', bankAccountId);
+      if (accountError) throw accountError;
+      const account = accountData?.[0];
+
       // Check if any lock exists that is not expired
       if (account?.locked_by_user && account?.locked_timestamp) {
         const lockStatus = checkBankAccountLock(account, '');
@@ -120,13 +127,14 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
 
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('reverseDeposit', { bankTransactionId: depositId });
-      if (response.data.success) {
+      const { data, error: invokeError } = await supabase.functions.invoke('autopro-reverseDeposit', { body: { bankTransactionId: depositId } });
+      if (invokeError) throw new Error(invokeError.message);
+      if (data.success) {
         alert('Deposit reversed successfully!');
         onDepositReversed();
         loadDeposits();
       } else {
-        alert(`Failed to reverse deposit: ${response.data.error || 'Unknown error'}`);
+        alert(`Failed to reverse deposit: ${data.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error reversing deposit:', error);
@@ -155,10 +163,10 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
             {loading ? (
               <div className="text-center py-8">
                 <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                <p className="mt-2 text-gray-600">Loading deposits...</p>
+                <p className="mt-2 text-gray-600 dark:text-gray-400">Loading deposits...</p>
               </div>
             ) : deposits.length === 0 ? (
-              <div className="text-center py-8 text-slate-600">
+              <div className="text-center py-8 text-slate-600 dark:text-slate-400">
                 <p>No deposit history found.</p>
               </div>
             ) : (
@@ -184,16 +192,16 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
                         <TableCell>{deposit.bank_account_name || deposit.bank_name || 'N/A'}</TableCell>
                         <TableCell className="text-right">${deposit.credit_amount.toFixed(2)}</TableCell>
                         <TableCell className="text-center">
-                          {deposit.reconciled && <span className="text-green-600">Reconciled</span>}
-                          {!deposit.reconciled && deposit.cleared && <span className="text-blue-600">Cleared</span>}
-                          {!deposit.reconciled && !deposit.cleared && <span className="text-orange-600">Pending</span>}
+                          {deposit.reconciled && <span className="text-green-600 dark:text-green-400">Reconciled</span>}
+                          {!deposit.reconciled && deposit.cleared && <span className="text-blue-600 dark:text-blue-400">Cleared</span>}
+                          {!deposit.reconciled && !deposit.cleared && <span className="text-orange-600 dark:text-orange-400">Pending</span>}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-1">
                             <Button
                               variant="outline"
                               size="sm"
-                              className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                              className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-900/30"
                               onClick={() => {
                                 setSelectedDeposit(deposit);
                                 setShowDetailsModal(true);
@@ -206,7 +214,7 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
                             <Button
                               variant="outline"
                               size="sm"
-                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/30"
                               onClick={() => onReprintSlip(deposit)}
                               disabled={loading}
                               title="Reprint Deposit Slip"
@@ -229,7 +237,7 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
                                 title={`Cannot reverse: ${deposit.reversalReason}`}
                                 disabled
                               >
-                                <Ban className="w-4 h-4 text-red-500" />
+                                <Ban className="w-4 h-4 text-red-500 dark:text-red-400" />
                               </Button>
                             )}
                           </div>
@@ -243,7 +251,7 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
           </CardContent>
         {totalPages > 1 && (
           <div className="flex items-center justify-between mt-4 px-2">
-            <p className="text-sm text-slate-600">
+            <p className="text-sm text-slate-600 dark:text-slate-400">
               Showing {startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, deposits.length)} of {deposits.length}
             </p>
             <div className="flex items-center gap-2">

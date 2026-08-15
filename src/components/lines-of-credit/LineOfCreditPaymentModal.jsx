@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { LinesOfCreditTransaction, LinesOfCredit } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { checkEntityLock } from '../utils/mountainTimeUtils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -243,7 +242,12 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
       if (open && lineOfCredit && currentUser) {
         try {
           // Always fetch the latest account data to check lock status
-          const account = await LinesOfCredit.get(lineOfCredit.id);
+          const { data: account, error: accountError } = await supabase
+            .from('LinesOfCredit')
+            .select('*')
+            .eq('id', lineOfCredit.id)
+            .single();
+          if (accountError) throw accountError;
           const lockStatus = checkEntityLock(account, currentUser.email);
 
           if (lockStatus.isLocked) {
@@ -253,10 +257,10 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
           }
 
           // Acquire lock
-          await LinesOfCredit.update(lineOfCredit.id, {
+          await supabase.from('LinesOfCredit').update({
             locked_by_user: currentUser.email,
             locked_timestamp: new Date().toISOString()
-          });
+          }).eq('id', lineOfCredit.id);
           
           setLockAcquired(true);
           setIsLocked(false);
@@ -271,23 +275,23 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
           setCalculating(false);
           setCalculationResult(null);
 
-          const [bankAccountsResponse, otherLOCData, transactionsData] = await Promise.all([
-            base44.functions.invoke('SupabaseProxy', {
-              action: 'list',
-              table: 'BankAccount'
-            }),
-            LinesOfCredit.filter({ is_active: true }),
-            LinesOfCreditTransaction.filter({ line_of_credit_id: lineOfCredit.id })
+          const [bankAccountsResponse, otherLOCResponse, transactionsResponse] = await Promise.all([
+            supabase.from('BankAccount').select('*'),
+            supabase.from('LinesOfCredit').select('*').eq('is_active', true),
+            supabase.from('LinesOfCreditTransaction').select('*').eq('line_of_credit_id', lineOfCredit.id)
           ]);
 
-          const bankAccountsData = (bankAccountsResponse.data?.data || []).filter(account => account.is_active !== false);
+          const bankAccountsData = (bankAccountsResponse.data || []).filter(account => account.is_active !== false);
           setBankAccounts(bankAccountsData);
-          
+
           // Set primary account as default if available
           const primaryAccount = bankAccountsData.find(acc => acc.primary);
           if (primaryAccount) {
             setPaymentData(prev => ({ ...prev, from_account_id: primaryAccount.id }));
           }
+
+          const otherLOCData = otherLOCResponse.data || [];
+          const transactionsData = transactionsResponse.data || [];
 
           // Filter out the current line of credit from other options
           setOtherLinesOfCredit(otherLOCData.filter(loc => loc.id !== lineOfCredit.id));
@@ -327,11 +331,11 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
     return () => {
       if (!open && lockAcquired && currentUser && lineOfCredit) {
         // Release lock when modal closes
-        LinesOfCredit.update(lineOfCredit.id, {
+        supabase.from('LinesOfCredit').update({
           locked_by_user: null,
           locked_timestamp: null
-        }).catch(error => {
-          console.error('Error releasing lock:', error);
+        }).eq('id', lineOfCredit.id).then(({ error }) => {
+          if (error) console.error('Error releasing lock:', error);
         });
         setLockAcquired(false);
       }
@@ -341,11 +345,11 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
   const handleClose = () => {
     // Release lock before closing
     if (lockAcquired && currentUser && lineOfCredit) {
-      LinesOfCredit.update(lineOfCredit.id, {
+      supabase.from('LinesOfCredit').update({
         locked_by_user: null,
         locked_timestamp: null
-      }).catch(error => {
-        console.error('Error releasing lock on close:', error);
+      }).eq('id', lineOfCredit.id).then(({ error }) => {
+        if (error) console.error('Error releasing lock on close:', error);
       });
       setLockAcquired(false);
     }
@@ -393,9 +397,11 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
     setCalculationResult(null);
 
     try {
-      const response = await base44.functions.invoke('calculateLineOfCreditPaymentBreakdown', {
-        lineOfCreditId: lineOfCredit.id,
-        paymentAmount
+      const response = await supabase.functions.invoke('autopro-calculateLineOfCreditPaymentBreakdown', {
+        body: {
+          lineOfCreditId: lineOfCredit.id,
+          paymentAmount
+        }
       });
 
       if (response.data?.success) {
@@ -460,13 +466,15 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
         appliedCharges = calculationResult?.appliedCharges || [];
       }
 
-      const response = await base44.functions.invoke('processLineOfCreditPayment', {
-        line_of_credit_id: lineOfCredit.id,
-        payment_date: format(paymentData.payment_date, 'yyyy-MM-dd'),
-        payment_amount: paymentAmount,
-        payment_method: paymentData.payment_method,
-        from_account_id: paymentData.from_account_id,
-        applied_charges: appliedCharges
+      const response = await supabase.functions.invoke('autopro-processLineOfCreditPayment', {
+        body: {
+          line_of_credit_id: lineOfCredit.id,
+          payment_date: format(paymentData.payment_date, 'yyyy-MM-dd'),
+          payment_amount: paymentAmount,
+          payment_method: paymentData.payment_method,
+          from_account_id: paymentData.from_account_id,
+          applied_charges: appliedCharges
+        }
       });
 
       if (response.data && response.data.success) {
@@ -545,7 +553,7 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
                       return (
                         <TableRow 
                           key={charge.id}
-                          className={`cursor-pointer ${isSelected ? 'bg-blue-50' : (index % 2 === 1 ? 'bg-slate-50' : '')} hover:bg-blue-100`}
+                          className={`cursor-pointer ${isSelected ? 'bg-blue-50 dark:bg-blue-900/30' : (index % 2 === 1 ? 'bg-slate-50 dark:bg-slate-800/50' : '')} hover:bg-blue-100 dark:hover:bg-blue-900/40`}
                           onClick={() => handleSelectCharge(charge.id, !isSelected)}
                         >
                           <TableCell onClick={(e) => e.stopPropagation()}>
@@ -557,7 +565,7 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
                           <TableCell>{format(parseISO(charge.transaction_date), 'MMM d, yyyy')}</TableCell>
                           <TableCell>{charge.description}</TableCell>
                           <TableCell>{differenceInDays(new Date(), parseISO(charge.transaction_date))} days</TableCell>
-                          <TableCell className={`text-right ${charge.credit_amount > 0 ? 'text-green-600' : ''}`}>
+                          <TableCell className={`text-right ${charge.credit_amount > 0 ? 'text-green-600 dark:text-green-400' : ''}`}>
                             {charge.credit_amount > 0 ? '-' : ''}${((charge.charge_amount || charge.credit_amount) - Math.abs(charge.payment_amount || 0)).toFixed(2)}
                           </TableCell>
                         </TableRow>
@@ -570,7 +578,7 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
                   </TableBody>
                 </Table>
               </div>
-              <div className="flex justify-between items-center p-4 bg-slate-50 rounded-lg">
+              <div className="flex justify-between items-center p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
                 <span className="font-semibold">Selected Amount:</span>
                 <span className="text-xl font-bold">${totalSelectedAmount.toFixed(2)}</span>
               </div>
@@ -601,7 +609,7 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
 
                 {calculationResult && (
                   <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-slate-100 px-4 py-2 font-medium border-b flex justify-between">
+                    <div className="bg-slate-100 dark:bg-slate-800 px-4 py-2 font-medium border-b dark:border-slate-700 flex justify-between">
                       <span>Proposed Application</span>
                       <span>${(calculationResult.totalApplied || 0).toFixed(2)}</span>
                     </div>
@@ -624,7 +632,7 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
                               return (
                                 <TableRow key={item.id}>
                                   <TableCell>{tx?.description || item.id}</TableCell>
-                                  <TableCell className={`text-right ${item.amount < 0 ? 'text-green-600' : ''}`}>
+                                  <TableCell className={`text-right ${item.amount < 0 ? 'text-green-600 dark:text-green-400' : ''}`}>
                                     ${Math.abs(item.amount).toFixed(2)}
                                   </TableCell>
                                 </TableRow>
@@ -632,9 +640,9 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
                             })
                           )}
                           {(calculationResult.unappliedAmount || 0) > 0.00001 && (
-                            <TableRow className="bg-amber-50">
-                              <TableCell className="font-medium text-amber-800">Unapplied</TableCell>
-                              <TableCell className="text-right font-medium text-amber-800">
+                            <TableRow className="bg-amber-50 dark:bg-amber-900/20">
+                              <TableCell className="font-medium text-amber-800 dark:text-amber-400">Unapplied</TableCell>
+                              <TableCell className="text-right font-medium text-amber-800 dark:text-amber-400">
                                 ${calculationResult.unappliedAmount.toFixed(2)}
                               </TableCell>
                             </TableRow>
@@ -694,8 +702,8 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
             <DialogTitle>Payment Details</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="p-3 bg-slate-50 rounded-lg">
-              <p className="text-sm text-slate-600">Payment Amount:</p>
+            <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+              <p className="text-sm text-slate-600 dark:text-slate-400">Payment Amount:</p>
               <p className="text-xl font-bold">${(activeTab === 'pay_charges' ? totalSelectedAmount : (parseFloat(amount) || 0)).toFixed(2)}</p>
             </div>
 
@@ -733,8 +741,8 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
                     onClick={() => setPaymentData(prev => ({ ...prev, payment_method: method.value, from_account_id: '' }))}
                     className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
                       paymentData.payment_method === method.value
-                        ? 'bg-slate-900 text-white shadow-md'
-                        : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                        ? 'bg-slate-900 dark:bg-slate-700 text-white shadow-md'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                     }`}
                   >
                     {method.label}
@@ -758,7 +766,7 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
                       </SelectItem>
                     ))
                   ) : (
-                    <p className="p-2 text-sm text-gray-500">No accounts available</p>
+                    <p className="p-2 text-sm text-gray-500 dark:text-gray-400">No accounts available</p>
                   )}
                 </SelectContent>
               </Select>

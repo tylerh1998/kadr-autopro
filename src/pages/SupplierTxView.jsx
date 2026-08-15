@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -96,11 +96,13 @@ export default function SupplierTxViewPage() {
 
         setLoading(true);
         try {
-            const response = await base44.functions.invoke('getSupplierTransactions', {
-                supplierId,
-                dateRange: {
-                    from: dateRange.from.toISOString(),
-                    to: dateRange.to.toISOString()
+            const response = await supabase.functions.invoke('autopro-getSupplierTransactions', {
+                body: {
+                    supplierId,
+                    dateRange: {
+                        from: dateRange.from.toISOString(),
+                        to: dateRange.to.toISOString()
+                    }
                 }
             });
 
@@ -229,10 +231,10 @@ export default function SupplierTxViewPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex items-center justify-center">
                 <div className="text-center">
-                    <div className="text-lg font-semibold">Loading supplier data.....</div>
-                    <div className="text-gray-500 mt-2">This may take a moment</div>
+                    <div className="text-lg font-semibold dark:text-slate-100">Loading supplier data.....</div>
+                    <div className="text-gray-500 dark:text-slate-400 mt-2">This may take a moment</div>
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mt-4"></div>
                 </div>
             </div>
@@ -249,7 +251,7 @@ export default function SupplierTxViewPage() {
                             <ArrowLeft className="w-4 h-4 mr-2" />
                             Back
                         </Button>
-                        <h1 className="text-2xl font-bold text-slate-900 truncate max-w-[600px]" title={supplier?.name}>{supplier?.name}</h1>
+                        <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 truncate max-w-[600px]" title={supplier?.name}>{supplier?.name}</h1>
                     </div>
                 </div>
 
@@ -263,7 +265,7 @@ export default function SupplierTxViewPage() {
                                     type="number"
                                     value={pendingDaysBack}
                                     onChange={(e) => handlePendingDaysBackChange(e.target.value)}
-                                    className="w-20 bg-white"
+                                    className="w-20 bg-white dark:bg-slate-800"
                                 />
                             </div>
                             <Popover>
@@ -301,7 +303,7 @@ export default function SupplierTxViewPage() {
                                     placeholder="Search invoice #, description, or amount..."
                                     value={searchTerm}
                                     onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-96 bg-white"
+                                    className="w-96 bg-white dark:bg-slate-800"
                                 />
                             </div>
                         </div>
@@ -323,15 +325,15 @@ export default function SupplierTxViewPage() {
                             </button>
                         </div>
                     </div>
-                    <Card className="bg-white shadow-sm">
+                    <Card className="bg-white dark:bg-slate-900 shadow-sm">
                         <CardContent className="p-4">
                             <div className="flex gap-6">
                                 <div className="text-right">
-                                    <p className="text-sm text-slate-500">Date Range Total</p>
-                                    <p className="text-lg font-bold">${dateRangeTotal.toFixed(2)}</p>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">Date Range Total</p>
+                                    <p className="text-lg font-bold dark:text-slate-100">${dateRangeTotal.toFixed(2)}</p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-sm text-slate-500">Total Balance Owing</p>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">Total Balance Owing</p>
                                     <p className="text-lg font-bold text-red-600">${currentBalance.toFixed(2)}</p>
                                 </div>
                             </div>
@@ -348,21 +350,21 @@ export default function SupplierTxViewPage() {
                     <TabsContent value="invoice-summary">
                        <Card>
                            <CardContent className="p-0">
-                               <div className="divide-y divide-slate-200">
+                               <div className="divide-y divide-slate-200 dark:divide-slate-700">
                                    {conceptualInvoices.length > 0 ? (
                                        conceptualInvoices.map((invoice) => {
                                            const invoiceKey = `${invoice.supplier_id}_${invoice.invoice_number}_${invoice.invoice_date}`;
                                            const isExpanded = expandedInvoices[invoiceKey];
 
                                            return (
-                                               <div key={invoiceKey} className="bg-white">
+                                               <div key={invoiceKey} className="bg-white dark:bg-slate-900">
                                                    {/* Invoice Header Row */}
                                                    <div
-                                                       className="flex items-center justify-between p-4 hover:bg-slate-50 cursor-pointer"
+                                                       className="flex items-center justify-between p-4 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
                                                        onClick={() => toggleInvoiceExpansion(invoiceKey)}
                                                    >
                                                        <div className="flex items-center gap-4 flex-1">
-                                                           <div className="text-slate-400">
+                                                           <div className="text-slate-400 dark:text-slate-500">
                                                                {isExpanded ? (
                                                                    <ChevronDown className="w-5 h-5" />
                                                                ) : (
@@ -371,33 +373,33 @@ export default function SupplierTxViewPage() {
                                                            </div>
                                                            <div className="flex-1 grid grid-cols-7 gap-4">
                                                                <div>
-                                                                   <p className="text-sm text-slate-500">Invoice #</p>
-                                                                   <p className="font-extrabold text-xl text-slate-900">{invoice.invoice_number}</p>
+                                                                   <p className="text-sm text-slate-500 dark:text-slate-400">Invoice #</p>
+                                                                   <p className="font-extrabold text-xl text-slate-900 dark:text-slate-100">{invoice.invoice_number}</p>
                                                                </div>
                                                                <div>
-                                                                   <p className="text-sm text-slate-500">Date</p>
-                                                                   <p className="font-medium text-slate-900">
+                                                                   <p className="text-sm text-slate-500 dark:text-slate-400">Date</p>
+                                                                   <p className="font-medium text-slate-900 dark:text-slate-100">
                                                                        {safeFormatDate(invoice.invoice_date, 'MMM dd, yyyy')}
                                                                    </p>
                                                                </div>
                                                                <div>
-                                                                   <p className="text-sm text-slate-500">Lines</p>
-                                                                   <p className="font-medium text-slate-900">{invoice.line_count}</p>
+                                                                   <p className="text-sm text-slate-500 dark:text-slate-400">Lines</p>
+                                                                   <p className="font-medium text-slate-900 dark:text-slate-100">{invoice.line_count}</p>
                                                                </div>
                                                                <div className="text-right">
-                                                                   <p className="text-sm text-slate-500">Total Charge</p>
-                                                                   <p className="font-medium text-slate-900">${invoice.subtotal.toFixed(2)}</p>
+                                                                   <p className="text-sm text-slate-500 dark:text-slate-400">Total Charge</p>
+                                                                   <p className="font-medium text-slate-900 dark:text-slate-100">${invoice.subtotal.toFixed(2)}</p>
                                                                </div>
                                                                <div className="text-right">
-                                                                   <p className="text-sm text-slate-500">Total GST</p>
-                                                                   <p className="font-medium text-slate-900">${invoice.tax_amount.toFixed(2)}</p>
+                                                                   <p className="text-sm text-slate-500 dark:text-slate-400">Total GST</p>
+                                                                   <p className="font-medium text-slate-900 dark:text-slate-100">${invoice.tax_amount.toFixed(2)}</p>
                                                                </div>
                                                                <div className="text-right">
-                                                                   <p className="text-sm text-slate-500">Total Amount</p>
-                                                                   <p className="font-extrabold text-xl text-slate-900">${invoice.total_amount.toFixed(2)}</p>
+                                                                   <p className="text-sm text-slate-500 dark:text-slate-400">Total Amount</p>
+                                                                   <p className="font-extrabold text-xl text-slate-900 dark:text-slate-100">${invoice.total_amount.toFixed(2)}</p>
                                                                </div>
                                                                <div className="text-right">
-                                                                   <p className="text-sm text-slate-500">Balance</p>
+                                                                   <p className="text-sm text-slate-500 dark:text-slate-400">Balance</p>
                                                                    <p className="font-bold text-red-600">${invoice.balance_due.toFixed(2)}</p>
                                                                </div>
                                                            </div>
@@ -406,11 +408,11 @@ export default function SupplierTxViewPage() {
 
                                                    {/* Expanded Invoice Lines */}
                                                    {isExpanded && invoice.lines && invoice.lines.length > 0 && (
-                                                       <div className="border-t border-slate-200 bg-slate-50">
+                                                       <div className="border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
                                                            <div className="overflow-x-auto">
                                                                <Table>
                                                                    <TableHeader>
-                                                                       <TableRow className="bg-slate-100">
+                                                                       <TableRow className="bg-slate-100 dark:bg-slate-800">
                                                                            <TableHead>Description</TableHead>
                                                                            <TableHead className="w-[150px] text-right">Charge</TableHead>
                                                                            <TableHead className="w-[150px] text-right">GST</TableHead>
@@ -419,7 +421,7 @@ export default function SupplierTxViewPage() {
                                                                    </TableHeader>
                                                                    <TableBody>
                                                                         {invoice.lines.map((line, index) => (
-                                                                            <TableRow key={line.id} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                                                                            <TableRow key={line.id} className={index % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50 dark:bg-slate-800/50'}>
                                                                                <TableCell>{line.description || '-'}</TableCell>
                                                                                <TableCell className="text-right">
                                                                                    ${parseFloat(line.purchase_amount || 0).toFixed(2)}
@@ -440,8 +442,8 @@ export default function SupplierTxViewPage() {
 
                                                    {/* Empty state when no lines */}
                                                    {isExpanded && (!invoice.lines || invoice.lines.length === 0) && (
-                                                       <div className="p-4 border-t border-slate-200 bg-slate-50">
-                                                           <p className="text-sm text-slate-500 text-center">
+                                                       <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50">
+                                                           <p className="text-sm text-slate-500 dark:text-slate-400 text-center">
                                                                No invoice lines found.
                                                            </p>
                                                        </div>
@@ -451,7 +453,7 @@ export default function SupplierTxViewPage() {
                                        })
                                    ) : (
                                        <div className="p-12 text-center">
-                                           <p className="text-slate-500">No invoices found in the selected date range</p>
+                                           <p className="text-slate-500 dark:text-slate-400">No invoices found in the selected date range</p>
                                        </div>
                                    )}
                                </div>
@@ -472,14 +474,14 @@ export default function SupplierTxViewPage() {
                             ) : payments.length === 0 ? (
                               <div className="text-center py-12">
                                 <FileText className="w-12 h-12 mx-auto text-slate-400 mb-4" />
-                                <h3 className="text-lg font-semibold text-slate-900 mb-2">No Payments</h3>
-                                <p className="text-slate-600">No payment history found for this supplier.</p>
+                                <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">No Payments</h3>
+                                <p className="text-slate-600 dark:text-slate-400">No payment history found for this supplier.</p>
                               </div>
                             ) : (
-                              <div className="border rounded-lg overflow-hidden">
+                              <div className="border rounded-lg dark:border-slate-700 overflow-hidden">
                                 <Table>
                                   <TableHeader>
-                                    <TableRow className="bg-slate-50">
+                                    <TableRow className="bg-slate-50 dark:bg-slate-800">
                                       <TableHead className="font-semibold w-8"></TableHead>
                                       <TableHead className="font-semibold">Date</TableHead>
                                       <TableHead className="font-semibold">Method</TableHead>
@@ -495,7 +497,7 @@ export default function SupplierTxViewPage() {
                                       return (
                                         <React.Fragment key={payment.id}>
                                           <TableRow
-                                            className={`hover:bg-slate-100 cursor-pointer ${payments.indexOf(payment) % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
+                                            className={`hover:bg-slate-100 dark:hover:bg-slate-700/50 cursor-pointer ${payments.indexOf(payment) % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50 dark:bg-slate-800/40'}`}
                                             onClick={() => togglePaymentExpansion(payment.id)}
                                           >
                                             <TableCell className="w-8">
@@ -526,20 +528,20 @@ export default function SupplierTxViewPage() {
                                                 </span>
                                               )}
                                             </TableCell>
-                                            <TableCell className="text-slate-600">
+                                            <TableCell className="text-slate-600 dark:text-slate-400">
                                               {payment.cheque_number || payment.bank_transaction_id || '-'}
                                             </TableCell>
-                                            <TableCell className="text-right font-semibold text-slate-900">
+                                            <TableCell className="text-right font-semibold text-slate-900 dark:text-slate-100">
                                               ${payment.amount.toFixed(2)}
                                             </TableCell>
                                           </TableRow>
 
                                           {isExpanded && appliedInvoices.length > 0 && (
                                             <TableRow>
-                                              <TableCell colSpan={5} className="bg-slate-50 p-0">
+                                              <TableCell colSpan={5} className="bg-slate-50 dark:bg-slate-800 p-0">
                                                 <div className="p-4 pl-12">
-                                                  <h4 className="text-sm font-semibold text-slate-700 mb-2">Invoices Paid:</h4>
-                                                  <div className="bg-white rounded border">
+                                                  <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Invoices Paid:</h4>
+                                                  <div className="bg-white dark:bg-slate-900 rounded border dark:border-slate-700">
                                                     <Table>
                                                       <TableHeader>
                                                         <TableRow className="bg-slate-100">
@@ -566,8 +568,8 @@ export default function SupplierTxViewPage() {
 
                                           {isExpanded && appliedInvoices.length === 0 && payment.invoice_number === 'On Account' && (
                                             <TableRow>
-                                                <TableCell colSpan={5} className="bg-slate-50 p-0">
-                                                    <div className="p-4 pl-12 text-sm text-slate-600">
+                                                <TableCell colSpan={5} className="bg-slate-50 dark:bg-slate-800 p-0">
+                                                    <div className="p-4 pl-12 text-sm text-slate-600 dark:text-slate-400">
                                                         This payment was applied "On Account" and not allocated to specific invoices.
                                                     </div>
                                                 </TableCell>

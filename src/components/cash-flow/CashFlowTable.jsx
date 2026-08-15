@@ -67,11 +67,11 @@ export default function CashFlowTable({ rows, onRowChange, onDeleteRow, sortConf
   };
 
   const methodColors = {
-    "Cheque": "text-green-600",
-    "O/L Banking": "text-yellow-600",
-    "Credit Card": "text-slate-500",
-    "Etransfer": "text-red-600",
-    "Pre-auth": "text-blue-600"
+    "Cheque": "text-green-600 dark:text-green-400",
+    "O/L Banking": "text-yellow-600 dark:text-yellow-400",
+    "Credit Card": "text-slate-500 dark:text-slate-400",
+    "Etransfer": "text-red-600 dark:text-red-400",
+    "Pre-auth": "text-blue-600 dark:text-blue-400"
   };
 
   const handleChange = (index, field, value) => {
@@ -150,14 +150,14 @@ export default function CashFlowTable({ rows, onRowChange, onDeleteRow, sortConf
   };
 
   const getRowBgColor = (row) => {
-    if (row.chqNumber) return 'bg-green-100';
-    if (row.rowStatus === 'paid') return 'bg-purple-100';
-    if (row.rowStatus === 'follow_up') return 'bg-orange-100';
+    if (row.chqNumber) return 'bg-green-100 dark:bg-green-900/40';
+    if (row.rowStatus === 'paid') return 'bg-purple-100 dark:bg-purple-900/40';
+    if (row.rowStatus === 'follow_up') return 'bg-orange-100 dark:bg-orange-900/40';
     return ''; // Default transparent/white handled by input/td
   };
 
   const getDueInfo = (dateStr) => {
-    if (!dateStr || !dateStr.trim()) return { text: "Empty", className: "bg-white text-slate-300" };
+    if (!dateStr || !dateStr.trim()) return { text: "Empty", className: "bg-white dark:bg-slate-900 text-slate-300 dark:text-slate-600" };
     
     // Explicit formats including those without year (defaults to current year)
     // Adding M/D and MM/DD specifically to catch simple inputs like "2/8"
@@ -177,39 +177,39 @@ export default function CashFlowTable({ rows, onRowChange, onDeleteRow, sortConf
       mDate = moment(dateStr);
     }
     
-    if (!mDate.isValid()) return { text: "Empty", className: "bg-white text-slate-300" };
+    if (!mDate.isValid()) return { text: "Empty", className: "bg-white dark:bg-slate-900 text-slate-300 dark:text-slate-600" };
 
     // Compare start of days
     const today = moment().startOf('day');
     const target = mDate.startOf('day');
     const diff = target.diff(today, 'days');
 
-    let className = "bg-white";
+    let className = "bg-white dark:bg-slate-900";
     if (diff <= 0) {
-      className = "bg-red-100 text-red-700 font-bold";
+      className = "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 font-bold";
     } else if (diff <= 10) {
-      className = "bg-yellow-100 text-yellow-800 font-medium";
+      className = "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300 font-medium";
     } else {
-      className = "bg-blue-100 text-blue-700 font-medium";
+      className = "bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-medium";
     }
 
     return { text: `${diff} Days`, className };
   };
 
   return (
-    <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
+    <div className="border rounded-lg overflow-hidden bg-white dark:bg-slate-900 shadow-sm">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-slate-100 border-b">
+          <thead className="bg-slate-100 dark:bg-slate-800 border-b">
             <tr>
-              <th className="p-2 w-10 text-center text-slate-500 font-medium">#</th>
+              <th className="p-2 w-10 text-center text-slate-500 dark:text-slate-400 font-medium">#</th>
               {headers.map(header => (
-                <th 
-                  key={header.id} 
+                <th
+                  key={header.id}
                   className={cn(
-                    "p-2 text-left text-slate-700 font-semibold border-r last:border-r-0 select-none whitespace-nowrap", 
+                    "p-2 text-left text-slate-700 dark:text-slate-300 font-semibold border-r last:border-r-0 select-none whitespace-nowrap",
                     header.width,
-                    header.sortable && "cursor-pointer hover:bg-slate-200 transition-colors"
+                    header.sortable && "cursor-pointer hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                   )}
                   onClick={() => header.sortable && onSort && onSort(header.id)}
                 >
@@ -229,7 +229,7 @@ export default function CashFlowTable({ rows, onRowChange, onDeleteRow, sortConf
               return (
               <ContextMenu key={index}>
                 <ContextMenuTrigger asChild>
-                  <tr className="border-b last:border-b-0 hover:bg-slate-50 transition-colors">
+                  <tr className="border-b last:border-b-0 hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors">
                     <td 
                       className={cn(
                         "p-2 text-center text-xs cursor-pointer select-none transition-colors whitespace-nowrap",
@@ -264,8 +264,8 @@ export default function CashFlowTable({ rows, onRowChange, onDeleteRow, sortConf
                           variant="ghost"
                           size="icon"
                           className={cn(
-                            "h-6 w-6 ml-1 text-slate-300",
-                            row.supplier_id ? "hover:text-red-600 hover:bg-red-50" : "hover:text-blue-600 hover:bg-blue-50"
+                            "h-6 w-6 ml-1 text-slate-300 dark:text-slate-600",
+                            row.supplier_id ? "hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30" : "hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30"
                           )}
                           onClick={() => handleLinkSupplierAction(index)}
                           title={row.supplier_id ? "Unlink/Change Supplier" : "Link to Supplier"}
@@ -294,7 +294,7 @@ export default function CashFlowTable({ rows, onRowChange, onDeleteRow, sortConf
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 mr-1 text-slate-300 hover:text-green-600 hover:bg-green-50"
+                            className="h-6 w-6 mr-1 text-slate-300 dark:text-slate-600 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-950/30"
                             onClick={() => handleChange(index, 'dueDate', moment().endOf('month').format('MMM D'))}
                             title="Set to Month End"
                             tabIndex={-1}
@@ -317,7 +317,7 @@ export default function CashFlowTable({ rows, onRowChange, onDeleteRow, sortConf
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 mr-1 text-slate-300 hover:text-green-600 hover:bg-green-50"
+                            className="h-6 w-6 mr-1 text-slate-300 dark:text-slate-600 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-950/30"
                             onClick={() => handleAutoFillAmountPaid(index)}
                             title="Auto-fill Full Amount"
                             tabIndex={-1}
@@ -341,7 +341,7 @@ export default function CashFlowTable({ rows, onRowChange, onDeleteRow, sortConf
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 mr-1 text-slate-300 hover:text-green-600 hover:bg-green-50"
+                            className="h-6 w-6 mr-1 text-slate-300 dark:text-slate-600 hover:text-green-600 dark:hover:text-green-400 hover:bg-green-50 dark:hover:bg-green-950/30"
                             onClick={() => handleChange(index, 'datePaid', moment().format('MMM D'))}
                             title="Set to Today"
                             tabIndex={-1}
@@ -377,11 +377,11 @@ export default function CashFlowTable({ rows, onRowChange, onDeleteRow, sortConf
                           <SelectValue placeholder="-" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="Cheque" className="text-green-600 font-medium">Cheque</SelectItem>
-                          <SelectItem value="O/L Banking" className="text-yellow-600 font-medium">O/L Banking</SelectItem>
-                          <SelectItem value="Credit Card" className="text-slate-500 font-medium">Credit Card</SelectItem>
-                          <SelectItem value="Etransfer" className="text-red-600 font-medium">Etransfer</SelectItem>
-                          <SelectItem value="Pre-auth" className="text-blue-600 font-medium">Pre-auth</SelectItem>
+                          <SelectItem value="Cheque" className="text-green-600 dark:text-green-400 font-medium">Cheque</SelectItem>
+                          <SelectItem value="O/L Banking" className="text-yellow-600 dark:text-yellow-400 font-medium">O/L Banking</SelectItem>
+                          <SelectItem value="Credit Card" className="text-slate-500 dark:text-slate-400 font-medium">Credit Card</SelectItem>
+                          <SelectItem value="Etransfer" className="text-red-600 dark:text-red-400 font-medium">Etransfer</SelectItem>
+                          <SelectItem value="Pre-auth" className="text-blue-600 dark:text-blue-400 font-medium">Pre-auth</SelectItem>
                         </SelectContent>
                       </Select>
                     </td>
@@ -401,7 +401,7 @@ export default function CashFlowTable({ rows, onRowChange, onDeleteRow, sortConf
                     Make Comment
                   </ContextMenuItem>
                   <ContextMenuSeparator />
-                  <ContextMenuItem onClick={() => handleRowAction(index, 'delete')} className="text-red-600 focus:text-red-600">
+                  <ContextMenuItem onClick={() => handleRowAction(index, 'delete')} className="text-red-600 dark:text-red-400 focus:text-red-600 dark:focus:text-red-400">
                     Delete Row
                   </ContextMenuItem>
                 </ContextMenuContent>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ArrowLeft, AlertCircle, BookCheck, BookOpen } from 'lucide-react';
@@ -29,25 +29,30 @@ export default function ChequeWriter() {
         setChequeReference(ref);
         console.log('ChequeWriter: Loading cheque for reference:', ref);
 
-        const paymentResponse = await base44.functions.invoke('SupabaseProxy', {
-          action: 'read',
-          table: 'SupplierPayment',
-          match: { cheque_number: String(ref) }
-        });
-        const payment = paymentResponse.data?.data?.[0];
+        const { data: paymentMatches } = await supabase
+          .from('SupplierPayment')
+          .select('*')
+          .eq('cheque_number', String(ref));
+        const payment = paymentMatches?.[0];
 
         if (payment?.supplier_id) {
           setSupplierId(payment.supplier_id);
         }
 
-        const response = await base44.functions.invoke('generateChequePDF', {
-          chequeReference: ref
+        const { data, error: invokeError } = await supabase.functions.invoke('autopro-generateChequePDF', {
+          body: { chequeReference: ref }
         });
 
-        console.log('ChequeWriter: PDF generation response:', response);
+        console.log('ChequeWriter: PDF generation response:', { data, invokeError });
 
-        if (response.data) {
-          const blob = new Blob([response.data], { type: 'application/pdf' });
+        if (invokeError) {
+          setError(invokeError.message || 'Failed to generate PDF');
+          setLoading(false);
+        } else if (data?.error) {
+          setError(data.error);
+          setLoading(false);
+        } else if (data) {
+          const blob = new Blob([data], { type: 'application/pdf' });
           const url = URL.createObjectURL(blob);
           setPdfUrl(url);
           setLoading(false);
@@ -89,7 +94,7 @@ export default function ChequeWriter() {
           <Card>
             <CardContent className="p-12 text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-              <p className="text-slate-600">Generating cheque...</p>
+              <p className="text-slate-600 dark:text-slate-400">Generating cheque...</p>
             </CardContent>
           </Card>
         </div>
@@ -104,8 +109,8 @@ export default function ChequeWriter() {
           <Card>
             <CardContent className="p-12 text-center">
               <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-slate-900 mb-2">Error Loading Cheque</h2>
-              <p className="text-slate-600 mb-6">{error}</p>
+              <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">Error Loading Cheque</h2>
+              <p className="text-slate-600 dark:text-slate-400 mb-6">{error}</p>
               <Button onClick={handleBack} variant="outline">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Go Back
@@ -118,10 +123,10 @@ export default function ChequeWriter() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-6">
       <div className="max-w-5xl mx-auto space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-slate-900">Cheque Preview</h1>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Cheque Preview</h1>
           <div className="flex gap-3">
             <Button onClick={handleBack} variant="outline">
               <ArrowLeft className="w-4 h-4 mr-2" />

@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Appointment, Employee } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import AppointmentForm from '../appointments/AppointmentForm';
 import CustomCalendar from '../appointments/CustomCalendar';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 
 const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAppointmentUpdated }) => {
   const [events, setEvents] = useState([]);
@@ -16,25 +15,6 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
   const [showAppointmentForm, setShowAppointmentForm] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [slotInfo, setSlotInfo] = useState(null);
-
-  const bayColors = {
-    'Bay 1': '#3B82F6', 'Bay 2': '#10B981', 'Bay 3': '#F59E0B', 
-    'Alignment Rack': '#8B5CF6', 'Mobile': '#EF4444',
-  };
-
-  const [techColors, setTechColors] = useState({});
-
-  const generateTechColors = (techs) => {
-    const colors = [
-      '#DC2626', '#059669', '#7C3AED', '#EA580C', '#0284C7',
-      '#DB2777', '#65A30D', '#0891B2', '#7C2D12', '#4338CA',
-    ];
-    const colorMap = {};
-    techs.forEach((tech, index) => {
-      colorMap[tech.id] = colors[index % colors.length];
-    });
-    return colorMap;
-  };
 
   // Helper function to get customer display name
   const getCustomerDisplayName = (customer) => {
@@ -50,18 +30,20 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
     if (!open) return;
     setLoading(true);
     try {
-      const [allAppointments, employeesData, custRes, vehRes] = await Promise.all([
-        Appointment.list(),
-        Employee.filter({ position: ['technician', 'apprentice'] }),
-        base44.functions.invoke('supabaseCustomer', { action: 'list' }),
-        base44.functions.invoke('supabaseVehicle', { action: 'list' }),
+      const [allAppointmentsRes, employeesDataRes, custRes, vehRes] = await Promise.all([
+        supabase.from('Appointment').select('*'),
+        supabase.from('Employee').select('*').in('position', ['technician', 'apprentice']),
+        supabase.from('Customer').select('*'),
+        supabase.from('Vehicle').select('*'),
       ]);
       
-      const customersList = custRes.data?.data || [];
+      const allAppointments = allAppointmentsRes.data || [];
+      const employeesData = employeesDataRes.data || [];
+      const customersList = custRes.data || [];
       if (customer && !customersList.some(c => c.id === customer.id)) {
         customersList.push(customer);
       }
-      const vehiclesList = vehRes.data?.data || [];
+      const vehiclesList = vehRes.data || [];
       if (vehicle && !vehiclesList.some(v => v.id === vehicle.id)) {
         vehiclesList.push(vehicle);
       }
@@ -96,7 +78,6 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
       setEmployees(employeesData);
       setAllCustomers(customersList); // NEW: Set customers state
       setAllVehicles(vehiclesList); // NEW: Set vehicles state
-      setTechColors(generateTechColors(employeesData));
     } catch (error) {
       console.error('Error loading schedule data in modal:', error);
     } finally {
@@ -192,9 +173,11 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
       }
       
       if (isEditing) {
-        await Appointment.update(selectedAppointment.id, dataToSave);
+        const { error } = await supabase.from('Appointment').update(dataToSave).eq('id', selectedAppointment.id);
+        if (error) throw error;
       } else {
-        await Appointment.create(dataToSave);
+        const { error } = await supabase.from('Appointment').insert([dataToSave]);
+        if (error) throw error;
       }
       
       // Hide the form
@@ -218,7 +201,8 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
 
   const handleDelete = async (id) => {
     try {
-      await Appointment.delete(id);
+      const { error } = await supabase.from('Appointment').delete().eq('id', id);
+      if (error) throw error;
 
       // Hide the form
       setShowAppointmentForm(false);
@@ -232,7 +216,7 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
       
       // Close the parent modal
       onClose();
-      
+
     } catch (error) {
       console.error("Error deleting appointment in modal:", error);
       alert("Failed to delete appointment.");
@@ -247,7 +231,12 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
 
   const handleDeleteAppointment = async (appointmentId) => {
     if (window.confirm("Are you sure you want to delete this appointment?")) {
-      await Appointment.delete(appointmentId);
+      const { error } = await supabase.from('Appointment').delete().eq('id', appointmentId);
+      if (error) {
+        console.error("Error deleting appointment:", error);
+        alert("Failed to delete appointment.");
+        return;
+      }
       loadData();
     }
   };
@@ -256,7 +245,17 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-7xl h-[90vh] flex flex-col p-4">
+      <DialogContent className="max-w-[95vw] w-[95vw] h-[95vh] max-h-[95vh] flex flex-col p-6 rounded-xl dark:bg-slate-950 dark:border-slate-800 [&>button]:hidden overflow-hidden">
+        <div className="absolute right-6 top-6 z-50">
+          <button
+            onClick={onClose}
+            className="h-8 w-8 bg-red-600 hover:bg-red-700 text-white rounded-none p-0 transition-colors focus:outline-none flex items-center justify-center border border-red-500 shadow-sm"
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
         <DialogHeader>
           <DialogTitle>Schedule for WO #{workOrder?.wo_number}</DialogTitle>
           <DialogDescription>
@@ -284,27 +283,20 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
                 />
             </div>
           ) : (
-            <div className="h-full flex flex-col p-4">
-                <Button 
-                    className="mb-4 self-start"
-                    onClick={() => {
-                        setSelectedAppointment(null);
-                        setSlotInfo({ start: new Date(), end: new Date(Date.now() + 3600000) });
-                        setShowAppointmentForm(true);
-                    }}
-                >
-                    <Plus className="w-4 h-4 mr-2" /> New Appointment
-                </Button>
+            <div className="h-full flex flex-col py-2">
               <CustomCalendar
                 events={events}
                 onSelectEvent={handleSelectEvent}
                 onSelectSlot={handleSelectSlot}
                 loading={loading}
                 employees={employees}
-                bayColors={bayColors}
-                techColors={techColors}
                 onOpenWorkOrder={handleOpenWorkOrder}
                 onDeleteAppointment={handleDeleteAppointment}
+                onNewAppointment={() => {
+                  setSelectedAppointment(null);
+                  setSlotInfo({ start: new Date(), end: new Date(Date.now() + 3600000) });
+                  setShowAppointmentForm(true);
+                }}
               />
             </div>
           )}

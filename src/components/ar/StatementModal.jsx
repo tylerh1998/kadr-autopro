@@ -4,8 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Printer, Mail, Copy } from 'lucide-react';
 import { format, parseISO, isValid } from 'date-fns';
-import { Statement } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import StatementEmailModal from './StatementEmailModal';
 
 export default function StatementModal({ open, onClose, customer }) {
@@ -130,7 +129,7 @@ export default function StatementModal({ open, onClose, customer }) {
       <body>
         <div class="top-row">
           <div>
-            <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68b90236f4d7e6ac0de4a262/bbd9a7847_KensAutoDieselRepair1.jpg" alt="Company Logo" style="height: 120px;" />
+            <img src="https://hbcrwkmgsazqrvsrmxyr.supabase.co/storage/v1/object/public/KADR/KADRLogoAddress.jpg" alt="Company Logo" style="height: 120px;" />
           </div>
           <div style="text-align: right;">
             <h3 class="statement-title">Statement of Account</h3>
@@ -197,16 +196,15 @@ export default function StatementModal({ open, onClose, customer }) {
       if (!open || !customer) return;
 
       try {
-        const outstandingResponse = await base44.functions.invoke('getOutstandingARItems', {
-          customerId: customer.id
-        });
+        const { data: outstandingData, error: outstandingError } = await supabase
+          .rpc('get_outstanding_ar_items', { customer_id_val: customer.id });
 
-        if (!outstandingResponse.data?.success) {
-          console.error('Failed to load outstanding items:', outstandingResponse.data?.error);
+        if (outstandingError) {
+          console.error('Failed to load outstanding items:', outstandingError.message);
           return;
         }
 
-        const outstandingItems = [...(outstandingResponse.data.items || [])]
+        const outstandingItems = [...(outstandingData || [])]
           .filter((item) => Math.abs(Number(item.balance || 0)) > 0)
           .sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')));
 
@@ -240,12 +238,15 @@ export default function StatementModal({ open, onClose, customer }) {
           cp_id: generateRandomString(10),
           customer_id: customer.id,
           statement_date: getMountainToday(),
-          transactions: JSON.stringify(outstandingItems),
-          aged_balances: JSON.stringify(calculatedAgedBalances),
+          transactions: outstandingItems,
+          aged_balances: calculatedAgedBalances,
           total_balance_due: calculatedAgedBalances.total,
         };
 
-        await Statement.create(newStatement);
+        const { data, error } = await supabase.functions.invoke('autopro-createStatement', { body: newStatement });
+        if (error) throw error;
+        if (!data?.success) throw new Error(data?.error || 'Failed to create statement record');
+
         setStatementPortalId(newStatement.cp_id);
         console.log("Statement record created successfully:", newStatement);
       } catch (error) {
@@ -303,18 +304,18 @@ export default function StatementModal({ open, onClose, customer }) {
             <div className="flex items-center gap-2 w-full sm:w-auto">
               {statementPortalId && (
                   <>
-                    <Button variant="outline" onClick={() => setShowEmailModal(true)}><Mail className="w-4 h-4 mr-2" /> Email</Button>
+                    <Button variant="outline" onClick={() => setShowEmailModal(true)} className="dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-700"><Mail className="w-4 h-4 mr-2" /> Email</Button>
                     <Input
                       readOnly
                       value={`portal.kensauto.ca/statement?cp_id=${statementPortalId}`}
-                      className="flex-grow min-w-[300px]"
+                      className="flex-grow min-w-[300px] dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
                     />
-                    <Button variant="outline" onClick={handleCopyUrl}><Copy className="w-4 h-4 mr-2" /> Copy</Button>
+                    <Button variant="outline" onClick={handleCopyUrl} className="dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-700"><Copy className="w-4 h-4 mr-2" /> Copy</Button>
                   </>
               )}
             </div>
             <div className="flex items-center gap-2 self-end">
-              <Button variant="outline" onClick={onClose}>Close</Button>
+              <Button variant="outline" onClick={onClose} className="dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-700">Close</Button>
               <Button onClick={handlePrint}><Printer className="w-4 h-4 mr-2" /> Print</Button>
             </div>
           </DialogFooter>

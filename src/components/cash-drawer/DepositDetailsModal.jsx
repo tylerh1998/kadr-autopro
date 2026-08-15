@@ -6,8 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Loader2, DollarSign, Banknote, Building, Calendar, FileText, Undo2, Ban, Printer } from 'lucide-react';
 import { format } from 'date-fns';
-import { CustomerPayments, CashDrawerAdjustment, Customer, WorkOrder } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { checkFiscalPeriodStatus } from '../utils/fiscalPeriodUtils';
 import { checkBankAccountLock } from '../utils/mountainTimeUtils';
 
@@ -68,18 +67,26 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
       setLoading(true);
       try {
         // Fetch payments for this deposit batch
-        const allPaymentsRes = await base44.functions.invoke('supabaseCustomerPayments', { action: 'list' });
-        const allPayments = allPaymentsRes?.data?.data || [];
-        const batchPayments = allPayments.filter(p => p.deposit_batch_id === batchId);
+        const { data: allPayments, error: paymentsError } = await supabase
+          .from('CustomerPayments')
+          .select('*')
+          .order('payment_date', { ascending: false });
+        if (paymentsError) throw paymentsError;
+        const batchPayments = (allPayments || []).filter(p => p.deposit_batch_id === batchId);
 
         // Fetch adjustments for this deposit batch
-        const allAdjustments = await CashDrawerAdjustment.list();
-        const batchAdjustments = allAdjustments.filter(a => a.deposit_batch_id === batchId);
+        const { data: batchAdjustments, error: adjustmentsError } = await supabase
+          .from('CashDrawerAdjustment')
+          .select('*')
+          .eq('deposit_batch_id', batchId);
+        if (adjustmentsError) throw adjustmentsError;
 
         // Get customer names
         const customerIds = [...new Set(batchPayments.map(p => p.customer_id))];
         const customers = await Promise.all(
-          customerIds.map(id => base44.functions.invoke('supabaseCustomer', { action: 'get', id }).then(res => res?.data?.data).catch(() => null))
+          customerIds.map(id =>
+            supabase.from('Customer').select('*').eq('id', id).maybeSingle().then(({ data }) => data).catch(() => null)
+          )
         );
         const customerMap = customers.reduce((acc, customer) => {
           if (customer) {
@@ -91,7 +98,10 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
         // Fetch work orders for payments that have work_order_id
         const workOrderIds = [...new Set(batchPayments.filter(p => p.work_order_id).map(p => p.work_order_id))];
         const workOrders = await Promise.all(
-          workOrderIds.map(id => WorkOrder.get(id).catch(() => null))
+          workOrderIds.map(id =>
+            supabase.from('WorkOrder').select('*').eq('id', id).maybeSingle()
+              .then(({ data }) => data).catch(() => null)
+          )
         );
         const workOrderMap = workOrders.reduce((acc, wo) => {
           if (wo) {
@@ -119,7 +129,7 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
         });
 
         setPayments(enrichedPayments);
-        setAdjustments(batchAdjustments);
+        setAdjustments(batchAdjustments || []);
       } catch (error) {
         console.error('Error loading deposit details:', error);
       } finally {
@@ -141,13 +151,13 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
 
   const getMethodBadgeColor = (method) => {
     const colors = {
-      cash: 'bg-green-100 text-green-800',
-      cheque: 'bg-orange-100 text-orange-800',
-      debit: 'bg-purple-100 text-purple-800',
-      credit_card: 'bg-blue-100 text-blue-800',
-      e_transfer: 'bg-indigo-100 text-indigo-800'
+      cash: 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300',
+      cheque: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
+      debit: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300',
+      credit_card: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
+      e_transfer: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300'
     };
-    return colors[method] || 'bg-gray-100 text-gray-800';
+    return colors[method] || 'bg-gray-100 text-gray-800 dark:bg-gray-700/60 dark:text-gray-300';
   };
 
   const totalPayments = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
@@ -158,13 +168,13 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
 
     // Check if bank account is locked before confirming
     try {
-      const accountResponse = await base44.functions.invoke('SupabaseProxy', {
-        action: 'filter',
-        table: 'BankAccount',
-        params: { id: deposit.bank_account_id }
-      });
-      const account = accountResponse.data?.data?.[0];
-      
+      const { data: accountData, error: accountError } = await supabase
+        .from('BankAccount')
+        .select('*')
+        .eq('id', deposit.bank_account_id);
+      if (accountError) throw accountError;
+      const account = accountData?.[0];
+
       // Check if any lock exists that is not expired
       if (account?.locked_by_user && account?.locked_timestamp) {
         const lockStatus = checkBankAccountLock(account, '');
@@ -187,8 +197,9 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
 
     setProcessingReverse(true);
     try {
-      const response = await base44.functions.invoke('reverseDeposit', { bankTransactionId: deposit.id });
-      if (response.data.success) {
+      const { data, error: invokeError } = await supabase.functions.invoke('autopro-reverseDeposit', { body: { bankTransactionId: deposit.id } });
+      if (invokeError) throw new Error(invokeError.message);
+      if (data.success) {
         alert('Deposit reversed successfully!');
         if (onReverseSuccess) {
           onReverseSuccess();
@@ -196,7 +207,7 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
           onClose();
         }
       } else {
-        alert(`Failed to reverse deposit: ${response.data.error || 'Unknown error'}`);
+        alert(`Failed to reverse deposit: ${data.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error reversing deposit:', error);
@@ -209,14 +220,18 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
   const handlePrintReport = async () => {
     setGeneratingPdf(true);
     try {
-      const response = await base44.functions.invoke('generateDepositDetailReport', {
-        payments,
-        adjustments,
-        depositDate: deposit?.transaction_date
+      const { data, error: invokeError } = await supabase.functions.invoke('autopro-generateDepositDetailReport', {
+        body: {
+          payments,
+          adjustments,
+          depositDate: deposit?.transaction_date
+        }
       });
 
-      if (response.data instanceof Blob || response.headers?.['content-type'] === 'application/pdf' || response.data?.type === 'application/pdf') {
-        const blob = new Blob([response.data], { type: 'application/pdf' });
+      if (invokeError) throw new Error(invokeError.message);
+
+      if (data instanceof Blob) {
+        const blob = new Blob([data], { type: 'application/pdf' });
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
@@ -224,11 +239,11 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
         document.body.appendChild(link);
         link.click();
         link.parentNode.removeChild(link);
-      } else if (response.data && response.data.error) {
-        alert(`Failed to generate report: ${response.data.error}`);
+      } else if (data && data.error) {
+        alert(`Failed to generate report: ${data.error}`);
       } else {
         // Fallback for arraybuffer/blob response without explicit blob wrapping
-        const blob = new Blob([response.data], { type: 'application/pdf' });
+        const blob = new Blob([data], { type: 'application/pdf' });
         const url = window.URL.createObjectURL(blob);
         window.open(url, '_blank');
       }
@@ -252,7 +267,7 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
 
         {loading ? (
           <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+            <Loader2 className="w-8 h-8 animate-spin text-blue-600 dark:text-blue-400" />
           </div>
         ) : (
           <div className="flex-1 overflow-y-auto space-y-4">
@@ -263,29 +278,29 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
                   <div className="flex items-start gap-2">
                     <Calendar className="w-4 h-4 text-slate-500 mt-0.5" />
                     <div>
-                      <p className="text-xs text-slate-500">Date</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Date</p>
                       <p className="font-medium">{formatDate(deposit?.transaction_date)}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
                     <Building className="w-4 h-4 text-slate-500 mt-0.5" />
                     <div>
-                      <p className="text-xs text-slate-500">Bank Account</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Bank Account</p>
                       <p className="font-medium">{deposit?.bank_account_name || deposit?.bank_name || 'N/A'}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
                     <FileText className="w-4 h-4 text-slate-500 mt-0.5" />
                     <div>
-                      <p className="text-xs text-slate-500">Reference</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Reference</p>
                       <p className="font-medium text-sm">{deposit?.reference || deposit?.source_id || 'N/A'}</p>
                     </div>
                   </div>
                   <div className="flex items-start gap-2">
-                    <DollarSign className="w-4 h-4 text-green-600 mt-0.5" />
+                    <DollarSign className="w-4 h-4 text-green-600 dark:text-green-400 mt-0.5" />
                     <div>
-                      <p className="text-xs text-slate-500">Total Amount</p>
-                      <p className="font-bold text-green-600">${(deposit?.credit_amount || 0).toFixed(2)}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Total Amount</p>
+                      <p className="font-bold text-green-600 dark:text-green-400">${(deposit?.credit_amount || 0).toFixed(2)}</p>
                     </div>
                   </div>
                 </div>
@@ -321,7 +336,7 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
                               {payment.payment_method?.replace('_', ' ')}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-sm text-slate-600">
+                          <TableCell className="text-sm text-slate-600 dark:text-slate-400">
                             {payment.descriptionText}
                           </TableCell>
                           <TableCell className="text-sm">{formatDate(payment.payment_date)}</TableCell>
@@ -330,7 +345,7 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
                       ))}
                     </TableBody>
                   </Table>
-                  <div className="flex justify-end p-3 border-t bg-slate-50">
+                  <div className="flex justify-end p-3 border-t bg-slate-50 dark:bg-slate-800">
                     <span className="font-semibold">Subtotal: ${totalPayments.toFixed(2)}</span>
                   </div>
                 </CardContent>
@@ -360,20 +375,20 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
                       {adjustments.map((adj) => (
                         <TableRow key={adj.id}>
                           <TableCell>
-                            <Badge className={adj.type === 'overage' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                            <Badge className={adj.type === 'overage' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'}>
                               {adj.type}
                             </Badge>
                           </TableCell>
                           <TableCell className="font-medium">{[adj.description, adj.notes || adj.reference].filter(Boolean).join(' - ') || '-'}</TableCell>
                           <TableCell className="text-sm">{formatDate(adj.adjustment_date)}</TableCell>
-                          <TableCell className={`text-right font-medium ${adj.amount < 0 ? 'text-red-600' : ''}`}>
+                          <TableCell className={`text-right font-medium ${adj.amount < 0 ? 'text-red-600 dark:text-red-400' : ''}`}>
                             ${(adj.amount || 0).toFixed(2)}
                           </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
-                  <div className="flex justify-end p-3 border-t bg-slate-50">
+                  <div className="flex justify-end p-3 border-t bg-slate-50 dark:bg-slate-800">
                     <span className="font-semibold">Subtotal: ${totalAdjustments.toFixed(2)}</span>
                   </div>
                 </CardContent>
@@ -381,7 +396,7 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
             )}
 
             {payments.length === 0 && adjustments.length === 0 && (
-              <div className="text-center py-8 text-slate-500">
+              <div className="text-center py-8 text-slate-500 dark:text-slate-400">
                 No payment or adjustment details found for this deposit.
               </div>
             )}
@@ -409,14 +424,14 @@ export default function DepositDetailsModal({ open, onClose, deposit, onReverseS
                 )}
               </Button>
             ) : (
-              <div className="flex items-center text-amber-600 text-sm font-medium" title={reversalReason}>
+              <div className="flex items-center text-amber-600 dark:text-amber-400 text-sm font-medium" title={reversalReason}>
                 <Ban className="w-4 h-4 mr-2" />
                 Cannot Reverse: {reversalReason}
               </div>
             )}
             <Button
               variant="outline"
-              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200"
+              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/30 border-blue-200 dark:border-blue-800"
               onClick={handlePrintReport}
               disabled={loading || generatingPdf}
             >

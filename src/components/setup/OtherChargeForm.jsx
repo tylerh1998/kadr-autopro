@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Save, X } from 'lucide-react';
-import { Supplier } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 
 export default function OtherChargeForm({ open, onClose, onSubmit, charge, glAccounts }) {
   const [formData, setFormData] = useState({
@@ -27,8 +27,8 @@ export default function OtherChargeForm({ open, onClose, onSubmit, charge, glAcc
     const fetchSuppliers = async () => {
       setLoadingSuppliers(true);
       try {
-        const suppliersData = await Supplier.list('name');
-        setSuppliers(suppliersData);
+        const { data: suppliersData } = await supabase.from('Supplier').select('*').order('name');
+        setSuppliers(suppliersData || []);
       } catch (error) {
         console.error('Error fetching suppliers:', error);
       } finally {
@@ -121,7 +121,7 @@ export default function OtherChargeForm({ open, onClose, onSubmit, charge, glAcc
               <div className="space-y-2">
                 <Label htmlFor="gl_account">GL Account</Label>
                 <Select
-                  value={formData.gl_account}
+                  value={String(formData.gl_account || '')}
                   onValueChange={(value) => handleChange('gl_account', value)}
                   required
                 >
@@ -130,7 +130,7 @@ export default function OtherChargeForm({ open, onClose, onSubmit, charge, glAcc
                   </SelectTrigger>
                   <SelectContent>
                     {glAccounts.map((acc) => (
-                      <SelectItem key={acc.id} value={acc.account_number}>
+                      <SelectItem key={acc.id} value={String(acc.account_number)}>
                         {acc.account_number} - {acc.account_name}
                       </SelectItem>
                     ))}

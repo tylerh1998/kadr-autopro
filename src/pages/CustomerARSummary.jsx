@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -31,7 +31,7 @@ export default function CustomerARSummaryPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showStatementModal, setShowStatementModal] = useState(false);
   const [showInterestModal, setShowInterestModal] = useState(false);
-  const [showOnlyWithBalance, setShowOnlyWithBalance] = useState(true);
+  const [showCreditBalances, setShowCreditBalances] = useState(false);
 
   const navigate = useNavigate();
 
@@ -39,15 +39,16 @@ export default function CustomerARSummaryPage() {
     setLoading(true);
     try {
       // Fetch AR summary data from backend
-      const response = await base44.functions.invoke('supabaseCustomerARSummary', { 
-        searchTerm: activeSearchTerm,
-        showOnlyWithBalance,
-        asOfDate
+      const { data: response, error: summaryError } = await supabase.functions.invoke('autopro-supabaseCustomerARSummary', {
+        body: {
+          searchTerm: activeSearchTerm,
+          asOfDate
+        }
       });
 
-      if (response.data.success) {
+      if (!summaryError && response?.success) {
         // Sort alphabetically
-        const sortedData = response.data.arSummaryData.sort((a, b) => {
+        const sortedData = response.arSummaryData.sort((a, b) => {
            const getName = (c) => {
                if (c.org_name) return c.org_name;
                return [c.first_name, c.last_name].filter(Boolean).join(' ');
@@ -58,7 +59,7 @@ export default function CustomerARSummaryPage() {
         });
         setArSummaryData(sortedData);
       } else {
-        console.error('Failed to load AR summary:', response.data.error);
+        console.error('Failed to load AR summary:', summaryError?.message || response?.error);
         setArSummaryData([]);
       }
 
@@ -69,13 +70,19 @@ export default function CustomerARSummaryPage() {
     } finally {
       setLoading(false);
     }
-    }, [activeSearchTerm, showOnlyWithBalance, asOfDate]);
+    }, [activeSearchTerm, asOfDate]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  const filteredData = arSummaryData; // Backend already handles filtering by searchTerm
+  // Backend already handles filtering by searchTerm and excludes zero-balance customers.
+  // Credit-balance customers (total_balance < 0) are hidden by default; the checkbox reveals them.
+  const filteredData = useMemo(() => {
+    return showCreditBalances
+      ? arSummaryData
+      : arSummaryData.filter((item) => item.total_balance > 0.01);
+  }, [arSummaryData, showCreditBalances]);
 
   // Helper function to format customer name
   const formatCustomerName = (customer) => {
@@ -88,7 +95,7 @@ export default function CustomerARSummaryPage() {
   };
 
   const totals = useMemo(() => {
-    return arSummaryData.reduce((acc, item) => {
+    return filteredData.reduce((acc, item) => {
       acc.balance_0_30 += item.balance_0_30;
       acc.balance_31_60 += item.balance_31_60;
       acc.balance_60_plus += item.balance_60_plus;
@@ -100,7 +107,7 @@ export default function CustomerARSummaryPage() {
       balance_60_plus: 0,
       total_balance: 0
     });
-  }, [arSummaryData]);
+  }, [filteredData]);
 
   // handleTakePayment is now simplified, as the modal will handle the payment creation
   // and then call this to refresh the data.
@@ -149,22 +156,37 @@ export default function CustomerARSummaryPage() {
           .print-area, .print-area * { visibility: visible; }
           .print-area { position: absolute; left: 0; top: 0; width: 100%; }
           .no-print { display: none !important; }
+
+          /* Force light/black output regardless of app dark mode */
+          body { background-color: white !important; }
+          [class*="bg-slate-"], [class*="bg-white"], .bg-card {
+            background-color: white !important;
+          }
+          .text-slate-900, .text-slate-700, .text-slate-600, .text-slate-500, .text-slate-400, .text-card-foreground {
+            color: #000 !important;
+          }
+          .text-yellow-600, .text-yellow-700 {
+            color: #a16207 !important;
+          }
+          .text-red-600, .text-red-700 {
+            color: #dc2626 !important;
+          }
         }
       `}</style>
       
-      <div className="p-6 min-h-screen">
+      <div className="p-6 min-h-screen dark:bg-slate-900">
         <div className="max-w-7xl mx-auto">
           <div className="flex justify-between items-center mb-6 no-print">
-            <h1 className="text-3xl font-bold text-slate-900">Accounts Receivable Summary</h1>
+            <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Accounts Receivable Summary</h1>
             <div className="flex gap-2"> {/* Added a flex container for buttons */}
-              <Button onClick={handlePrint} variant="outline">
+              <Button onClick={handlePrint} variant="outline" className="dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-700">
                 <Printer className="w-4 h-4 mr-2" />
                 Print Summary
               </Button>
               <Button 
                 onClick={() => setShowInterestModal(true)} 
                 variant="outline"
-                className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 border-red-200 dark:border-red-900/50 hover:border-red-300 dark:hover:border-red-900 dark:bg-slate-800 dark:hover:bg-slate-700"
               >
                 <DollarSign className="w-4 h-4 mr-2" />
                 Calculate Interest
@@ -173,30 +195,30 @@ export default function CustomerARSummaryPage() {
           </div>
           
           <div className="print-area">
-            <Card>
+            <Card className="dark:bg-slate-900 dark:border-slate-800">
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-3">
                     <CardTitle>Customer Balances</CardTitle>
-                    <span className="hidden print:inline text-sm font-medium text-slate-600">
+                    <span className="hidden print:inline text-sm font-medium text-slate-600 dark:text-slate-400">
                       As of: {asOfDate}
                     </span>
                     <div className="flex items-center gap-2 no-print">
-                      <Checkbox 
-                        id="show-only-balance"
-                        checked={showOnlyWithBalance}
-                        onCheckedChange={setShowOnlyWithBalance}
+                      <Checkbox
+                        id="show-credit-balances"
+                        checked={showCreditBalances}
+                        onCheckedChange={setShowCreditBalances}
                       />
-                      <label 
-                        htmlFor="show-only-balance"
-                        className="text-sm text-slate-600 cursor-pointer"
+                      <label
+                        htmlFor="show-credit-balances"
+                        className="text-sm text-slate-600 dark:text-slate-400 cursor-pointer"
                       >
-                        Only display customers with a balance
+                        Display Customers with a Credit Balance
                       </label>
                     </div>
                     
-                    <div className="flex items-center gap-2 no-print ml-4 border-l pl-4 border-slate-200">
-                      <label htmlFor="as-of-date" className="text-sm font-medium text-slate-700 whitespace-nowrap">
+                    <div className="flex items-center gap-2 no-print ml-4 border-l pl-4 border-slate-200 dark:border-slate-700">
+                      <label htmlFor="as-of-date" className="text-sm font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">
                         As Of:
                       </label>
                       <Input
@@ -204,13 +226,13 @@ export default function CustomerARSummaryPage() {
                         type="date"
                         value={asOfDate}
                         onChange={(e) => setAsOfDate(e.target.value)}
-                        className="w-40"
+                        className="w-40 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
                       />
                     </div>
                   </div>
                   <div className="relative no-print">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                    <Input
+                      <Input
                       placeholder="Search Customers (Press Enter)..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
@@ -219,42 +241,42 @@ export default function CustomerARSummaryPage() {
                           setActiveSearchTerm(searchTerm);
                         }
                       }}
-                      className="pl-10 w-96"
+                      className="pl-10 w-96 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
                     />
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="border rounded-lg overflow-hidden">
+                <div className="border dark:border-slate-800 rounded-lg overflow-hidden">
                   <Table>
-                    <TableHeader className="bg-slate-100">
+                    <TableHeader className="bg-slate-100 dark:bg-slate-800">
                       <TableRow>
-                        <TableHead className="text-left font-semibold text-slate-700">Customer</TableHead>
-                        <TableHead className="text-right font-semibold text-slate-700">0-30 Days</TableHead>
-                        <TableHead className="text-right font-semibold text-slate-700">31-60 Days</TableHead>
-                        <TableHead className="text-right font-semibold text-slate-700">60+ Days</TableHead>
-                        <TableHead className="text-right font-semibold text-slate-700">Total Balance</TableHead>
+                        <TableHead className="text-left font-semibold text-slate-700 dark:text-slate-300">Customer</TableHead>
+                        <TableHead className="text-right font-semibold text-slate-700 dark:text-slate-300">0-30 Days</TableHead>
+                        <TableHead className="text-right font-semibold text-slate-700 dark:text-slate-300">31-60 Days</TableHead>
+                        <TableHead className="text-right font-semibold text-slate-700 dark:text-slate-300">60+ Days</TableHead>
+                        <TableHead className="text-right font-semibold text-slate-700 dark:text-slate-300">Total Balance</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {loading ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center p-4 text-slate-500">Loading...</TableCell>
+                          <TableCell colSpan={5} className="text-center p-4 text-slate-500 dark:text-slate-400">Loading...</TableCell>
                         </TableRow>
-                      ) : arSummaryData.length > 0 ? (
+                      ) : filteredData.length > 0 ? (
                         <>
-                            {arSummaryData.map(({ customer, balance_0_30, balance_31_60, balance_60_plus, total_balance }, index) => (
+                            {filteredData.map(({ customer, balance_0_30, balance_31_60, balance_60_plus, total_balance }, index) => (
                             <ContextMenu key={customer.id} onOpenChange={() => handleContextMenuOpen(customer)}>
                               <ContextMenuTrigger asChild>
                                 <TableRow 
-                                  className={`cursor-pointer hover:bg-blue-50/50 ${index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`} 
+                                  className={`cursor-pointer hover:bg-blue-50/50 dark:hover:bg-slate-800/50 ${index % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50 dark:bg-slate-800/50'}`} 
                                   onClick={() => handleRowClick(customer)}
                                 >
-                                  <TableCell className="font-medium">{formatCustomerName(customer)}</TableCell>
-                                  <TableCell className="text-right">${balance_0_30.toFixed(2)}</TableCell>
-                                  <TableCell className="text-right text-yellow-600">${balance_31_60.toFixed(2)}</TableCell>
-                                  <TableCell className="text-right text-red-600">${balance_60_plus.toFixed(2)}</TableCell>
-                                  <TableCell className="text-right font-bold">${total_balance.toFixed(2)}</TableCell>
+                                  <TableCell className="font-medium dark:text-slate-100">{formatCustomerName(customer)}</TableCell>
+                                  <TableCell className="text-right dark:text-slate-200">${balance_0_30.toFixed(2)}</TableCell>
+                                  <TableCell className="text-right text-yellow-600 dark:text-yellow-500">${balance_31_60.toFixed(2)}</TableCell>
+                                  <TableCell className="text-right text-red-600 dark:text-red-400">${balance_60_plus.toFixed(2)}</TableCell>
+                                  <TableCell className="text-right font-bold dark:text-slate-100">${total_balance.toFixed(2)}</TableCell>
                                 </TableRow>
                               </ContextMenuTrigger>
                               <ContextMenuContent>
@@ -270,17 +292,17 @@ export default function CustomerARSummaryPage() {
                             </ContextMenu>
                           ))}
                           {/* Totals Row */}
-                          <TableRow className="border-t-2 border-slate-300 bg-slate-50 font-bold">
-                            <TableCell className="font-bold text-slate-900">TOTALS</TableCell>
-                            <TableCell className="text-right text-slate-900">${totals.balance_0_30.toFixed(2)}</TableCell>
-                            <TableCell className="text-right text-yellow-700">${totals.balance_31_60.toFixed(2)}</TableCell>
-                            <TableCell className="text-right text-red-700">${totals.balance_60_plus.toFixed(2)}</TableCell>
-                            <TableCell className="text-right font-bold text-slate-900 text-lg">${totals.total_balance.toFixed(2)}</TableCell>
+                          <TableRow className="border-t-2 border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 font-bold">
+                            <TableCell className="font-bold text-slate-900 dark:text-slate-100">TOTALS</TableCell>
+                            <TableCell className="text-right text-slate-900 dark:text-slate-100">${totals.balance_0_30.toFixed(2)}</TableCell>
+                            <TableCell className="text-right text-yellow-700 dark:text-yellow-500">${totals.balance_31_60.toFixed(2)}</TableCell>
+                            <TableCell className="text-right text-red-700 dark:text-red-400">${totals.balance_60_plus.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-bold text-slate-900 dark:text-slate-100 text-lg">${totals.total_balance.toFixed(2)}</TableCell>
                           </TableRow>
                         </>
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center h-24 text-slate-500">No customers with outstanding balances found.</TableCell>
+                          <TableCell colSpan={5} className="text-center h-24 text-slate-500 dark:text-slate-400">No customers with outstanding balances found.</TableCell>
                         </TableRow>
                       )}
                     </TableBody>

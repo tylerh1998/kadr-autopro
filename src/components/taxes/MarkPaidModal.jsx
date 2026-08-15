@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2, DollarSign } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import { getMountainTimeNow } from '@/components/utils/mountainTimeUtils';
 
 export default function MarkPaidModal({ open, onClose, gstReturn, onComplete }) {
@@ -31,13 +31,12 @@ export default function MarkPaidModal({ open, onClose, gstReturn, onComplete }) 
   const loadBankAccounts = async () => {
     setLoadingAccounts(true);
     try {
-      const accountsResponse = await base44.functions.invoke('SupabaseProxy', {
-        action: 'list',
-        table: 'BankAccount'
-      });
-      const accounts = accountsResponse.data?.data || [];
-      const activeAccounts = accounts.filter(acc => acc.is_active);
-      setBankAccounts(activeAccounts);
+      const { data: accounts, error } = await supabase
+        .from('BankAccount')
+        .select('*')
+        .eq('is_active', true);
+      if (error) throw error;
+      setBankAccounts(accounts || []);
     } catch (error) {
       console.error('Error loading bank accounts:', error);
     } finally {
@@ -61,18 +60,21 @@ export default function MarkPaidModal({ open, onClose, gstReturn, onComplete }) 
 
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('processGSTPayment', {
-        gst_return_id: gstReturn.id,
-        payment_date: paymentDate,
-        bank_account_id: bankAccountId
+      const { data, error } = await supabase.functions.invoke('autopro-processGSTPayment', {
+        body: {
+          gst_return_id: gstReturn.id,
+          payment_date: paymentDate,
+          bank_account_id: bankAccountId
+        }
       });
 
-      if (response.data.error) {
-        alert(`Error: ${response.data.error}`);
+      if (error) throw error;
+      if (data.error) {
+        alert(`Error: ${data.error}`);
         return;
       }
 
-      alert(response.data.message || 'GST payment processed successfully!');
+      alert(data.message || 'GST payment processed successfully!');
       onComplete();
     } catch (error) {
       console.error('Error processing GST payment:', error);
@@ -97,21 +99,21 @@ export default function MarkPaidModal({ open, onClose, gstReturn, onComplete }) 
 
         <div className="space-y-4 py-4">
           {/* Summary */}
-          <div className={`rounded-lg p-4 ${isRefund ? 'bg-green-50' : 'bg-red-50'}`}>
+          <div className={`rounded-lg p-4 ${isRefund ? 'bg-green-50 dark:bg-green-900/20' : 'bg-red-50 dark:bg-red-900/20'}`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-700">Period</p>
-                <p className="text-sm text-slate-900">
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Period</p>
+                <p className="text-sm text-slate-900 dark:text-slate-100">
                   {format(parseISO(gstReturn.period_start_date), 'MMM d, yyyy')} - {format(parseISO(gstReturn.period_end_date), 'MMM d, yyyy')}
                 </p>
               </div>
-              <DollarSign className={`w-8 h-8 ${isRefund ? 'text-green-400' : 'text-red-400'}`} />
+              <DollarSign className={`w-8 h-8 ${isRefund ? 'text-green-400 dark:text-green-500' : 'text-red-400 dark:text-red-500'}`} />
             </div>
-            <div className="mt-3 pt-3 border-t border-slate-200">
-              <p className="text-sm text-slate-600">
+            <div className="mt-3 pt-3 border-t border-slate-200 dark:border-slate-700">
+              <p className="text-sm text-slate-600 dark:text-slate-400">
                 {isRefund ? 'Refund Amount' : 'Payment Amount'}
               </p>
-              <p className={`text-2xl font-bold ${isRefund ? 'text-green-700' : 'text-red-700'}`}>
+              <p className={`text-2xl font-bold ${isRefund ? 'text-green-700 dark:text-green-400' : 'text-red-700 dark:text-red-400'}`}>
                 ${Math.abs(gstReturn.net_gst_due).toFixed(2)}
               </p>
             </div>
@@ -131,7 +133,7 @@ export default function MarkPaidModal({ open, onClose, gstReturn, onComplete }) 
           <div>
             <Label>Bank Account</Label>
             {loadingAccounts ? (
-              <div className="flex items-center justify-center py-3 border rounded-md">
+              <div className="flex items-center justify-center py-3 border rounded-md dark:border-slate-700">
                 <Loader2 className="w-4 h-4 animate-spin text-slate-400" />
               </div>
             ) : (

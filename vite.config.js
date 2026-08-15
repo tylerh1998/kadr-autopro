@@ -1,28 +1,26 @@
-import base44 from "@base44/vite-plugin"
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import basicSsl from '@vitejs/plugin-basic-ssl'
+import { fileURLToPath, URL } from 'node:url'
 
 // https://vite.dev/config/
 export default defineConfig({
   server: {
-    proxy: {
-      '/api': {
-        target: 'https://base44.app',
-        changeOrigin: true,
-        headers: {
-          'Origin': 'https://base44.app',
-          'Referer': 'https://base44.app'
-        }
-      }
-    }
+    host: true,
+    port: 5173,
+    allowedHosts: ['local.kensauto.ca'],
   },
   logLevel: 'error', // Suppress warnings, only show errors
+  resolve: {
+    // Was previously provided implicitly by @base44/vite-plugin (removed, Phase 15) -
+    // matches jsconfig.json's "@/*": ["./src/*"] mapping, now made explicit here since
+    // that file only affects the editor/type-checker, not the actual Vite/Rollup bundler.
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
   plugins: [
-    base44({
-      // Support for legacy code that imports the base44 SDK with @/integrations, @/entities, etc.
-      // can be removed if the code has been updated to use the new SDK imports from @base44/sdk
-      legacySDKImports: true
-    }),
+    basicSsl(),
     react(),
   ]
 });

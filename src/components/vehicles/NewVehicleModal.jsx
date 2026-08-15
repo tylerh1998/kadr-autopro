@@ -1,17 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import VehicleForm from './VehicleForm';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function NewVehicleModal({ open, onClose, onVehicleCreated }) {
+  const { employee } = useAuth();
   const [customers, setCustomers] = useState([]);
 
   useEffect(() => {
     if (open) {
       const fetchCustomers = async () => {
         try {
-          const res = await base44.functions.invoke('supabaseCustomer', { action: 'list' });
-          setCustomers(res.data?.data || []);
+          const { data, error } = await supabase
+            .from('Customer')
+            .select('*')
+            .order('org_name', { ascending: true });
+          if (error) throw error;
+          setCustomers(data || []);
         } catch (error) {
           console.error("Failed to fetch customers:", error);
         }
@@ -22,18 +28,21 @@ export default function NewVehicleModal({ open, onClose, onVehicleCreated }) {
 
   const handleSubmit = async (vehicleData) => {
     try {
-      const user = await base44.auth.me();
+      const user = employee;
       const payload = {
         ...vehicleData,
+        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
         created_date: new Date().toISOString(),
+        updated_date: new Date().toISOString(),
         created_by: user?.email || '',
+        created_by_id: user?.autopro_user_id,
       };
-      const res = await base44.functions.invoke('SupabaseProxy', { 
-        action: 'create', 
-        table: 'Vehicle',
-        data: payload 
-      });
-      const newVehicle = res.data?.data?.[0];
+      const { data: newVehicle, error: createError } = await supabase
+        .from('Vehicle')
+        .insert(payload)
+        .select()
+        .single();
+      if (createError) throw new Error(createError.message);
       alert('Vehicle added successfully!');
       if (onVehicleCreated) {
         onVehicleCreated(newVehicle);

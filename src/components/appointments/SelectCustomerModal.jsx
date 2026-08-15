@@ -63,7 +63,7 @@ export default function SelectCustomerModal({ open, onClose, customers, onSelect
         <div className="space-y-4">
           {/* Search Bar */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500 w-4 h-4" />
             <Input
               placeholder="Search customers by name, phone, or email (Press Enter)..."
               value={searchTerm}
@@ -88,24 +88,24 @@ export default function SelectCustomerModal({ open, onClose, customers, onSelect
                   key={customer.id} 
                   className={`cursor-pointer transition-all border-2 ${
                     selectedCustomer?.id === customer.id 
-                      ? 'border-blue-500 bg-blue-50' 
-                      : 'hover:border-blue-200'
+                      ? 'border-blue-500 dark:border-blue-600 bg-blue-50 dark:bg-blue-900/30'
+                      : 'hover:border-blue-200 dark:hover:border-blue-800'
                   }`}
                   onClick={() => setSelectedCustomer(customer)}
                 >
                   <CardContent className="p-4">
-                    <h4 className="font-semibold text-slate-900">{displayName}</h4>
+                    <h4 className="font-semibold text-slate-900 dark:text-slate-100">{displayName}</h4>
                     {contact && (
-                      <p className="text-xs text-slate-500 mt-1">Contact: {contact}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Contact: {contact}</p>
                     )}
                     {customer.phone && (
-                      <p className="text-sm text-slate-600 flex items-center gap-1 mt-2">
+                      <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-1 mt-2">
                         <Phone className="w-3 h-3"/>
                         {customer.phone}
                       </p>
                     )}
                     {customer.email && (
-                      <p className="text-sm text-slate-600 flex items-center gap-1 mt-1">
+                      <p className="text-sm text-slate-600 dark:text-slate-400 flex items-center gap-1 mt-1">
                         <Mail className="w-3 h-3"/>
                         {customer.email}
                       </p>

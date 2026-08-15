@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ChartOfAccount, LinesOfCredit } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
 import { checkEntityLock } from '../utils/mountainTimeUtils';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
@@ -33,7 +33,12 @@ export default function LinesOfCreditEditModal({ open, onClose, lineOfCredit, on
         if (lineOfCredit) {
           try {
             // Always fetch the latest account data to check lock status
-            const account = await LinesOfCredit.get(lineOfCredit.id);
+            const { data: account, error: accountError } = await supabase
+              .from('LinesOfCredit')
+              .select('*')
+              .eq('id', lineOfCredit.id)
+              .single();
+            if (accountError) throw accountError;
             const lockStatus = checkEntityLock(account, currentUser.email);
 
             if (lockStatus.isLocked) {
@@ -43,10 +48,10 @@ export default function LinesOfCreditEditModal({ open, onClose, lineOfCredit, on
             }
 
             // Acquire lock
-            await LinesOfCredit.update(lineOfCredit.id, {
+            await supabase.from('LinesOfCredit').update({
               locked_by_user: currentUser.email,
               locked_timestamp: new Date().toISOString()
-            });
+            }).eq('id', lineOfCredit.id);
             
             setLockAcquired(true);
             setIsLocked(false);
@@ -59,8 +64,13 @@ export default function LinesOfCreditEditModal({ open, onClose, lineOfCredit, on
         }
         
         // Load GL accounts
-        const accountsData = await ChartOfAccount.filter({ account_type: 'Liability' }, 'account_number');
-        setAccounts(accountsData);
+        const { data: accountsData, error: accountsError } = await supabase
+          .from('ChartOfAccount')
+          .select('*')
+          .eq('account_type', 'Liability')
+          .order('account_number');
+        if (accountsError) throw accountsError;
+        setAccounts(accountsData || []);
       }
     };
 
@@ -72,11 +82,11 @@ export default function LinesOfCreditEditModal({ open, onClose, lineOfCredit, on
     return () => {
       if (!open && lockAcquired && currentUser && lineOfCredit) {
         // Release lock when modal closes
-        LinesOfCredit.update(lineOfCredit.id, {
+        supabase.from('LinesOfCredit').update({
           locked_by_user: null,
           locked_timestamp: null
-        }).catch(error => {
-          console.error('Error releasing lock:', error);
+        }).eq('id', lineOfCredit.id).then(({ error }) => {
+          if (error) console.error('Error releasing lock:', error);
         });
         setLockAcquired(false);
       }
@@ -86,11 +96,11 @@ export default function LinesOfCreditEditModal({ open, onClose, lineOfCredit, on
   const handleClose = () => {
     // Release lock before closing
     if (lockAcquired && currentUser && lineOfCredit) {
-      LinesOfCredit.update(lineOfCredit.id, {
+      supabase.from('LinesOfCredit').update({
         locked_by_user: null,
         locked_timestamp: null
-      }).catch(error => {
-        console.error('Error releasing lock on close:', error);
+      }).eq('id', lineOfCredit.id).then(({ error }) => {
+        if (error) console.error('Error releasing lock on close:', error);
       });
       setLockAcquired(false);
     }
@@ -197,13 +207,13 @@ export default function LinesOfCreditEditModal({ open, onClose, lineOfCredit, on
             </div>
             <div className="space-y-2">
               <Label htmlFor="gl_account">GL Account</Label>
-              <Select value={formData.gl_account} onValueChange={(value) => handleSelectChange('gl_account', value)}>
+              <Select value={String(formData.gl_account || '')} onValueChange={(value) => handleSelectChange('gl_account', value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a GL account..." />
                 </SelectTrigger>
                 <SelectContent>
                   {accounts.map(account => (
-                    <SelectItem key={account.id} value={account.account_number}>
+                    <SelectItem key={account.id} value={String(account.account_number)}>
                       {account.account_number} - {account.account_name}
                     </SelectItem>
                   ))}

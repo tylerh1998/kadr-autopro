@@ -23,7 +23,8 @@ import DepositHistoryModal from '../components/cash-drawer/DepositHistoryModal';
 import DepositSlipBreakdownModal from '../components/cash-drawer/DepositSlipBreakdownModal';
 import ChangePaymentMethodModal from '../components/cash-drawer/ChangePaymentMethodModal';
 import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 
 const paymentMethods = ['cash', 'debit', 'credit_card', 'cheque', 'e_transfer', 'other'];
 
@@ -37,6 +38,7 @@ const displayMethods = [
 const CASH_DRAWER_GL_ACCOUNT = '1010'; // Cash Drawer GL Account
 
 export default function CashDrawerPage() {
+  const { employee } = useAuth();
   const [bankAccounts, setBankAccounts] = useState([]);
   const [cashDrawerItems, setCashDrawerItems] = useState({});
   const [forDepositItems, setForDepositItems] = useState({});
@@ -61,30 +63,51 @@ export default function CashDrawerPage() {
     try {
         console.log('Loading cash drawer data');
 
-        // Load non-deposited payments directly from Supabase via base44 edge function
-        const allPaymentsRes = await base44.functions.invoke('supabaseCustomerPayments', { 
-            action: 'filter', 
-            match: { deposited: false } 
-        });
-        const paymentsData = allPaymentsRes?.data?.data || [];
+        // Load non-deposited payments directly from Supabase
+        const { data: rawPaymentsData, error: paymentsError } = await supabase
+            .from('CustomerPayments')
+            .select('*')
+            .or('deposited.eq.false,deposited.is.null');
+        if (paymentsError) console.error('Error loading payments for cash drawer:', paymentsError);
+
+        // Hydrate customer names, same as supabaseCustomerPayments used to do server-side
+        const paymentCustomerIds = [...new Set((rawPaymentsData || []).map(p => p.customer_id).filter(Boolean))];
+        let paymentCustomerMap = {};
+        if (paymentCustomerIds.length > 0) {
+          const { data: paymentCustomers } = await supabase
+            .from('Customer')
+            .select('id, first_name, last_name, org_name')
+            .in('id', paymentCustomerIds);
+          paymentCustomerMap = Object.fromEntries((paymentCustomers || []).map(c => [c.id, c]));
+        }
+        const paymentsData = (rawPaymentsData || []).map(p => ({ ...p, customer: paymentCustomerMap[p.customer_id] || null }));
         console.log('Filtered payments for cash drawer:', paymentsData);
 
         // Load non-deposited adjustments directly
-        const adjustmentsData = await base44.entities.CashDrawerAdjustment.filter({ deposited: false });
+        const { data: adjustmentsData, error: adjustmentsError } = await supabase
+          .from('CashDrawerAdjustment')
+          .select('*')
+          .eq('deposited', false);
+        if (adjustmentsError) console.error('Error loading adjustments for cash drawer:', adjustmentsError);
         console.log('Filtered adjustments for cash drawer:', adjustmentsData);
 
-        // Fetch Bank Accounts via existing backend proxy
-        const bankAccountsResponse = await base44.functions.invoke('SupabaseProxy', {
-          action: 'list',
-          table: 'BankAccount'
-        });
-        const bankAccountsData = (bankAccountsResponse?.data?.data || []).filter(acc => acc.is_active !== false);
-        
+        // Fetch Bank Accounts directly
+        const { data: rawBankAccountsData, error: bankAccountsError } = await supabase
+          .from('BankAccount')
+          .select('*');
+        if (bankAccountsError) console.error('Error loading bank accounts for cash drawer:', bankAccountsError);
+        const bankAccountsData = (rawBankAccountsData || []).filter(acc => acc.is_active !== false);
+
         // Load recent adjustments (last 10 for the modal history)
-        const recentAdjustments = await base44.entities.CashDrawerAdjustment.list('-created_date', 10);
+        const { data: recentAdjustments, error: recentAdjustmentsError } = await supabase
+          .from('CashDrawerAdjustment')
+          .select('*')
+          .order('created_date', { ascending: false })
+          .limit(10);
+        if (recentAdjustmentsError) console.error('Error loading recent adjustments:', recentAdjustmentsError);
 
         setBankAccounts(bankAccountsData || []);
-        setAdjustments(recentAdjustments);
+        setAdjustments(recentAdjustments || []);
 
         // Initialize cash drawer with both payments and adjustments
         const initialCashDrawer = {};
@@ -124,7 +147,7 @@ export default function CashDrawerPage() {
         });
 
         // Add CashDrawerAdjustments to cash drawer
-        adjustmentsData.forEach(adjustment => {
+        (adjustmentsData || []).forEach(adjustment => {
           const method = adjustment.payment_method;
           if (initialCashDrawer[method]) {
             initialCashDrawer[method].push({
@@ -252,7 +275,7 @@ export default function CashDrawerPage() {
         return;
       }
 
-      const currentUser = await base44.auth.me();
+      const currentUser = employee;
       if (!currentUser) {
         alert('You must be logged in to make a deposit.');
         return;
@@ -274,24 +297,24 @@ export default function CashDrawerPage() {
 
       const creatorName = currentUser.User_name || currentUser.full_name || currentUser.email || currentUser.id;
       const createGLTransaction = async (transactionData) => {
-        const response = await base44.functions.invoke('SupabaseProxy', {
-          action: 'create',
-          table: 'GLTransaction',
-          data: {
-            ...transactionData,
+        const nowIso = new Date().toISOString();
+        const { data: record, error } = await supabase
+          .from('GLTransaction')
+          .insert({
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+            created_date: nowIso,
+            updated_date: nowIso,
             created_by: creatorName,
-            created_by_id: currentUser.id
-          }
-        });
+            created_by_id: currentUser.id,
+            updated_by: creatorName,
+            ...transactionData
+          })
+          .select()
+          .single();
 
-        if (response?.data?.error) {
-          throw new Error(response.data.error);
+        if (error) {
+          throw new Error(error.message);
         }
-
-        const record = Array.isArray(response?.data?.data)
-          ? response.data.data[0]
-          : response?.data?.data;
-
         if (!record?.id) {
           throw new Error('Failed to create GL transaction.');
         }
@@ -307,25 +330,31 @@ export default function CashDrawerPage() {
 
       // Update each CustomerPayment
       for (const item of paymentsToDeposit) {
-        await base44.functions.invoke('supabaseCustomerPayments', {
-          action: 'update',
-          id: item.customerPaymentId,
-          data: {
+        const { error: paymentUpdateError } = await supabase
+          .from('CustomerPayments')
+          .update({
             deposited: true,
             deposit_date: depositData.depositDate,
-            deposit_batch_id: depositBatchId
-          }
-        });
+            deposit_batch_id: depositBatchId,
+            updated_date: new Date().toISOString()
+          })
+          .eq('id', item.customerPaymentId);
+        if (paymentUpdateError) throw new Error(paymentUpdateError.message);
       }
 
       // Update each CashDrawerAdjustment
       for (const item of adjustmentsToDeposit) {
-        await base44.entities.CashDrawerAdjustment.update(item.adjustmentId, {
-          deposited: true,
-          deposit_date: depositData.depositDate,
-          deposit_batch_id: depositBatchId,
-          status: 'deposited'
-        });
+        const { error: adjustmentUpdateError } = await supabase
+          .from('CashDrawerAdjustment')
+          .update({
+            deposited: true,
+            deposit_date: depositData.depositDate,
+            deposit_batch_id: depositBatchId,
+            status: 'deposited',
+            updated_date: new Date().toISOString()
+          })
+          .eq('id', item.adjustmentId);
+        if (adjustmentUpdateError) throw new Error(adjustmentUpdateError.message);
       }
 
       // GL Transactions
@@ -372,10 +401,9 @@ export default function CashDrawerPage() {
 
       const newTransactionId = `btx-${crypto.randomUUID ? crypto.randomUUID() : Date.now()}`;
 
-      const bankTransactionResponse = await base44.functions.invoke('SupabaseProxy', {
-        action: 'create',
-        table: 'BankTransaction',
-        data: {
+      const { data: bankTransaction, error: bankTransactionError } = await supabase
+        .from('BankTransaction')
+        .insert({
           id: newTransactionId,
           bank_account_id: selectedBankAccount.id,
           transaction_date: depositData.depositDate,
@@ -387,17 +415,13 @@ export default function CashDrawerPage() {
           source_id: depositBatchId,
           created_date: new Date().toISOString(),
           updated_date: new Date().toISOString()
-        }
-      });
+        })
+        .select()
+        .single();
 
-      const bankTransactionError = bankTransactionResponse?.data?.error;
       if (bankTransactionError) {
-        throw new Error(bankTransactionError);
+        throw new Error(bankTransactionError.message);
       }
-
-      const bankTransaction = Array.isArray(bankTransactionResponse?.data?.data)
-        ? bankTransactionResponse.data.data[0]
-        : bankTransactionResponse?.data?.data;
 
       const hasCashOrCheques = (forDepositItems.cash?.length > 0) || (forDepositItems.cheque?.length > 0);
 
@@ -444,7 +468,7 @@ export default function CashDrawerPage() {
         return;
       }
 
-      const currentUser = await base44.auth.me();
+      const currentUser = employee;
       if (!currentUser) {
         alert('You must be logged in to record an adjustment.');
         return;
@@ -462,24 +486,24 @@ export default function CashDrawerPage() {
       const glTransactionIds = [];
 
       const createGLTransaction = async (transactionData) => {
-        const response = await base44.functions.invoke('SupabaseProxy', {
-          action: 'create',
-          table: 'GLTransaction',
-          data: {
-            ...transactionData,
+        const nowIso = new Date().toISOString();
+        const { data: record, error } = await supabase
+          .from('GLTransaction')
+          .insert({
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+            created_date: nowIso,
+            updated_date: nowIso,
             created_by: creatorName,
-            created_by_id: currentUser.id
-          }
-        });
+            created_by_id: currentUser.id,
+            updated_by: creatorName,
+            ...transactionData
+          })
+          .select()
+          .single();
 
-        if (response?.data?.error) {
-          throw new Error(response.data.error);
+        if (error) {
+          throw new Error(error.message);
         }
-
-        const record = Array.isArray(response?.data?.data)
-          ? response.data.data[0]
-          : response?.data?.data;
-
         if (!record?.id) {
           throw new Error('Failed to create GL transaction.');
         }
@@ -488,18 +512,17 @@ export default function CashDrawerPage() {
       };
 
       const updateGLTransaction = async (transactionId, transactionData) => {
-        const response = await base44.functions.invoke('SupabaseProxy', {
-          action: 'update',
-          table: 'GLTransaction',
-          id: transactionId,
-          data: {
+        const { error } = await supabase
+          .from('GLTransaction')
+          .update({
             ...transactionData,
+            updated_date: new Date().toISOString(),
             updated_by: creatorName
-          }
-        });
+          })
+          .eq('id', transactionId);
 
-        if (response?.data?.error) {
-          throw new Error(response.data.error);
+        if (error) {
+          throw new Error(error.message);
         }
       };
 
@@ -527,17 +550,30 @@ export default function CashDrawerPage() {
       });
       glTransactionIds.push(adjustmentGL.id);
 
-      const adjustmentRecord = await base44.entities.CashDrawerAdjustment.create({
-        adjustment_date: adjustmentData.adjustmentDate,
-        amount: adjustedAmount,
-        type: adjustmentData.type,
-        payment_method: adjustmentData.paymentMethod,
-        description: adjustmentData.description,
-        reference: reference,
-        gl_transactions: JSON.stringify(glTransactionIds),
-        status: 'posted_to_gl',
-        deposited: false
-      });
+      const nowIsoAdjustment = new Date().toISOString();
+      const { data: adjustmentRecord, error: adjustmentCreateError } = await supabase
+        .from('CashDrawerAdjustment')
+        .insert({
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+          created_date: nowIsoAdjustment,
+          updated_date: nowIsoAdjustment,
+          created_by: creatorName,
+          created_by_id: currentUser.id,
+          adjustment_date: adjustmentData.adjustmentDate,
+          amount: adjustedAmount,
+          type: adjustmentData.type,
+          payment_method: adjustmentData.paymentMethod,
+          description: adjustmentData.description,
+          reference: reference,
+          gl_transactions: JSON.stringify(glTransactionIds),
+          status: 'posted_to_gl',
+          deposited: false
+        })
+        .select()
+        .single();
+      if (adjustmentCreateError) {
+        throw new Error(adjustmentCreateError.message);
+      }
 
       await updateGLTransaction(cashDrawerGL.id, { source_id: adjustmentRecord.id });
       await updateGLTransaction(adjustmentGL.id, { source_id: adjustmentRecord.id });
@@ -555,14 +591,14 @@ export default function CashDrawerPage() {
 
   const getPaymentIcon = (method) => {
     switch (method) {
-      case 'cash': return <DollarSign className="w-5 h-5 text-green-600" />;
-      case 'credit_card': return <CreditCard className="w-5 h-5 text-blue-600" />;
-      case 'debit': return <CreditCard className="w-5 h-5 text-purple-600" />;
-      case 'cards': return <CreditCard className="w-5 h-5 text-blue-600" />;
-      case 'cheque': return <Banknote className="w-5 h-5 text-orange-600" />;
-      case 'e_transfer': return <ArrowLeftRight className="w-5 h-5 text-indigo-600" />;
-      case 'other': return <DollarSign className="w-5 h-5 text-gray-600" />;
-      default: return <DollarSign className="w-5 h-5 text-gray-600" />;
+      case 'cash': return <DollarSign className="w-5 h-5 text-green-600 dark:text-green-400" />;
+      case 'credit_card': return <CreditCard className="w-5 h-5 text-blue-600 dark:text-blue-400" />;
+      case 'debit': return <CreditCard className="w-5 h-5 text-purple-600 dark:text-purple-400" />;
+      case 'cards': return <CreditCard className="w-5 h-5 text-blue-600 dark:text-blue-400" />;
+      case 'cheque': return <Banknote className="w-5 h-5 text-orange-600 dark:text-orange-400" />;
+      case 'e_transfer': return <ArrowLeftRight className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />;
+      case 'other': return <DollarSign className="w-5 h-5 text-gray-600 dark:text-gray-400" />;
+      default: return <DollarSign className="w-5 h-5 text-gray-600 dark:text-gray-400" />;
     }
   };
 
@@ -587,8 +623,12 @@ export default function CashDrawerPage() {
       const selectedBankAccount = bankAccounts.find(acc => acc.id === deposit.bank_account_id);
       const batchId = deposit.source_id || deposit.reference;
       
-      const existingBreakdowns = await base44.entities.DepositSlipBreakdown.filter({ deposit_batch_id: batchId });
-      const savedBreakdown = existingBreakdowns.length > 0 ? existingBreakdowns[0] : null;
+      const { data: existingBreakdowns, error: breakdownError } = await supabase
+        .from('DepositSlipBreakdown')
+        .select('*')
+        .eq('deposit_batch_id', batchId);
+      if (breakdownError) console.error('Error loading deposit slip breakdown:', breakdownError);
+      const savedBreakdown = existingBreakdowns && existingBreakdowns.length > 0 ? existingBreakdowns[0] : null;
 
       if (savedBreakdown) {
         let savedCheques = [];
@@ -632,12 +672,27 @@ export default function CashDrawerPage() {
         return;
       }
 
-      const allPaymentsRes = await base44.functions.invoke('supabaseCustomerPayments', { 
-          action: 'filter', 
-          match: { deposit_batch_id: batchId } 
-      });
-      const batchPayments = allPaymentsRes?.data?.data || [];
-      const batchAdjustments = await base44.entities.CashDrawerAdjustment.filter({ deposit_batch_id: batchId });
+      const { data: rawBatchPayments, error: batchPaymentsError } = await supabase
+          .from('CustomerPayments')
+          .select('*')
+          .eq('deposit_batch_id', batchId);
+      if (batchPaymentsError) console.error('Error loading batch payments:', batchPaymentsError);
+
+      const batchCustomerIds = [...new Set((rawBatchPayments || []).map(p => p.customer_id).filter(Boolean))];
+      let batchCustomerMap = {};
+      if (batchCustomerIds.length > 0) {
+        const { data: batchCustomers } = await supabase
+          .from('Customer')
+          .select('id, first_name, last_name, org_name')
+          .in('id', batchCustomerIds);
+        batchCustomerMap = Object.fromEntries((batchCustomers || []).map(c => [c.id, c]));
+      }
+      const batchPayments = (rawBatchPayments || []).map(p => ({ ...p, customer: batchCustomerMap[p.customer_id] || null }));
+      const { data: batchAdjustments, error: batchAdjustmentsError } = await supabase
+        .from('CashDrawerAdjustment')
+        .select('*')
+        .eq('deposit_batch_id', batchId);
+      if (batchAdjustmentsError) console.error('Error loading batch adjustments:', batchAdjustmentsError);
 
       const reconstructedForDeposit = {};
       paymentMethods.forEach(method => {
@@ -673,7 +728,7 @@ export default function CashDrawerPage() {
         }
       });
 
-      batchAdjustments.forEach(adjustment => {
+      (batchAdjustments || []).forEach(adjustment => {
         const method = adjustment.payment_method;
         if (reconstructedForDeposit[method]) {
           reconstructedForDeposit[method].push({
@@ -719,13 +774,11 @@ export default function CashDrawerPage() {
   const handleSavePaymentMethod = async (item, newMethod) => {
     try {
       setLoading(true);
-      await base44.functions.invoke('supabaseCustomerPayments', {
-        action: 'update',
-        id: item.customerPaymentId,
-        data: {
-          payment_method: newMethod
-        }
-      });
+      const { error: methodUpdateError } = await supabase
+        .from('CustomerPayments')
+        .update({ payment_method: newMethod, updated_date: new Date().toISOString() })
+        .eq('id', item.customerPaymentId);
+      if (methodUpdateError) throw new Error(methodUpdateError.message);
       
       setShowChangeMethodModal(false);
       setPaymentToChange(null);
@@ -743,18 +796,23 @@ export default function CashDrawerPage() {
 
   const handleGenerateDepositSlip = async (slipData) => {
     try {
-      const response = await base44.functions.invoke('generateDepositSlipPDF', {
-        cashBreakdown: slipData.cashBreakdown,
-        cheques: slipData.cheques,
-        bankAccountNumber: slipData.selectedBankAccount?.account_number || '',
-        bankAccountName: slipData.selectedBankAccount?.name || '',
-        depositDate: slipData.depositDate,
-        totalCash: slipData.totalCash,
-        totalCheques: slipData.totalCheques,
-        depositAmount: slipData.depositAmount
+      const { data, error } = await supabase.functions.invoke('autopro-generateDepositSlipPDF', {
+        body: {
+          cashBreakdown: slipData.cashBreakdown,
+          cheques: slipData.cheques,
+          bankAccountNumber: slipData.selectedBankAccount?.account_number || '',
+          bankAccountName: slipData.selectedBankAccount?.name || '',
+          depositDate: slipData.depositDate,
+          totalCash: slipData.totalCash,
+          totalCheques: slipData.totalCheques,
+          depositAmount: slipData.depositAmount
+        }
       });
 
-      const blob = new Blob([response.data], { type: 'application/pdf' });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+
+      const blob = new Blob([data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       window.open(url, '_blank');
       
@@ -775,8 +833,8 @@ export default function CashDrawerPage() {
           {/* Header */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">Cash Drawer</h1>
-              <p className="text-slate-600 mt-1">Daily cash management and deposits</p>
+              <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Cash Drawer</h1>
+              <p className="text-slate-600 dark:text-slate-400 mt-1">Daily cash management and deposits</p>
             </div>
             <div className="flex items-center gap-3">
               <Button onClick={loadData} variant="outline" size="icon" disabled={loading}>
@@ -785,30 +843,30 @@ export default function CashDrawerPage() {
               <Button
                 onClick={() => setShowAdjustmentModal(true)}
                 variant="outline"
-                className="bg-white border-orange-300 hover:bg-orange-50"
+                className="bg-card border-orange-300 hover:bg-orange-50 dark:border-orange-900/60 dark:hover:bg-orange-950/40"
               >
-                <AlertCircle className="w-4 h-4 mr-2 text-orange-600" />
+                <AlertCircle className="w-4 h-4 mr-2 text-orange-600 dark:text-orange-400" />
                 Record Adjustment
               </Button>
               <Button
                 onClick={() => setShowDepositHistoryModal(true)}
                 variant="outline"
-                className="bg-white border-blue-300 hover:bg-blue-50"
+                className="bg-card border-blue-300 hover:bg-blue-50 dark:border-blue-900/60 dark:hover:bg-blue-950/40"
               >
-                <History className="w-4 h-4 mr-2 text-blue-600" />
+                <History className="w-4 h-4 mr-2 text-blue-600 dark:text-blue-400" />
                 History
               </Button>
               <div className="flex flex-col items-end gap-1">
                 <Button
                   onClick={() => setShowDepositModal(true)}
-                  className="bg-green-600 hover:bg-green-700 h-14 text-lg px-8 shadow-md transition-all hover:scale-105"
+                  className="bg-green-600 hover:bg-green-700 text-white disabled:text-white h-14 text-lg px-8 shadow-md transition-all hover:scale-105"
                   disabled={!depositBatchStatus.valid}
                 >
                   <Upload className="w-6 h-6 mr-2" />
                   Make Deposit (${getTotalForDeposit().toFixed(2)})
                 </Button>
                 {!depositBatchStatus.valid && getTotalForDeposit() > 0 && (
-                  <p className="text-xs text-red-600 max-w-xs text-right">
+                  <p className="text-xs font-medium text-red-800 dark:text-red-300 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md px-2 py-1 max-w-xs text-right">
                     {depositBatchStatus.message}
                   </p>
                 )}
@@ -824,11 +882,11 @@ export default function CashDrawerPage() {
             <CardContent className="p-0">
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="border-b">
+                  <thead className="border-b dark:border-slate-800">
                     <tr>
-                      <th className="text-left p-4 font-semibold text-slate-700 bg-slate-50">Payment Method</th>
-                      <th className="text-center p-4 font-semibold text-blue-900 bg-blue-100">Cash Drawer</th>
-                      <th className="text-center p-4 font-semibold text-green-900 bg-green-100">For Deposit</th>
+                      <th className="text-left p-4 font-semibold text-slate-700 bg-slate-50 dark:text-slate-300 dark:bg-slate-900">Payment Method</th>
+                      <th className="text-center p-4 font-semibold text-blue-900 bg-blue-100 dark:text-blue-200 dark:bg-blue-950/60">Cash Drawer</th>
+                      <th className="text-center p-4 font-semibold text-green-900 bg-green-100 dark:text-green-200 dark:bg-green-950/60">For Deposit</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -837,33 +895,33 @@ export default function CashDrawerPage() {
                       const fdTotal = getDisplayGroupForDepositTotal(displayGroup);
                       const cdCount = getDisplayGroupItemCount(displayGroup, 'cash_drawer');
                       const fdCount = getDisplayGroupItemCount(displayGroup, 'for_deposit');
-
+ 
                       return (
-                        <tr key={displayGroup.id} className="border-b hover:bg-slate-50">
+                        <tr key={displayGroup.id} className="border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40">
                           <td className="p-4">
                             <div className="flex items-center gap-3">
                               {getPaymentIcon(displayGroup.id)}
-                              <span className="font-medium capitalize">{displayGroup.label}</span>
+                              <span className="font-medium capitalize text-foreground">{displayGroup.label}</span>
                             </div>
                           </td>
                           <td 
-                            className="p-4 text-center cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors border-r border-blue-100"
+                            className="p-4 text-center cursor-pointer bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/20 dark:hover:bg-blue-950/40 transition-colors border-r border-blue-100 dark:border-blue-900/40"
                             onClick={() => cdTotal > 0 && handleOpenPaymentModal(displayGroup.id, 'cash_drawer', displayGroup.methods)}
                           >
-                            <div className={`${cdTotal > 0 ? 'text-blue-600 hover:text-blue-800' : 'text-slate-400'} font-semibold`}>
+                            <div className={`${cdTotal > 0 ? 'text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300' : 'text-slate-400 dark:text-slate-600'} font-semibold`}>
                               ${cdTotal.toFixed(2)}
-                              <div className="text-xs text-gray-500">
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
                                 ({cdCount} items)
                               </div>
                             </div>
                           </td>
                           <td 
-                            className="p-4 text-center cursor-pointer bg-green-50 hover:bg-green-100 transition-colors"
+                            className="p-4 text-center cursor-pointer bg-green-50 hover:bg-green-100 dark:bg-green-950/20 dark:hover:bg-green-950/40 transition-colors"
                             onClick={() => fdTotal > 0 && handleOpenPaymentModal(displayGroup.id, 'for_deposit', displayGroup.methods)}
                           >
-                            <div className={`${fdTotal > 0 ? 'text-green-600 hover:text-green-800' : 'text-slate-400'} font-semibold`}>
+                            <div className={`${fdTotal > 0 ? 'text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300' : 'text-slate-400 dark:text-slate-600'} font-semibold`}>
                               ${fdTotal.toFixed(2)}
-                              <div className="text-xs text-gray-500">
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
                                 ({fdCount} items)
                               </div>
                             </div>
@@ -871,12 +929,12 @@ export default function CashDrawerPage() {
                         </tr>
                       );
                     })}
-                    <tr className="border-t-2 font-semibold">
-                      <td className="p-4 bg-gray-50">Total</td>
-                      <td className="p-4 text-center text-lg bg-blue-100">
+                    <tr className="border-t-2 font-semibold dark:border-slate-700">
+                      <td className="p-4 bg-gray-50 dark:bg-slate-900 text-foreground">Total</td>
+                      <td className="p-4 text-center text-lg bg-blue-100 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200">
                         ${paymentMethods.reduce((sum, method) => sum + getCashDrawerTotal(method), 0).toFixed(2)}
                       </td>
-                      <td className="p-4 text-center text-lg text-green-700 bg-green-100">
+                      <td className="p-4 text-center text-lg text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-950/60">
                         ${getTotalForDeposit().toFixed(2)}
                       </td>
                     </tr>
@@ -889,7 +947,7 @@ export default function CashDrawerPage() {
           {loading && (
             <div className="text-center py-8">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-              <p className="mt-2 text-gray-600">Loading payments...</p>
+              <p className="mt-2 text-gray-600 dark:text-gray-400">Loading payments...</p>
             </div>
           )}
         </div>

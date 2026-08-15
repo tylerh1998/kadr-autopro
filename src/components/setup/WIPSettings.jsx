@@ -6,10 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Save, Loader2 } from "lucide-react";
-import { SystemSettings } from "@/entities/all";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/AuthContext";
 import WorkOrderStatusManager from "./WorkOrderStatusManager";
 
 export default function WIPSettings({ currentUser }) {
+  const { user, employee } = useAuth();
   const [activeSubTab, setActiveSubTab] = useState("statuses");
   const [legalText, setLegalText] = useState("");
   const [defaultMessage, setDefaultMessage] = useState("");
@@ -29,7 +31,8 @@ export default function WIPSettings({ currentUser }) {
   const loadSettings = async () => {
     setLoading(true);
     try {
-      const settings = await SystemSettings.list();
+      const { data: settings, error } = await supabase.from('SystemSettings').select('*');
+      if (error) throw error;
       if (settings && settings.length > 0) {
         const systemSettings = settings[0];
         setSystemSettingsId(systemSettings.id);
@@ -49,10 +52,23 @@ export default function WIPSettings({ currentUser }) {
     setSaving(true);
     try {
       if (systemSettingsId) {
-        await SystemSettings.update(systemSettingsId, { wip_legal: legalText });
+        const { error } = await supabase
+          .from('SystemSettings')
+          .update({ wip_legal: legalText, updated_date: new Date().toISOString() })
+          .eq('id', systemSettingsId);
+        if (error) throw error;
       } else {
-        const newSettings = await SystemSettings.create({ wip_legal: legalText });
-        setSystemSettingsId(newSettings.id);
+        const newId = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
+        const { error } = await supabase.from('SystemSettings').insert({
+          id: newId,
+          wip_legal: legalText,
+          created_date: new Date().toISOString(),
+          updated_date: new Date().toISOString(),
+          created_by: employee?.full_name || employee?.email || user?.email || '',
+          created_by_id: user?.id || ''
+        });
+        if (error) throw error;
+        setSystemSettingsId(newId);
       }
       setLegalHasChanges(false);
       alert("Legal text saved successfully!");
@@ -68,10 +84,23 @@ export default function WIPSettings({ currentUser }) {
     setSaving(true);
     try {
       if (systemSettingsId) {
-        await SystemSettings.update(systemSettingsId, { default_message: defaultMessage });
+        const { error } = await supabase
+          .from('SystemSettings')
+          .update({ default_message: defaultMessage, updated_date: new Date().toISOString() })
+          .eq('id', systemSettingsId);
+        if (error) throw error;
       } else {
-        const newSettings = await SystemSettings.create({ default_message: defaultMessage });
-        setSystemSettingsId(newSettings.id);
+        const newId = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
+        const { error } = await supabase.from('SystemSettings').insert({
+          id: newId,
+          default_message: defaultMessage,
+          created_date: new Date().toISOString(),
+          updated_date: new Date().toISOString(),
+          created_by: employee?.full_name || employee?.email || user?.email || '',
+          created_by_id: user?.id || ''
+        });
+        if (error) throw error;
+        setSystemSettingsId(newId);
       }
       setMessageHasChanges(false);
       alert("Default message saved successfully!");
@@ -87,16 +116,28 @@ export default function WIPSettings({ currentUser }) {
     setSaving(true);
     try {
       if (systemSettingsId) {
-        await SystemSettings.update(systemSettingsId, { 
-          next_ro_number: nextRoNumber,
-          next_inv_number: nextInvNumber
-        });
+        const { error } = await supabase
+          .from('SystemSettings')
+          .update({
+            next_ro_number: nextRoNumber,
+            next_inv_number: nextInvNumber,
+            updated_date: new Date().toISOString()
+          })
+          .eq('id', systemSettingsId);
+        if (error) throw error;
       } else {
-        const newSettings = await SystemSettings.create({ 
+        const newId = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
+        const { error } = await supabase.from('SystemSettings').insert({
+          id: newId,
           next_ro_number: nextRoNumber,
-          next_inv_number: nextInvNumber
+          next_inv_number: nextInvNumber,
+          created_date: new Date().toISOString(),
+          updated_date: new Date().toISOString(),
+          created_by: employee?.full_name || employee?.email || user?.email || '',
+          created_by_id: user?.id || ''
         });
-        setSystemSettingsId(newSettings.id);
+        if (error) throw error;
+        setSystemSettingsId(newId);
       }
       setNumberingHasChanges(false);
       alert("Numbering settings saved successfully!");
@@ -111,8 +152,8 @@ export default function WIPSettings({ currentUser }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-slate-900">WIP Settings</h2>
-        <p className="text-slate-600 mt-1">Configure work-in-progress related settings</p>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">WIP Settings</h2>
+        <p className="text-slate-600 dark:text-slate-400 mt-1">Configure work-in-progress related settings</p>
       </div>
 
       <div className="flex gap-6">
@@ -146,7 +187,7 @@ export default function WIPSettings({ currentUser }) {
             <Card>
               <CardContent className="p-6 space-y-4">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-slate-900">Numbering Settings</h3>
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Numbering Settings</h3>
                   <Button
                     onClick={handleSaveNumbering}
                     disabled={!numberingHasChanges || saving || currentUser?.role !== 'admin'}
@@ -163,7 +204,7 @@ export default function WIPSettings({ currentUser }) {
                 
                 {loading ? (
                   <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+                    <Loader2 className="w-8 h-8 animate-spin text-slate-400 dark:text-slate-500" />
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -181,7 +222,7 @@ export default function WIPSettings({ currentUser }) {
                         className="max-w-xs"
                         disabled={currentUser?.role !== 'admin'}
                       />
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                         The next RO number that will be assigned (e.g., 1001 becomes RO1001)
                       </p>
                     </div>
@@ -200,7 +241,7 @@ export default function WIPSettings({ currentUser }) {
                         className="max-w-xs"
                         disabled={currentUser?.role !== 'admin'}
                       />
-                      <p className="text-xs text-slate-500 mt-1">
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                         The next Invoice number that will be assigned (e.g., 1001 becomes INV1001)
                       </p>
                     </div>
@@ -214,7 +255,7 @@ export default function WIPSettings({ currentUser }) {
             <Card>
               <CardContent className="p-6 space-y-4">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-slate-900">Legal Text</h3>
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Legal Text</h3>
                   <Button
                     onClick={handleSaveLegal}
                     disabled={!legalHasChanges || saving}
@@ -231,7 +272,7 @@ export default function WIPSettings({ currentUser }) {
                 
                 {loading ? (
                   <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+                    <Loader2 className="w-8 h-8 animate-spin text-slate-400 dark:text-slate-500" />
                   </div>
                 ) : (
                   <>
@@ -245,7 +286,7 @@ export default function WIPSettings({ currentUser }) {
                       className="min-h-[400px] font-mono text-sm"
                     />
                     
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
                       This text will appear on work orders, estimates, and invoices as legal terms and conditions.
                     </p>
                   </>
@@ -258,7 +299,7 @@ export default function WIPSettings({ currentUser }) {
             <Card>
               <CardContent className="p-6 space-y-4">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-slate-900">Default Message</h3>
+                  <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Default Message</h3>
                   <Button
                     onClick={handleSaveDefaultMessage}
                     disabled={!messageHasChanges || saving}
@@ -275,7 +316,7 @@ export default function WIPSettings({ currentUser }) {
                 
                 {loading ? (
                   <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
+                    <Loader2 className="w-8 h-8 animate-spin text-slate-400 dark:text-slate-500" />
                   </div>
                 ) : (
                   <>
@@ -289,7 +330,7 @@ export default function WIPSettings({ currentUser }) {
                       className="min-h-[400px] font-mono text-sm"
                     />
                     
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
                       This message will be automatically added to the "Notes to Customer" field when creating new work orders.
                     </p>
                   </>

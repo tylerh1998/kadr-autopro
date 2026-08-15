@@ -3,8 +3,8 @@ import { Card, CardContent } from '@/components/ui/card';
 
 const FinancialItem = ({ label, value, className = '' }) => (
   <div className={`text-center px-4 py-2 rounded-lg ${className}`}>
-    <p className="text-xs text-slate-500 font-medium uppercase tracking-wider">{label}</p>
-    <p className="text-xl font-bold text-slate-800">{value}</p>
+    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider">{label}</p>
+    <p className="text-xl font-bold text-slate-800 dark:text-slate-200">{value}</p>
   </div>
 );
 
@@ -39,7 +39,7 @@ export default function LankarWOFinancialSummary({ info, lineItems = [] }) {
         <FinancialItem label="Subtotal" value={`$${totals.subtotal.toFixed(2)}`} />
         <FinancialItem label="Discount" value={`$${totals.discount.toFixed(2)}`} />
         <FinancialItem label="GST" value={`$${totals.gstTotal.toFixed(2)}`} />
-        <FinancialItem label="Total" value={`$${totals.total.toFixed(2)}`} className="bg-slate-100" />
+        <FinancialItem label="Total" value={`$${totals.total.toFixed(2)}`} className="bg-slate-100 dark:bg-slate-800" />
       </CardContent>
     </Card>
   );

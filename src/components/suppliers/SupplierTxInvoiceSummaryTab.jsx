@@ -173,28 +173,28 @@ export default function SupplierTxInvoiceSummaryTab({
             const isExpanded = expandedInvoices[invoiceKey];
             const displayLines = displayLinesByInvoice[invoiceKey] || [];
             return (
-              <div key={invoiceKey} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                <div className="flex items-center justify-between p-4 hover:bg-slate-100 cursor-pointer transition-colors" onClick={() => toggleInvoiceExpansion(invoiceKey)}>
+              <div key={invoiceKey} className={index % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50 dark:bg-slate-800/50'}>
+                <div className="flex items-center justify-between p-4 hover:bg-slate-100 dark:hover:bg-slate-700/50 cursor-pointer transition-colors" onClick={() => toggleInvoiceExpansion(invoiceKey)}>
                   <div className="flex items-center gap-4 flex-1">
-                    <div className="text-slate-400">{isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}</div>
+                    <div className="text-slate-400 dark:text-slate-500">{isExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}</div>
                     <div className="flex-1 grid grid-cols-8 gap-4">
-                      <div><p className="text-sm text-slate-500">Invoice #</p><p className="font-extrabold text-xl text-slate-900 invoice-summary-print-text">{invoice.invoice_number}</p></div>
-                      <div><p className="text-sm text-slate-500">Date</p><p className="font-medium text-slate-900">{safeFormatDate(invoice.invoice_date, 'MMM dd, yyyy')}</p></div>
-                      <div><p className="text-sm text-slate-500">Lines</p><p className="font-medium text-slate-900">{invoice.line_count}</p></div>
-                      <div className="text-right"><p className="text-sm text-slate-500">Total Charge</p><p className="font-medium text-slate-900">${invoice.subtotal.toFixed(2)}</p></div>
-                      <div className="text-right"><p className="text-sm text-slate-500">Total GST</p><p className="font-medium text-slate-900">${invoice.tax_amount.toFixed(2)}</p></div>
-                      <div className="text-right"><p className="text-sm text-slate-500">Total Amount</p><p className="font-extrabold text-xl text-slate-900 invoice-summary-print-text">${invoice.total_amount.toFixed(2)}</p></div>
-                      <div className="text-right"><p className="text-sm text-slate-500">Payments</p><p className="font-medium text-green-600">${invoice.amount_paid.toFixed(2)}</p></div>
-                      <div className="text-right"><p className="text-sm text-slate-500">Balance</p><p className="font-bold text-red-600">${invoice.balance_due.toFixed(2)}</p></div>
+                      <div><p className="text-sm text-slate-500 dark:text-slate-400">Invoice #</p><p className="font-extrabold text-xl text-slate-900 dark:text-slate-100 invoice-summary-print-text">{invoice.invoice_number}</p></div>
+                      <div><p className="text-sm text-slate-500 dark:text-slate-400">Date</p><p className="font-medium text-slate-900 dark:text-slate-100">{safeFormatDate(invoice.invoice_date, 'MMM dd, yyyy')}</p></div>
+                      <div><p className="text-sm text-slate-500 dark:text-slate-400">Lines</p><p className="font-medium text-slate-900 dark:text-slate-100">{invoice.line_count}</p></div>
+                      <div className="text-right"><p className="text-sm text-slate-500 dark:text-slate-400">Total Charge</p><p className="font-medium text-slate-900 dark:text-slate-100">${invoice.subtotal.toFixed(2)}</p></div>
+                      <div className="text-right"><p className="text-sm text-slate-500 dark:text-slate-400">Total GST</p><p className="font-medium text-slate-900 dark:text-slate-100">${invoice.tax_amount.toFixed(2)}</p></div>
+                      <div className="text-right"><p className="text-sm text-slate-500 dark:text-slate-400">Total Amount</p><p className="font-extrabold text-xl text-slate-900 dark:text-slate-100 invoice-summary-print-text">${invoice.total_amount.toFixed(2)}</p></div>
+                      <div className="text-right"><p className="text-sm text-slate-500 dark:text-slate-400">Payments</p><p className="font-medium text-green-600 dark:text-green-400">${invoice.amount_paid.toFixed(2)}</p></div>
+                      <div className="text-right"><p className="text-sm text-slate-500 dark:text-slate-400">Balance</p><p className="font-bold text-red-600 dark:text-red-400">${invoice.balance_due.toFixed(2)}</p></div>
                     </div>
                   </div>
                 </div>
                 {isExpanded && displayLines.length > 0 && (
-                  <div className="border-t border-slate-200 bg-slate-50">
+                  <div className="border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
-                          <TableRow className="bg-slate-100">
+                          <TableRow className="bg-slate-100 dark:bg-slate-700">
                             <TableHead className="w-[160px]">Invoice #</TableHead>
                             <TableHead className="w-[140px]">Date</TableHead>
                             <TableHead>Description</TableHead>
@@ -215,14 +215,14 @@ export default function SupplierTxInvoiceSummaryTab({
                             return (
                               <ContextMenu key={line.id}>
                                 <ContextMenuTrigger asChild>
-                                  <TableRow key={line.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                                  <TableRow key={line.id} className={idx % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50 dark:bg-slate-800/50'}>
                                     <TableCell>
                                   <Input
                                     value={draftInvoiceNumbers[line.id] ?? line.invoice_number ?? ''}
                                     onChange={(e) => setDraftInvoiceNumbers((prev) => ({ ...prev, [line.id]: e.target.value }))}
                                     onBlur={() => !disabled && handleInvoiceNumberBlur(line)}
                                     readOnly={disabled}
-                                    className={disabled ? 'cursor-not-allowed bg-white' : 'bg-white'}
+                                    className={disabled ? 'cursor-not-allowed bg-white dark:bg-slate-950 dark:border-slate-600 dark:text-slate-100' : 'bg-white dark:bg-slate-950 dark:border-slate-600 dark:text-slate-100'}
                                   />
                                 </TableCell>
                                 <TableCell>
@@ -231,7 +231,7 @@ export default function SupplierTxInvoiceSummaryTab({
                                     onChange={(e) => setDraftDates((prev) => ({ ...prev, [line.id]: e.target.value }))}
                                     onBlur={() => !disabled && handleDateBlur(line.id, draftDates[line.id] ?? formatDateForInput(line.invoice_date))}
                                     readOnly={disabled}
-                                    className={disabled ? 'cursor-not-allowed bg-white' : 'bg-white'}
+                                    className={disabled ? 'cursor-not-allowed bg-white dark:bg-slate-950 dark:border-slate-600 dark:text-slate-100' : 'bg-white dark:bg-slate-950 dark:border-slate-600 dark:text-slate-100'}
                                   />
                                   {line.dateError ? <p className="mt-1 text-xs text-red-600">{line.dateError}</p> : null}
                                 </TableCell>
@@ -241,7 +241,7 @@ export default function SupplierTxInvoiceSummaryTab({
                                     onChange={(e) => setDraftDescriptions((prev) => ({ ...prev, [line.id]: e.target.value }))}
                                     onBlur={() => !disabled && handleDescriptionBlur(line)}
                                     readOnly={disabled}
-                                    className={disabled ? 'min-h-[60px] resize-y cursor-not-allowed bg-white leading-snug' : 'min-h-[60px] resize-y bg-white leading-snug'}
+                                    className={disabled ? 'min-h-[60px] resize-y cursor-not-allowed bg-white dark:bg-slate-950 dark:border-slate-600 dark:text-slate-100 leading-snug' : 'min-h-[60px] resize-y bg-white dark:bg-slate-950 dark:border-slate-600 dark:text-slate-100 leading-snug'}
                                   />
                                 </TableCell>
                                 <TableCell>
@@ -264,7 +264,7 @@ export default function SupplierTxInvoiceSummaryTab({
                                         }}
                                         disabled={isReadOnly || hasInventoryItem || locked}
                                         placeholder="Select GL"
-                                        className={`${isReadOnly || hasInventoryItem ? 'cursor-not-allowed bg-white' : 'bg-white'}`}
+                                        className={`${isReadOnly || hasInventoryItem ? 'cursor-not-allowed bg-white dark:bg-slate-950 dark:border-slate-600' : 'bg-white dark:bg-slate-950 dark:border-slate-600'}`}
                                       />
                                     );
                                   })()}
@@ -275,7 +275,7 @@ export default function SupplierTxInvoiceSummaryTab({
                                     onChange={(e) => setDraftCharges((prev) => ({ ...prev, [line.id]: e.target.value }))}
                                     onBlur={() => !disabled && handleChargeBlur(line)}
                                     readOnly={disabled}
-                                    className={disabled ? 'cursor-not-allowed bg-white text-right' : 'bg-white text-right'}
+                                    className={disabled ? 'cursor-not-allowed bg-white dark:bg-slate-950 dark:border-slate-600 dark:text-slate-100 text-right' : 'bg-white dark:bg-slate-950 dark:border-slate-600 dark:text-slate-100 text-right'}
                                   />
                                 </TableCell>
                                 <TableCell className="text-right">
@@ -284,15 +284,15 @@ export default function SupplierTxInvoiceSummaryTab({
                                     onChange={(e) => gstEditable && setDraftGsts((prev) => ({ ...prev, [line.id]: e.target.value }))}
                                     onBlur={() => gstEditable && handleGstBlur(line)}
                                     readOnly={!gstEditable}
-                                    className={gstEditable ? 'bg-white text-right' : 'cursor-not-allowed bg-white text-right'}
+                                    className={gstEditable ? 'bg-white dark:bg-slate-950 dark:border-slate-600 dark:text-slate-100 text-right' : 'cursor-not-allowed bg-white dark:bg-slate-950 dark:border-slate-600 dark:text-slate-100 text-right'}
                                   />
                                 </TableCell>
                                 <TableCell className="text-right font-semibold">${getLineTotal(line).toFixed(2)}</TableCell>
                                 <TableCell className="text-right">
-                                  <div className="inline-flex min-h-9 min-w-9 items-center justify-end cursor-context-menu">
+                                  <div className="inline-flex min-h-9 min-w-9 items-center justify-center cursor-context-menu">
                                     {isProtectedLine ? (
-                                      <div className="inline-flex items-center justify-center w-8 h-8 bg-orange-100 rounded-md">
-                                        <Lock className="w-4 h-4 text-orange-600" />
+                                      <div className="inline-flex items-center justify-center w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-md">
+                                        <Lock className="w-4 h-4 text-orange-600 dark:text-orange-400" />
                                       </div>
                                     ) : (
                                       <Button
@@ -349,20 +349,20 @@ export default function SupplierTxInvoiceSummaryTab({
                     </div>
                   </div>
                 )}
-                {isExpanded && displayLines.length === 0 && <div className="p-4 border-t border-slate-200 bg-slate-50"><p className="text-sm text-slate-500 text-center">No invoice lines found.</p></div>}
+                {isExpanded && displayLines.length === 0 && <div className="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"><p className="text-sm text-slate-500 dark:text-slate-400 text-center">No invoice lines found.</p></div>}
               </div>
             );
-          }) : <div className="p-12 text-center"><p className="text-slate-500">No invoices found in the selected date range</p></div>}
+          }) : <div className="p-12 text-center"><p className="text-slate-500 dark:text-slate-400">No invoices found in the selected date range</p></div>}
           {conceptualInvoices.length > 0 && (
-            <div className="invoice-summary-total-row p-4 bg-slate-50">
+            <div className="invoice-summary-total-row p-4 bg-slate-50 dark:bg-slate-800">
               <div className="flex items-center justify-between">
                 <div className="flex-1 grid grid-cols-8 gap-4">
                   <div className="col-span-3 text-right font-bold">Totals:</div>
                   <div className="text-right font-bold text-xs print:text-[10px]">${totals.subtotal.toFixed(2)}</div>
                   <div className="text-right font-bold text-xs print:text-[10px]">${totals.tax_amount.toFixed(2)}</div>
                   <div className="text-right font-bold text-xs print:text-[10px]">${totals.total_amount.toFixed(2)}</div>
-                  <div className="text-right font-bold text-green-600 text-xs print:text-[10px] print:text-black">${totals.amount_paid.toFixed(2)}</div>
-                  <div className="text-right font-bold text-red-600 text-xs print:text-[10px] print:text-black">${totals.balance_due.toFixed(2)}</div>
+                  <div className="text-right font-bold text-green-600 dark:text-green-400 text-xs print:text-[10px] print:text-black">${totals.amount_paid.toFixed(2)}</div>
+                  <div className="text-right font-bold text-red-600 dark:text-red-400 text-xs print:text-[10px] print:text-black">${totals.balance_due.toFixed(2)}</div>
                 </div>
               </div>
             </div>

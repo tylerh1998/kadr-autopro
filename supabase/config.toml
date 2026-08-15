@@ -1,0 +1,44 @@
+
+[functions.autopro-handleSupplierInvoiceLineGL]
+enabled = true
+verify_jwt = false
+import_map = "./functions/autopro-handleSupplierInvoiceLineGL/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/autopro-handleSupplierInvoiceLineGL/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/autopro-handleSupplierInvoiceLineGL/*.html" ]
+
+[functions.autopro-processInventoryReceipt]
+enabled = true
+verify_jwt = false
+import_map = "./functions/autopro-processInventoryReceipt/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/autopro-processInventoryReceipt/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/autopro-processInventoryReceipt/*.html" ]
+
+[functions.autopro-handleInvoiceConversionGL]
+enabled = true
+verify_jwt = false
+import_map = "./functions/autopro-handleInvoiceConversionGL/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/autopro-handleInvoiceConversionGL/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/autopro-handleInvoiceConversionGL/*.html" ]
+
+[functions.autopro-mergeInventoryItems]
+enabled = true
+verify_jwt = false
+import_map = "./functions/autopro-mergeInventoryItems/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/autopro-mergeInventoryItems/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/autopro-mergeInventoryItems/*.html" ]

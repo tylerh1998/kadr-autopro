@@ -73,6 +73,7 @@ export const prepareWorkOrderSavePayload = ({
       unit: item.unit || '',
       qty: item.qty || 0,
       qty_on_order: item.qty_on_order || 0,
+      qty_quoted: item.qty_quoted || 0,
       hrs: item.hrs || 0,
       parts_ea: item.parts_ea || 0,
       tot_parts: item.tot_parts,
@@ -83,6 +84,8 @@ export const prepareWorkOrderSavePayload = ({
       complete: item.complete || false,
       bold: item.bold || false,
       inventory_processed: item.inventory_processed || false,
+      not_ordered: item.not_ordered || false,
+      partstech_cart_id: item.partstech_cart_id || null,
       Core_num: item.Core_num || 0,
       core_ret: item.core_ret || 0,
       core_cost: item.core_cost || 0,
@@ -109,7 +112,7 @@ export const prepareWorkOrderSavePayload = ({
     shop_supply_total: shopSupplyTotal,
     tax_amount: taxAmount,
     total_amount: totalAmount,
-    line_items: JSON.stringify(lineItemsToSave),
+    line_items: lineItemsToSave,
   };
 
   if (workOrder?.stage === 'work_order' && !workOrder?.converted && invoiceConversionPhase > 0 && invoiceConversionPhase < 4) {

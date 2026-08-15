@@ -172,9 +172,9 @@ export default function NoteEditableContent({ title = '', comment = '', onSave, 
             value={draftValue}
             onChange={setDraftValue}
             modules={{ toolbar: toolbarOptions }}
-            className="note-editor-quill rounded-xl bg-white [&_.ql-container]:min-h-[160px] [&_.ql-container]:rounded-b-xl [&_.ql-container]:border-slate-200 [&_.ql-editor]:min-h-[120px] [&_.ql-toolbar]:rounded-t-xl [&_.ql-toolbar]:border-slate-200 [&_.ql-toolbar]:px-2"
+            className="note-editor-quill rounded-xl bg-white dark:bg-slate-800 [&_.ql-container]:min-h-[160px] [&_.ql-container]:rounded-b-xl [&_.ql-container]:border-slate-200 dark:[&_.ql-container]:border-slate-600 [&_.ql-editor]:min-h-[120px] [&_.ql-toolbar]:rounded-t-xl [&_.ql-toolbar]:border-slate-200 dark:[&_.ql-toolbar]:border-slate-600 [&_.ql-toolbar]:px-2"
           />
-          <div className="text-xs text-slate-500">{isSaving ? 'Saving…' : 'Click outside to autosave'}</div>
+          <div className="text-xs text-slate-500 dark:text-slate-400">{isSaving ? 'Saving…' : 'Click outside to autosave'}</div>
         </div>
       ) : (
         <div className="space-y-2">
@@ -186,13 +186,13 @@ export default function NoteEditableContent({ title = '', comment = '', onSave, 
           <button
             type="button"
             onClick={() => setIsEditing(true)}
-            className="block w-full rounded-xl border border-slate-200 bg-white text-left transition-colors hover:border-slate-300"
+            className="block w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-left transition-colors hover:border-slate-300 dark:hover:border-slate-600"
           >
             <div className={`ql-editor min-h-[120px] cursor-text rounded-xl px-3 py-2 [&_ol]:pl-6 [&_p]:my-0 [&_ul]:pl-6 ${contentClassName}`} dangerouslySetInnerHTML={{ __html: savedValue }} />
           </button>
         </div>
       )}
-      {error ? <div className="mt-2 text-xs text-red-600">{error}</div> : null}
+      {error ? <div className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</div> : null}
     </div>
   );
 }

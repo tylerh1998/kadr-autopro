@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { WorkOrderStatus } from '@/entities/all';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,17 +12,18 @@ import { Plus, Edit, Trash2, GripVertical, Save, X } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 const COLOR_OPTIONS = [
-  { value: 'slate', label: 'Slate', class: 'bg-slate-100 text-slate-800 border-slate-300' },
-  { value: 'blue', label: 'Blue', class: 'bg-blue-100 text-blue-800 border-blue-300' },
-  { value: 'green', label: 'Green', class: 'bg-green-100 text-green-800 border-green-300' },
-  { value: 'yellow', label: 'Yellow', class: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
-  { value: 'orange', label: 'Orange', class: 'bg-orange-100 text-orange-800 border-orange-300' },
-  { value: 'red', label: 'Red', class: 'bg-red-100 text-red-800 border-red-300' },
-  { value: 'purple', label: 'Purple', class: 'bg-purple-100 text-purple-800 border-purple-300' },
-  { value: 'pink', label: 'Pink', class: 'bg-pink-100 text-pink-800 border-pink-300' },
+  { value: 'slate', label: 'Slate', class: 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-300 border-slate-300 dark:border-slate-600' },
+  { value: 'blue', label: 'Blue', class: 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 border-blue-300 dark:border-blue-800' },
+  { value: 'green', label: 'Green', class: 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 border-green-300 dark:border-green-800' },
+  { value: 'yellow', label: 'Yellow', class: 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-300 border-yellow-300 dark:border-yellow-800' },
+  { value: 'orange', label: 'Orange', class: 'bg-orange-100 dark:bg-orange-900/40 text-orange-800 dark:text-orange-300 border-orange-300 dark:border-orange-800' },
+  { value: 'red', label: 'Red', class: 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300 border-red-300 dark:border-red-800' },
+  { value: 'purple', label: 'Purple', class: 'bg-purple-100 dark:bg-purple-900/40 text-purple-800 dark:text-purple-300 border-purple-300 dark:border-purple-800' },
+  { value: 'pink', label: 'Pink', class: 'bg-pink-100 dark:bg-pink-900/40 text-pink-800 dark:text-pink-300 border-pink-300 dark:border-pink-800' },
 ];
 
 export default function WorkOrderStatusManager() {
+  const { user, employee } = useAuth();
   const [statuses, setStatuses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingStatus, setEditingStatus] = useState(null);
@@ -39,8 +41,9 @@ export default function WorkOrderStatusManager() {
   const loadStatuses = async () => {
     try {
       setLoading(true);
-      const data = await WorkOrderStatus.list();
-      const sorted = data.sort((a, b) => a.display_order - b.display_order);
+      const { data, error } = await supabase.from('WorkOrderStatus').select('*');
+      if (error) throw error;
+      const sorted = (data || []).sort((a, b) => a.display_order - b.display_order);
       setStatuses(sorted);
     } catch (error) {
       console.error('Error loading statuses:', error);
@@ -67,11 +70,13 @@ export default function WorkOrderStatusManager() {
 
     // Save new order to database
     try {
-      await Promise.all(
+      const results = await Promise.all(
         updatedItems.map(item =>
-          WorkOrderStatus.update(item.id, { display_order: item.display_order })
+          supabase.from('WorkOrderStatus').update({ display_order: item.display_order }).eq('id', item.id)
         )
       );
+      const failed = results.find(r => r.error);
+      if (failed) throw failed.error;
     } catch (error) {
       console.error('Error updating status order:', error);
       alert('Failed to update status order');
@@ -84,13 +89,24 @@ export default function WorkOrderStatusManager() {
 
     try {
       if (editingStatus) {
-        await WorkOrderStatus.update(editingStatus.id, formData);
+        const { error } = await supabase
+          .from('WorkOrderStatus')
+          .update({ ...formData, updated_date: new Date().toISOString() })
+          .eq('id', editingStatus.id);
+        if (error) throw error;
       } else {
         const maxOrder = statuses.length > 0 ? Math.max(...statuses.map(s => s.display_order)) : 0;
-        await WorkOrderStatus.create({
+        const nowIso = new Date().toISOString();
+        const { error } = await supabase.from('WorkOrderStatus').insert({
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
           ...formData,
-          display_order: maxOrder + 1
+          display_order: maxOrder + 1,
+          created_date: nowIso,
+          updated_date: nowIso,
+          created_by: employee?.full_name || employee?.email || user?.email || '',
+          created_by_id: user?.id || ''
         });
+        if (error) throw error;
       }
 
       setShowForm(false);
@@ -117,7 +133,8 @@ export default function WorkOrderStatusManager() {
     if (!confirm(`Are you sure you want to delete the status "${status.name}"?`)) return;
 
     try {
-      await WorkOrderStatus.delete(status.id);
+      const { error } = await supabase.from('WorkOrderStatus').delete().eq('id', status.id);
+      if (error) throw error;
       loadStatuses();
     } catch (error) {
       console.error('Error deleting status:', error);
@@ -137,7 +154,7 @@ export default function WorkOrderStatusManager() {
   };
 
   if (loading) {
-    return <div className="text-center py-8 text-slate-600">Loading statuses...</div>;
+    return <div className="text-center py-8 text-slate-600 dark:text-slate-400">Loading statuses...</div>;
   }
 
   return (
@@ -153,7 +170,7 @@ export default function WorkOrderStatusManager() {
       </CardHeader>
       <CardContent className="space-y-6">
         {showForm && (
-          <form onSubmit={handleSubmit} className="space-y-4 p-4 border rounded-lg bg-slate-50">
+          <form onSubmit={handleSubmit} className="space-y-4 p-4 border rounded-lg bg-slate-50 dark:bg-slate-800">
             <h3 className="font-semibold text-lg">
               {editingStatus ? 'Edit Status' : 'New Status'}
             </h3>
@@ -217,12 +234,12 @@ export default function WorkOrderStatusManager() {
         )}
 
         <div>
-          <p className="text-sm text-slate-600 mb-3">
+          <p className="text-sm text-slate-600 dark:text-slate-400 mb-3">
             Drag and drop to reorder statuses. The order determines how they appear in lists and dropdowns.
           </p>
-          
+
           {statuses.length === 0 ? (
-            <p className="text-center py-8 text-slate-500">No statuses defined yet. Click "Add Status" to create one.</p>
+            <p className="text-center py-8 text-slate-500 dark:text-slate-400">No statuses defined yet. Click "Add Status" to create one.</p>
           ) : (
             <DragDropContext onDragEnd={handleDragEnd}>
               <Droppable droppableId="statuses">
@@ -245,10 +262,10 @@ export default function WorkOrderStatusManager() {
                               <TableRow
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
-                                className={snapshot.isDragging ? 'bg-slate-100' : ''}
+                                className={snapshot.isDragging ? 'bg-slate-100 dark:bg-slate-800' : ''}
                               >
                                 <TableCell {...provided.dragHandleProps}>
-                                  <GripVertical className="w-4 h-4 text-slate-400 cursor-grab" />
+                                  <GripVertical className="w-4 h-4 text-slate-400 dark:text-slate-500 cursor-grab" />
                                 </TableCell>
                                 <TableCell className="font-medium">{status.name}</TableCell>
                                 <TableCell>
@@ -274,7 +291,7 @@ export default function WorkOrderStatusManager() {
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => handleDelete(status)}
-                                      className="text-red-600 hover:text-red-700"
+                                      className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300"
                                     >
                                       <Trash2 className="w-4 h-4" />
                                     </Button>

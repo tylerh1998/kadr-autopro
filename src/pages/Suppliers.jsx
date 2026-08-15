@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 import { useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Search, Phone, Mail, Truck, Lock, FileText, RotateCcw, RefreshCw } from 'lucide-react';
+import { Plus, Search, Phone, Mail, Truck, Lock, RotateCcw, RefreshCw } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -25,6 +26,7 @@ import {
 import SupplierForm from '../components/suppliers/SupplierForm';
 
 export default function SuppliersPage() {
+  const { employee } = useAuth();
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -37,8 +39,8 @@ export default function SuppliersPage() {
   const searchInputRef = React.useRef(null);
 
   useEffect(() => {
-    loadCurrentUser();
-  }, []);
+    setCurrentUser(employee);
+  }, [employee]);
 
   useEffect(() => {
     loadSuppliers();
@@ -50,22 +52,13 @@ export default function SuppliersPage() {
     }
   }, [loading]);
 
-  const loadCurrentUser = async () => {
-    try {
-      const user = await base44.auth.me();
-      setCurrentUser(user);
-    } catch (error) {
-      console.error('Error loading current user:', error);
-    }
-  };
-
   const loadSuppliers = async () => {
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Supplier' });
-      if (response.data && response.data.data) {
-        let allSuppliers = response.data.data;
-        
+      const { data: allSuppliersData, error: loadError } = await supabase.from('Supplier').select('*');
+      if (!loadError && allSuppliersData) {
+        let allSuppliers = allSuppliersData;
+
         if (!activeSearchTerm || activeSearchTerm.trim() === '') {
           const sorted = allSuppliers.sort((a, b) => {
             if (a.pin_to_top && !b.pin_to_top) return -1;
@@ -100,7 +93,7 @@ export default function SuppliersPage() {
           setSuppliers(scoredSuppliers);
         }
       } else {
-        console.error('Search failed:', response.data?.error);
+        console.error('Search failed:', loadError?.message);
       }
     } catch (error) {
       console.error('Error loading suppliers:', error);
@@ -111,10 +104,12 @@ export default function SuppliersPage() {
 
   const handleSubmit = async (formData) => {
     try {
+      const now = new Date().toISOString();
       if (editingSupplier) {
-        await base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'Supplier', id: editingSupplier.id, data: formData });
+        await supabase.from('Supplier').update({ ...formData, updated_date: now }).eq('id', editingSupplier.id);
       } else {
-        await base44.functions.invoke('SupabaseProxy', { action: 'create', table: 'Supplier', data: formData });
+        const id = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
+        await supabase.from('Supplier').insert([{ id, ...formData, created_date: now, updated_date: now }]);
       }
       setShowForm(false);
       setEditingSupplier(null);
@@ -128,10 +123,10 @@ export default function SuppliersPage() {
   const handleFlushLocks = async () => {
     setLoading(true);
     try {
-      const response = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'Supplier' });
-      const allSuppliers = response.data?.data || [];
+      const { data: allSuppliersData } = await supabase.from('Supplier').select('*');
+      const allSuppliers = allSuppliersData || [];
       const lockedSuppliers = allSuppliers.filter(s => s.LockedByUser);
-      
+
       if (lockedSuppliers.length === 0) {
         alert('No locked suppliers found.');
         setShowFlushConfirm(false);
@@ -139,8 +134,8 @@ export default function SuppliersPage() {
         return;
       }
 
-      const updatePromises = lockedSuppliers.map(supplier => 
-        base44.functions.invoke('SupabaseProxy', { action: 'update', table: 'Supplier', id: supplier.id, data: { LockedByUser: null } })
+      const updatePromises = lockedSuppliers.map(supplier =>
+        supabase.from('Supplier').update({ LockedByUser: null }).eq('id', supplier.id)
       );
 
       await Promise.all(updatePromises);
@@ -168,64 +163,51 @@ export default function SuppliersPage() {
     <TooltipProvider>
       <div className="p-6 min-h-screen">
         <div className="max-w-7xl mx-auto space-y-6">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900">Suppliers</h1>
-              <p className="text-slate-600 mt-1">Manage your parts and service suppliers</p>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                onClick={loadSuppliers}
-                variant="outline"
-              >
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Refresh
-              </Button>
-              <Button
-                onClick={() => navigate(createPageUrl('APSummary'))}
-                variant="outline"
-                className="border-blue-600 text-blue-600 hover:bg-blue-50"
-              >
-                <FileText className="w-4 h-4 mr-2" />
-                AP Summary
-              </Button>
-              <Button
-                onClick={() => {
-                  setEditingSupplier(null);
-                  setShowForm(true);
-                }}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Supplier
-              </Button>
-                <Button
-                  variant="destructive"
-                  onClick={() => setShowFlushConfirm(true)}
-                  className="bg-red-600 hover:bg-red-700"
-                >
-                  <RotateCcw className="w-4 h-4 mr-2" />
-                  Flush Locks
-                </Button>
-            </div>
-          </div>
-
           <Card>
             <CardContent className="p-6">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-                <Input
-                  ref={searchInputRef}
-                  placeholder="Search suppliers by name (Press Enter)..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      setActiveSearchTerm(searchTerm);
-                    }
-                  }}
-                  className="pl-10"
-                />
+              <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+                  <Input
+                    ref={searchInputRef}
+                    placeholder="Search suppliers by name (Press Enter)..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        setActiveSearchTerm(searchTerm);
+                      }
+                    }}
+                    className="pl-10"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={loadSuppliers}
+                    variant="outline"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Refresh
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setEditingSupplier(null);
+                      setShowForm(true);
+                    }}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Supplier
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => setShowFlushConfirm(true)}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    <RotateCcw className="w-4 h-4 mr-2" />
+                    Flush Locks
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -235,24 +217,24 @@ export default function SuppliersPage() {
               Array(3).fill(0).map((_, i) => (
                 <Card key={i} className="animate-pulse">
                   <CardContent className="p-6 space-y-3">
-                    <div className="h-6 bg-slate-200 rounded w-3/4"></div>
-                    <div className="h-4 bg-slate-200 rounded w-1/2"></div>
-                    <div className="h-4 bg-slate-200 rounded w-2/3"></div>
+                    <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded w-3/4"></div>
+                    <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-1/2"></div>
+                    <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-2/3"></div>
                   </CardContent>
                 </Card>
               ))
             ) : filteredSuppliers.length > 0 ? (
               filteredSuppliers.map((supplier) => (
                 <Link key={supplier.id} to={createPageUrl(`SupplierTx?id=${supplier.id}`)} className="h-full">
-                  <Card className="group h-full border border-slate-200 transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:shadow-2xl hover:border-blue-300 hover:ring-2 hover:ring-blue-100">
+                  <Card className="group h-full border border-slate-200 dark:border-slate-700 transition-all duration-200 cursor-pointer hover:-translate-y-1 hover:shadow-2xl hover:border-blue-300 hover:ring-2 hover:ring-blue-100 dark:hover:border-blue-700 dark:hover:ring-blue-900/40">
                     <CardContent className="p-6 h-full flex flex-col">
                       <div className="flex items-center gap-4 mb-4">
-                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center transition-colors duration-200 group-hover:bg-blue-200">
+                        <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/40 rounded-full flex items-center justify-center transition-colors duration-200 group-hover:bg-blue-200 dark:group-hover:bg-blue-900/60">
                           <Truck className="w-6 h-6 text-blue-600" />
                         </div>
                         <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <h3 className="text-lg font-bold text-slate-900 hover:underline">
+                          <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 hover:underline">
                             {supplier.name}
                           </h3>
                           {isLockedByOtherUser(supplier) && (
@@ -271,16 +253,16 @@ export default function SuppliersPage() {
                         </div>
                         </div>
                         <div className="space-y-2 text-sm mt-auto">
-                        {supplier.phone && <p className="flex items-center gap-2 text-slate-700"><Phone className="w-4 h-4 text-slate-400" /> {supplier.phone}</p>}
-                        {supplier.email && <p className="flex items-center gap-2 text-slate-700"><Mail className="w-4 h-4 text-slate-400" /> {supplier.email}</p>}
+                        {supplier.phone && <p className="flex items-center gap-2 text-slate-700 dark:text-slate-300"><Phone className="w-4 h-4 text-slate-400 dark:text-slate-500" /> {supplier.phone}</p>}
+                        {supplier.email && <p className="flex items-center gap-2 text-slate-700 dark:text-slate-300"><Mail className="w-4 h-4 text-slate-400 dark:text-slate-500" /> {supplier.email}</p>}
                         <div className="flex gap-2 flex-wrap">
                           {supplier.inventory_supplier && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 text-green-800">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300">
                               Inventory Supplier
                             </span>
                           )}
                           {supplier.pin_to_top && (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300">
                               Pinned
                             </span>
                           )}
@@ -295,8 +277,8 @@ export default function SuppliersPage() {
                 <Card className="text-center py-12">
                   <CardContent>
                     <Truck className="w-12 h-12 mx-auto text-slate-400 mb-4" />
-                    <h3 className="text-lg font-semibold text-slate-900 mb-2">No Suppliers Found</h3>
-                    <p className="text-slate-600 mb-4">
+                    <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">No Suppliers Found</h3>
+                    <p className="text-slate-600 dark:text-slate-400 mb-4">
                       {searchTerm ? 'No suppliers match your search.' : 'Add your first supplier to get started.'}
                     </p>
                     <Button onClick={() => {

@@ -1,12 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Customer, Vehicle, TagAlong, Appointment, OtherChargeList } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
-import { getworkorderdata } from '@/functions/getworkorderdata';
+import { supabase } from '@/lib/supabase';
 
 const parseLineItems = async (itemsString) => {
   if (!itemsString) return [];
   try {
-    const parsed = JSON.parse(itemsString);
+    const parsed = typeof itemsString === 'string' ? JSON.parse(itemsString) : itemsString;
     if (!Array.isArray(parsed)) return [];
     
     // Process each line item and enrich with SupplierInvoiceLine data if needed
@@ -30,8 +28,12 @@ const parseLineItems = async (itemsString) => {
       // If this line item has a supplier_invoice_line_id, fetch the details
       if (item.supplier_invoice_line_id) {
         try {
-          const supplierInvoiceLineRes = await base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'SupplierInvoiceLine', match: { id: item.supplier_invoice_line_id } });
-          const supplierInvoiceLine = supplierInvoiceLineRes.data?.data?.[0];
+          const { data: supplierInvoiceLineRes, error: supplierInvoiceLineError } = await supabase
+            .from('SupplierInvoiceLine')
+            .select('*')
+            .eq('id', item.supplier_invoice_line_id);
+          if (supplierInvoiceLineError) throw supplierInvoiceLineError;
+          const supplierInvoiceLine = supplierInvoiceLineRes?.[0];
           if (!supplierInvoiceLine) throw new Error('Supplier invoice line not found');
           // Enrich the line item with supplier invoice line details
           return {
@@ -62,8 +64,7 @@ const parseLineItems = async (itemsString) => {
   }
 };
 
-export function useWorkOrder(roNumber, options = {}) {
-  const { useFunctionData = false, lockAction, lockedByUser } = options;
+export function useWorkOrder(roNumber) {
   const [workOrder, setWorkOrder] = useState(null);
   const [customer, setCustomer] = useState(null);
   const [vehicle, setVehicle] = useState(null);
@@ -82,50 +83,43 @@ export function useWorkOrder(roNumber, options = {}) {
     setLoading(true);
     setError('');
     try {
-      const [workOrderResponse, tagAlongsData, otherChargesData] = await Promise.all([
-        useFunctionData
-          ? getworkorderdata({
-              ro_number: roNumber,
-              ...(lockAction ? { lockAction } : {}),
-              ...(lockedByUser ? { lockedByUser } : {})
-            })
-          : base44.functions.invoke('SupabaseProxy', { action: 'read', table: 'WorkOrder', match: { ro_number: roNumber } }).then(res => res.data?.data || []),
-        TagAlong.list(),
-        OtherChargeList.list(),
+      const [workOrderResponse, tagAlongsResponse, otherChargesResponse] = await Promise.all([
+        supabase.from('WorkOrder').select('*').eq('ro_number', roNumber).limit(1).maybeSingle(),
+        supabase.from('TagAlong').select('*'),
+        supabase.from('OtherChargeList').select('*'),
       ]);
-      
-      setTagAlongs(tagAlongsData);
-      setOtherCharges(otherChargesData);
 
-      const wo = useFunctionData
-        ? (workOrderResponse?.data?.data || null)
-        : (workOrderResponse.length > 0 ? workOrderResponse[0] : null);
+      if (tagAlongsResponse.error) console.error('Error fetching TagAlong:', tagAlongsResponse.error);
+      if (otherChargesResponse.error) console.error('Error fetching OtherChargeList:', otherChargesResponse.error);
+      setTagAlongs(tagAlongsResponse.data || []);
+      setOtherCharges(otherChargesResponse.data || []);
+
+      if (workOrderResponse?.error) {
+        console.error('Error fetching WorkOrder:', workOrderResponse.error);
+      }
+
+      const wo = workOrderResponse?.data || null;
 
       if (!wo) {
         throw new Error(`Work Order with RO Number ${roNumber} not found.`);
       }
       setWorkOrder(wo);
-      
+
       // Parse line items with enrichment
       const parsedLineItems = await parseLineItems(wo.line_items);
       setLineItems(parsedLineItems);
 
       if (wo.customer_id && wo.vehicle_id) {
-        let customerData = null;
-        let vehicleData = null;
-        let appointmentsData = [];
-
-        if (useFunctionData) {
-            customerData = wo.customer_details || await Customer.get(wo.customer_id).catch(() => null);
-            vehicleData = wo.vehicle_details || await Vehicle.get(wo.vehicle_id).catch(() => null);
-            appointmentsData = await Appointment.filter({ work_order_id: wo.id });
-        } else {
-            [customerData, vehicleData, appointmentsData] = await Promise.all([
-              Customer.get(wo.customer_id).catch(() => null),
-              Vehicle.get(wo.vehicle_id).catch(() => null),
-              Appointment.filter({ work_order_id: wo.id }),
-            ]);
-        }
+        const [customerResult, vehicleResult, appointmentsResult] = await Promise.all([
+          supabase.from('Customer').select('*').eq('id', wo.customer_id).maybeSingle(),
+          supabase.from('Vehicle').select('*').eq('id', wo.vehicle_id).maybeSingle(),
+          supabase.from('Appointment').select('*').eq('work_order_id', wo.id),
+        ]);
+        if (customerResult.error) console.error('Error fetching Customer:', customerResult.error);
+        if (vehicleResult.error) console.error('Error fetching Vehicle:', vehicleResult.error);
+        const customerData = customerResult.data || null;
+        const vehicleData = vehicleResult.data || null;
+        const appointmentsData = appointmentsResult.data || [];
 
         setCustomer(customerData);
         setVehicle(vehicleData);
@@ -148,7 +142,7 @@ export function useWorkOrder(roNumber, options = {}) {
     } finally {
       setLoading(false);
     }
-  }, [roNumber, useFunctionData, lockAction, lockedByUser]);
+  }, [roNumber]);
 
   useEffect(() => {
     fetchData();

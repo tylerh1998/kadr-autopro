@@ -1,11 +1,10 @@
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useWorkOrder } from '../hooks/useWorkOrder';
 import { useShopData } from '../hooks/useInventory';
-import { WorkOrder, Customer, Vehicle, Appointment, InventoryTxs, CustomerPayments, User as UserEntity, SystemSettings, WorkOrderStatus } from '@/entities/all';
+import { useAuth } from '@/lib/AuthContext';
 import WorkOrderForm from './form/WorkOrderForm';
 import { Button } from '@/components/ui/button';
-import { base44 } from '@/api/base44Client';
-import { manageWorkOrderLock } from '@/functions/manageWorkOrderLock';
+import { supabase } from '@/lib/supabase';
 import { appParams } from '@/lib/app-params';
 import { prepareWorkOrderSavePayload } from '@/components/work-orders/utils/buildWorkOrderSavePayload';
 import {
@@ -28,7 +27,9 @@ import {
   RefreshCw,
   X,
   ExternalLink,
-  ArrowRightCircle
+  ArrowRightCircle,
+  FolderPlus,
+  SquarePen
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -49,7 +50,6 @@ import WorkOrderReport from './WorkOrderReport';
 import WorkOrderPdfModal from './WorkOrderPdfModal';
 import SESEmailModal from './SESEmailModal';
 import WorkPROModal from './WorkPROModal';
-import ROInspectionModal from './ROInspectionModal';
 import ROApprovalsModal from './ROApprovalsModal';
 import AdvancePaymentModal from './AdvancePaymentModal';
 import SchedulerViaWoModal from './SchedulerViaWoModal';
@@ -62,6 +62,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import CustomerForm from '../customers/CustomerForm';
 import VehicleForm from '../vehicles/VehicleForm';
 import VehicleHistoryModal from '../vehicles/VehicleHistoryModal';
+import VehicleDetails from '../vehicles/VehicleDetails';
 import WorkOrderDetailsEditModal from './form/WorkOrderDetailsEditModal';
 
 // Import the new WorkPRO modals
@@ -80,6 +81,7 @@ import WorkOrderHistoryModal from './history/WorkOrderHistoryModal';
 import { Card, CardContent } from '@/components/ui/card';
 
 export default function DocumentEditor({ mode = 'work_order', useFunctionData = false }) {
+  const { employee } = useAuth();
   const urlParams = new URLSearchParams(window.location.search);
   const roNumber = urlParams.get('id');
 
@@ -97,7 +99,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     setWorkOrder: originalSetWorkOrder,
     setLineItems,
     refetch: refetchWorkOrder
-  } = useWorkOrder(roNumber, { useFunctionData });
+  } = useWorkOrder(roNumber);
   const [draftWorkOrder, setDraftWorkOrder] = useState(null);
 
   const setWorkOrder = useCallback((value) => {
@@ -140,6 +142,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   const [workPROProjects, setWorkPROProjects] = useState([]);
   const [workPROComments, setWorkPROComments] = useState([]);
   const [loadingWorkPRO, setLoadingWorkPRO] = useState(false);
+  const [workPROTimeTotal, setWorkPROTimeTotal] = useState(0);
 
   // NEW: State to manage the invoice conversion flow
   const [invoiceConversionPhase, setInvoiceConversionPhase] = useState(0);
@@ -197,7 +200,6 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     print: false,
     send: false,
     workPRO: false,
-    inspections: false,
     approvals: false,
     payments: false,
     scheduler: false,
@@ -207,6 +209,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     editCustomer: false,
     editVehicle: false,
     vehicleHistory: false,
+    vehicleDetails: false,
     editWorkOrderDetails: false,
     workPROTask: false,
     workPRODescription: false,
@@ -279,7 +282,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     if (hasUnsavedChanges) {
       const shadowBody = (shadowStorageKey && window.localStorage.getItem(shadowStorageKey)) || buildShadowSaveRequest();
       if (shadowBody) {
-        postKeepAliveFunction('saveworkorderdata', shadowBody);
+        postKeepAliveFunction('autopro-saveworkorderdata', shadowBody);
         return;
       }
     }
@@ -321,7 +324,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   // Parse existing payments for the modal
   const existingPayments = React.useMemo(() => {
     try {
-      return workOrder?.payments ? JSON.parse(workOrder.payments) : [];
+      return workOrder?.payments ? (typeof workOrder.payments === 'string' ? JSON.parse(workOrder.payments) : workOrder.payments) : [];
     } catch (error) {
       console.warn('Failed to parse workOrder.payments:', error);
       return [];
@@ -392,28 +395,71 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
   const closeModal = useCallback((modalName) => setModals(prev => ({ ...prev, [modalName]: false })), [setModals]);
 
-  const handleWorkPROConnectionChange = useCallback(() => {
-  }, []);
+  // Fetch WorkPRO project data
+  const fetchWorkPROData = useCallback(async () => {
+    if (!workOrder?.wo_number) return;
 
-  // Fetch current user
-  useEffect(() => {
-    const fetchCurrentUser = async () => {
-      try {
-        const user = await UserEntity.me();
-        setCurrentUser(user);
-      } catch (error) {
-        console.error('=== LOCK: Failed to fetch current user:', error);
-        setCurrentUser(null);
+    setLoadingWorkPRO(true);
+    try {
+      // Fetch project directly from Supabase
+      const { data: projects, error: projectError } = await supabase
+        .from('Project')
+        .select('*')
+        .eq('work_order', workOrder.wo_number);
+
+      if (!projectError && projects) {
+        const foundProject = projects.length > 0 ? projects[0] : null;
+        setWorkPROProject(foundProject);
+        setWorkPROProjects(projects);
+
+        if (foundProject) {
+          // Fetch tech time sessions to compute total hours
+          try {
+            let totalHours = 0;
+
+            const { data: sessions, error: sessionError } = await supabase
+              .from('ProjectTimeSession')
+              .select('*')
+              .eq('project_id', foundProject.id);
+
+            if (!sessionError && sessions) {
+              totalHours = sessions.reduce((sum, s) => sum + (parseFloat(s.total_hours) || 0), 0);
+            }
+
+            setWorkPROTimeTotal(totalHours);
+          } catch (err) {
+            console.error('Error fetching WorkPRO project logs:', err);
+          }
+        } else {
+          setWorkPROTimeTotal(0);
+        }
       }
-    };
-    fetchCurrentUser();
-  }, []);
+    } catch (error) {
+      console.error('Error fetching WorkPRO data:', error);
+    } finally {
+      setLoadingWorkPRO(false);
+    }
+  }, [workOrder?.wo_number]);
+
+  useEffect(() => {
+    fetchWorkPROData();
+  }, [fetchWorkPROData]);
+
+  const handleWorkPROConnectionChange = useCallback(() => {
+    fetchWorkPROData();
+  }, [fetchWorkPROData]);
+
+  // Current user, sourced from Employee via AuthContext
+  useEffect(() => {
+    setCurrentUser(employee || null);
+  }, [employee]);
 
   // Load SystemSettings
   useEffect(() => {
     const loadSystemSettings = async () => {
       try {
-        const settings = await SystemSettings.list();
+        const { data: settings, error: settingsError } = await supabase.from('SystemSettings').select('*');
+        if (settingsError) console.error('Error loading system settings:', settingsError);
         if (settings && settings.length > 0) {
           setWipLegal(settings[0].wip_legal || '');
           setDefaultMessage(settings[0].default_message || '');
@@ -435,8 +481,9 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   useEffect(() => {
     const loadWorkOrderStatuses = async () => {
       try {
-        const statuses = await WorkOrderStatus.filter({ is_active: true });
-        const sortedStatuses = statuses.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+        const { data: statuses, error: statusesError } = await supabase.from('WorkOrderStatus').select('*').eq('is_active', true);
+        if (statusesError) throw statusesError;
+        const sortedStatuses = (statuses || []).sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
         setWorkOrderStatuses(sortedStatuses);
       } catch (error) {
         console.error('Error loading work order statuses:', error);
@@ -460,7 +507,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       }
 
       try {
-        const freshWorkOrder = useFunctionData ? workOrder : await WorkOrder.get(workOrder.id);
+        const freshWorkOrder = workOrder;
         if (!freshWorkOrder) {
           setLockError('Work order data is missing.');
           setLockCheckComplete(true);
@@ -484,9 +531,12 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
         if (freshWorkOrder.LockedByUser && freshWorkOrder.LockedByUser !== currentUser.email) {
           try {
-            const lockingUsers = await UserEntity.filter({ email: freshWorkOrder.LockedByUser });
-            if (lockingUsers.length > 0) {
-              setLockedByUserName(lockingUsers[0].User_name || lockingUsers[0].full_name || freshWorkOrder.LockedByUser);
+            const { data: lockingEmployees } = await supabase
+              .from('Employee')
+              .select('full_name')
+              .eq('email', freshWorkOrder.LockedByUser);
+            if (lockingEmployees && lockingEmployees.length > 0) {
+              setLockedByUserName(lockingEmployees[0].full_name || freshWorkOrder.LockedByUser);
             } else {
               setLockedByUserName(freshWorkOrder.LockedByUser);
             }
@@ -501,8 +551,13 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           setIsAlreadyOpenByMe(true);
           setLockCheckComplete(true);
         } else {
-          const lockResult = await manageWorkOrderLock({ ro_number: freshWorkOrder.ro_number, action: 'apply' });
-          const lockedTimestamp = lockResult?.data?.data?.locked_timestamp || freshWorkOrder.locked_timestamp || null;
+          const { data: lockResult, error: lockError } = await supabase.rpc('set_workorder_lock', {
+            p_ro_number: freshWorkOrder.ro_number,
+            p_action: 'apply',
+            p_locked_by_user: currentUser.email,
+          });
+          if (lockError) console.error('Lock error:', lockError);
+          const lockedTimestamp = lockResult?.locked_timestamp || freshWorkOrder.locked_timestamp || null;
           setWorkOrder(prev => ({ ...prev, LockedByUser: currentUser.email, locked_timestamp: lockedTimestamp }));
           setIsLockedByOtherUser(false);
           setLockAcquired(true);
@@ -573,10 +628,15 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       }
 
       try {
-        const freshWorkOrder = useFunctionData ? workOrder : await WorkOrder.get(currentWorkOrderId);
+        const freshWorkOrder = workOrder;
 
         if (freshWorkOrder && freshWorkOrder.LockedByUser === currentUserEmail) {
-          await manageWorkOrderLock({ ro_number: freshWorkOrder.ro_number, action: 'release' });
+          const { error: lockError } = await supabase.rpc('set_workorder_lock', {
+            p_ro_number: freshWorkOrder.ro_number,
+            p_action: 'release',
+            p_locked_by_user: currentUserEmail,
+          });
+          if (lockError) console.error('Lock release error:', lockError);
         }
         lockAcquiredRef.current = false;
       } catch (error) {
@@ -589,53 +649,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     };
   }, [workOrder?.id, currentUser?.email, useFunctionData, workOrder]);
 
-  // Fetch WorkPRO project data
-  useEffect(() => {
-    const fetchWorkPROData = async () => {
-      if (!workOrder?.wo_number) return;
 
-      setLoadingWorkPRO(true);
-      try {
-        // Use backend proxy for project fetching
-        const projectResponse = await base44.functions.invoke('workProProxy', {
-          entityName: 'Project',
-          method: 'filter',
-          params: {
-            work_order: workOrder.wo_number
-          }
-        });
-
-        if (projectResponse.data.success) {
-          const projects = projectResponse.data.data || [];
-          const foundProject = projects.length > 0 ? projects[0] : null;
-          setWorkPROProject(foundProject);
-          setWorkPROProjects(projects);
-
-          if (foundProject) {
-            // Use backend proxy for comments fetching
-            const commentsResponse = await base44.functions.invoke('workProProxy', {
-              entityName: 'ProjectComment',
-              method: 'filter',
-              params: {
-                project_id: foundProject.id
-              }
-            });
-
-            if (commentsResponse.data.success) {
-              const commentsArray = commentsResponse.data.data || [];
-              setWorkPROComments(commentsArray.sort((a, b) => new Date(a.created_date) - new Date(b.created_date)));
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching WorkPRO data:', error);
-      } finally {
-        setLoadingWorkPRO(false);
-      }
-    };
-
-    fetchWorkPROData();
-  }, [workOrder?.wo_number]);
 
   const handleWorkPROUpdate = (field, value) => {
     setWorkPROProject(prev => prev ? { ...prev, [field]: value } : null);
@@ -688,12 +702,23 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           invoice_number: workOrder.inv_number || ''
         };
 
-        const res = await base44.functions.invoke('supabaseCustomerPayments', { action: 'create', data: newCustomerPaymentData });
-        const createdPayment = res?.data?.data;
+        const { data: createdPayment, error: createPaymentError } = await supabase
+          .from('CustomerPayments')
+          .insert({
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+            created_date: new Date().toISOString(),
+            updated_date: new Date().toISOString(),
+            created_by: employee?.email,
+            created_by_id: employee?.autopro_user_id,
+            ...newCustomerPaymentData
+          })
+          .select()
+          .single();
+        if (createPaymentError) throw new Error(createPaymentError.message);
 
         let currentPayments = [];
         try {
-          currentPayments = workOrder.payments ? JSON.parse(workOrder.payments) : [];
+          currentPayments = workOrder.payments ? (typeof workOrder.payments === 'string' ? JSON.parse(workOrder.payments) : workOrder.payments) : [];
         } catch (parseError) {
           currentPayments = [];
         }
@@ -719,11 +744,12 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
       } else if (action === 'delete') {
         const paymentIdToDelete = payload.id;
-        await base44.functions.invoke('supabaseCustomerPayments', { action: 'delete', id: paymentIdToDelete });
+        const { error: deletePaymentError } = await supabase.from('CustomerPayments').delete().eq('id', paymentIdToDelete);
+        if (deletePaymentError) throw new Error(deletePaymentError.message);
 
         let currentPayments = [];
         try {
-          currentPayments = workOrder.payments ? JSON.parse(workOrder.payments) : [];
+          currentPayments = workOrder.payments ? (typeof workOrder.payments === 'string' ? JSON.parse(workOrder.payments) : workOrder.payments) : [];
         } catch (parseError) {
           currentPayments = [];
         }
@@ -835,12 +861,23 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           newCustomerPaymentData.cheque_number = payload.cheque_number || '';
         }
 
-        const res = await base44.functions.invoke('supabaseCustomerPayments', { action: 'create', data: newCustomerPaymentData });
-        const createdPayment = res?.data?.data;
+        const { data: createdPayment, error: createPaymentError } = await supabase
+          .from('CustomerPayments')
+          .insert({
+            id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+            created_date: new Date().toISOString(),
+            updated_date: new Date().toISOString(),
+            created_by: employee?.email,
+            created_by_id: employee?.autopro_user_id,
+            ...newCustomerPaymentData
+          })
+          .select()
+          .single();
+        if (createPaymentError) throw new Error(createPaymentError.message);
 
         let currentPayments = [];
         try {
-          currentPayments = workOrder.payments ? JSON.parse(workOrder.payments) : [];
+          currentPayments = workOrder.payments ? (typeof workOrder.payments === 'string' ? JSON.parse(workOrder.payments) : workOrder.payments) : [];
         } catch (parseError) {
           currentPayments = [];
         }
@@ -884,7 +921,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
         
         let currentPayments = [];
         try {
-          currentPayments = workOrder.payments ? JSON.parse(workOrder.payments) : [];
+          currentPayments = workOrder.payments ? (typeof workOrder.payments === 'string' ? JSON.parse(workOrder.payments) : workOrder.payments) : [];
         } catch (parseError) {
           currentPayments = [];
         }
@@ -906,7 +943,8 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           console.log("Removed Credit Card Fee line item:", lineIdToRemove);
         }
 
-        await base44.functions.invoke('supabaseCustomerPayments', { action: 'delete', id: paymentIdToDelete });
+        const { error: deletePaymentError } = await supabase.from('CustomerPayments').delete().eq('id', paymentIdToDelete);
+        if (deletePaymentError) throw new Error(deletePaymentError.message);
 
         const filteredPayments = currentPayments.filter(p => p.id !== paymentIdToDelete);
         const updatedPaymentsJson = JSON.stringify(filteredPayments);
@@ -1001,7 +1039,12 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       await handleSave({}, false, null, { throwOnError: true, silentError: true, should_keep_lock: false });
 
       if (workOrder && currentUser && lockAcquiredRef.current) {
-        await manageWorkOrderLock({ ro_number: workOrder.ro_number, action: 'release' });
+        const { error: lockError } = await supabase.rpc('set_workorder_lock', {
+          p_ro_number: workOrder.ro_number,
+          p_action: 'release',
+          p_locked_by_user: currentUser.email,
+        });
+        if (lockError) console.error('Lock release error:', lockError);
         lockAcquiredRef.current = false;
       }
 
@@ -1088,7 +1131,11 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     try {
       if (customer) {
         await handleSave({}, false);
-        await base44.functions.invoke('supabaseCustomer', { action: 'update', id: customer.id, data: customerData });
+        const { error: customerUpdateError } = await supabase
+          .from('Customer')
+          .update({ ...customerData, updated_date: new Date().toISOString() })
+          .eq('id', customer.id);
+        if (customerUpdateError) throw new Error(customerUpdateError.message);
         closeModal('editCustomer');
         alert('Customer updated successfully!');
       }
@@ -1102,7 +1149,11 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     try {
       if (vehicle) {
         await handleSave({}, false);
-        await base44.functions.invoke('supabaseVehicle', { action: 'update', id: vehicle.id, data: vehicleData });
+        const { error: vehicleUpdateError } = await supabase
+          .from('Vehicle')
+          .update({ ...vehicleData, updated_date: new Date().toISOString() })
+          .eq('id', vehicle.id);
+        if (vehicleUpdateError) throw new Error(vehicleUpdateError.message);
         closeModal('editVehicle');
         alert('Vehicle updated successfully!');
       }
@@ -1121,7 +1172,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
     let parsedPayments = [];
     try {
-      parsedPayments = workOrder?.payments ? JSON.parse(workOrder.payments) : [];
+      parsedPayments = workOrder?.payments ? (typeof workOrder.payments === 'string' ? JSON.parse(workOrder.payments) : workOrder.payments) : [];
     } catch (error) {
       parsedPayments = [];
     }
@@ -1130,14 +1181,16 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       .map((payment) => payment?.id)
       .filter(Boolean);
 
-    const response = await base44.functions.invoke('changeWorkOrderCustomer', {
-      workOrderId: workOrder.id,
-      newCustomerId: nextCustomer.id,
-      paymentIds,
+    const { data: response, error: changeCustomerError } = await supabase.functions.invoke('autopro-changeWorkOrderCustomer', {
+      body: {
+        workOrderId: workOrder.id,
+        newCustomerId: nextCustomer.id,
+        paymentIds,
+      }
     });
 
-    if (!response.data?.success) {
-      throw new Error(response.data?.error || 'Failed to change customer.');
+    if (changeCustomerError || !response?.success) {
+      throw new Error(response?.error || changeCustomerError?.message || 'Failed to change customer.');
     }
 
     await refetchWorkOrder();
@@ -1207,7 +1260,12 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   const handleViewOnlyMode = async () => {
     try {
       if (workOrder && workOrder.id && currentUser && lockAcquiredRef.current) {
-        await manageWorkOrderLock({ ro_number: workOrder.ro_number, action: 'release' });
+        const { error: lockError } = await supabase.rpc('set_workorder_lock', {
+          p_ro_number: workOrder.ro_number,
+          p_action: 'release',
+          p_locked_by_user: currentUser.email,
+        });
+        if (lockError) console.error('Lock release error:', lockError);
         lockAcquiredRef.current = false;
       }
       navigate(createPageUrl(`WorkOrderView?id=${roNumber}`));
@@ -1226,17 +1284,17 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       await handleSave({}, false, null, { should_keep_lock: true });
 
       // Call backend to convert and process inventory
-      const response = await base44.functions.invoke('convertEstimateToWorkOrder', {
-        workOrderId: workOrder.id
+      const { data: response, error: convertError } = await supabase.functions.invoke('autopro-convertEstimateToWorkOrder', {
+        body: { workOrderId: workOrder.id }
       });
-      
-      if (response.data.success) {
+
+      if (!convertError && response?.success) {
         //alert("Estimate successfully converted to Work Order!"); // Optional: remove alert for smoother flow
-        
+
         isClosingAfterSaveRef.current = true;
         navigate(createPageUrl(`WorkOrderEdit?id=${workOrder.ro_number}`));
       } else {
-        alert(`Conversion failed: ${response.data.error}`);
+        alert(`Conversion failed: ${response?.error || convertError?.message}`);
       }
     } catch (err) {
       console.error("Conversion error:", err);
@@ -1259,10 +1317,10 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   // Show loading until both data and lock check are complete
   if ((loading && !workOrder) || !lockCheckComplete) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen dark:bg-slate-950">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">
+          <p className="mt-4 text-gray-600 dark:text-slate-400">
             {!lockCheckComplete ? 'Checking work order status...' : 'Loading work order...'}
           </p>
         </div>
@@ -1272,10 +1330,10 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen dark:bg-slate-950">
         <div className="text-center">
-          <p className="text-red-600 text-lg font-semibold">Error loading work order</p>
-          <p className="text-gray-600 mt-2">{error}</p>
+          <p className="text-red-600 dark:text-red-400 text-lg font-semibold">Error loading work order</p>
+          <p className="text-gray-600 dark:text-slate-400 mt-2">{error}</p>
         </div>
       </div>
     );
@@ -1283,9 +1341,9 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
   if (!workOrder) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen dark:bg-slate-950">
         <div className="text-center">
-          <p className="text-gray-600 text-lg">Work order not found</p>
+          <p className="text-gray-600 dark:text-slate-400 text-lg">Work order not found</p>
         </div>
       </div>
     );
@@ -1293,26 +1351,26 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
   if (isAlreadyOpenByMe) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
-        <Card className="max-w-2xl w-full shadow-xl">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-6">
+        <Card className="max-w-2xl w-full shadow-xl dark:border-slate-800 dark:bg-slate-950">
           <CardContent className="p-8">
             <div className="text-center space-y-6">
               <div className="flex justify-center">
-                <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center">
-                  <svg className="w-10 h-10 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <div className="w-20 h-20 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                  <svg className="w-10 h-10 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
               </div>
 
               <div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">
                   Document Already Open
                 </h2>
-                <p className="text-lg text-slate-700">
+                <p className="text-lg text-slate-700 dark:text-slate-300">
                   You already have this {mode === 'estimate' ? 'Estimate' : 'Work Order'} open in another window or tab.
                 </p>
-                <p className="text-sm text-slate-600 mt-4">
+                <p className="text-sm text-slate-600 dark:text-slate-400 mt-4">
                   Opening it here may cause data conflicts if you are editing it elsewhere.
                 </p>
               </div>
@@ -1349,7 +1407,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                     setLockAcquired(true);
                     lockAcquiredRef.current = true;
                   }}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-blue-600 hover:bg-blue-700 text-white dark:text-white"
                 >
                   <ExternalLink className="w-4 h-4 mr-2" />
                   Open Anyway
@@ -1364,29 +1422,29 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
   if (isLockedByOtherUser) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
-        <Card className="max-w-2xl w-full shadow-xl">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center p-6">
+        <Card className="max-w-2xl w-full shadow-xl dark:border-slate-800 dark:bg-slate-950">
           <CardContent className="p-8">
             <div className="text-center space-y-6">
               <div className="flex justify-center">
-                <div className="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center">
-                  <svg className="w-10 h-10 text-yellow-600" fill="currentColor" viewBox="0 0 24 24">
+                <div className="w-20 h-20 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center">
+                  <svg className="w-10 h-10 text-yellow-600 dark:text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                   </svg>
                 </div>
               </div>
 
               <div>
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">
+                <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-2">
                   Work Order Currently Being Edited
                 </h2>
-                <p className="text-lg text-slate-700">
+                <p className="text-lg text-slate-700 dark:text-slate-300">
                   Work Order <span className="font-semibold">{workOrder.wo_number || workOrder.ro_number}</span> is currently being edited by:
                 </p>
-                <p className="text-xl font-bold text-blue-600 mt-2">
+                <p className="text-xl font-bold text-blue-600 dark:text-blue-400 mt-2">
                   {lockedByUserName || 'Another User'}
                 </p>
-                <p className="text-sm text-slate-600 mt-4">
+                <p className="text-sm text-slate-600 dark:text-slate-400 mt-4">
                   You can view the last saved version, close this window, or try again.
                 </p>
               </div>
@@ -1397,7 +1455,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                     const viewUrl = createPageUrl(`WorkOrderView?id=${roNumber}`);
                     window.location.href = viewUrl;
                   }}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-blue-600 hover:bg-blue-700 text-white dark:text-white"
                 >
                   <Eye className="w-4 h-4 mr-2" />
                   View Only (Last Save)
@@ -1428,14 +1486,14 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
   const getColorClasses = (color, isActive) => {
     const colorMap = {
-      slate: isActive ? 'bg-slate-700 text-white' : 'text-slate-600 hover:bg-slate-200',
-      gray: isActive ? 'bg-gray-700 text-white' : 'text-gray-600 hover:bg-gray-200',
-      blue: isActive ? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-100',
-      green: isActive ? 'bg-green-600 text-white' : 'text-green-600 hover:bg-green-100',
-      red: isActive ? 'bg-red-600 text-white' : 'text-red-600 hover:bg-red-100',
-      orange: isActive ? 'bg-orange-600 text-white' : 'text-orange-600 hover:bg-orange-100',
-      yellow: isActive ? 'bg-yellow-600 text-white' : 'text-yellow-600 hover:bg-yellow-100',
-      purple: isActive ? 'bg-purple-600 text-white' : 'text-purple-600 hover:bg-purple-100',
+      slate: isActive ? 'bg-slate-700 text-white' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800',
+      gray: isActive ? 'bg-gray-700 text-white' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800',
+      blue: isActive ? 'bg-blue-600 text-white' : 'text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30',
+      green: isActive ? 'bg-green-600 text-white' : 'text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/30',
+      red: isActive ? 'bg-red-600 text-white' : 'text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30',
+      orange: isActive ? 'bg-orange-600 text-white' : 'text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-900/30',
+      yellow: isActive ? 'bg-yellow-600 text-white' : 'text-yellow-600 dark:text-yellow-400 hover:bg-yellow-100 dark:hover:bg-yellow-900/30',
+      purple: isActive ? 'bg-purple-600 text-white' : 'text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/30',
     };
     return colorMap[color?.toLowerCase()] || colorMap.slate;
   };
@@ -1460,7 +1518,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       key: 'invoice',
       label: 'Invoice',
       activeColor: 'bg-green-600 text-white border-green-700',
-      inactiveColor: 'text-green-700 hover:bg-green-100',
+      inactiveColor: 'text-green-700 bg-green-50/50 hover:bg-green-100 border border-green-200 dark:bg-green-600 dark:text-white dark:hover:bg-green-500 hover:scale-105 active:scale-95 transition-all dark:border-green-700',
       disabled: workOrder?.stage === 'estimate'
     },
   ];
@@ -1488,7 +1546,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       </style>
 
       <div className="min-h-screen screen-only-area">
-        <div className="bg-white border-b border-slate-200 px-6 py-3 sticky top-0 z-20">
+        <div className="bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 px-6 py-3 sticky top-0 z-20">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
@@ -1502,18 +1560,18 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                 </Button>
               </div>
 
-              <div className="w-px h-6 bg-slate-300"></div>
+              <div className="w-px h-6 bg-slate-300 dark:bg-slate-700"></div>
 
               <Button
                 variant="outline"
                 onClick={handleViewOnlyMode}
-                className="bg-white"
+                className="bg-white dark:bg-slate-900"
               >
                 <Eye className="w-4 h-4 mr-2" />
                 View Only Mode
               </Button>
 
-              <div className="w-px h-6 bg-slate-300"></div>
+              <div className="w-px h-6 bg-slate-300 dark:bg-slate-700"></div>
 
               <div className="flex items-center gap-2">
                 <Button variant="outline" onClick={() => openModal('payments')}>
@@ -1530,10 +1588,10 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                 </Button>
               </div>
 
-              <div className="w-px h-6 bg-slate-300"></div>
+              <div className="w-px h-6 bg-slate-300 dark:bg-slate-700"></div>
 
               <div className="flex items-center gap-4">
-                  <div className="inline-flex rounded-lg border border-slate-300 bg-slate-50 p-1">
+                  <div className="inline-flex rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50 p-1">
                     {stages.map((stage, index) => (
                       <button
                         key={stage.key}
@@ -1551,8 +1609,8 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                           ${workOrder?.stage === stage.key
                             ? stage.activeColor + ' shadow-sm'
                             : (stage.disabled && !stage.action)
-                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                              : stage.inactiveColor + ' bg-transparent'
+                              ? 'bg-transparent dark:bg-transparent text-slate-400 dark:text-slate-700/50 cursor-default pointer-events-none border-0'
+                              : stage.inactiveColor
                           }
                           ${index < stages.length ? 'mr-1' : ''}
                         `}
@@ -1565,7 +1623,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                     <button
                       onClick={handleHeaderSaveClick}
                       disabled={saving}
-                      className="px-4 py-1.5 rounded-md text-sm font-semibold transition-all duration-200 bg-slate-900 hover:bg-slate-800 text-white shadow-sm flex items-center gap-2 ml-1"
+                      className="px-4 py-1.5 rounded-md text-sm font-semibold transition-all duration-200 bg-slate-900 hover:bg-slate-800 text-white dark:bg-black dark:text-white dark:border dark:border-slate-800 dark:hover:bg-white dark:hover:text-black shadow-sm flex items-center gap-2 ml-1"
                     >
                       {saving ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -1580,10 +1638,10 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           </div>
         </div>
 
-        <div className="bg-slate-50 border-b border-slate-200 px-6 py-2 sticky top-[69px] z-20 shadow-sm">
+        <div className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-2 sticky top-[69px] z-20 shadow-sm">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg">
+                <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/50 p-1 rounded-lg">
                   {workOrderStatuses.map(status => {
                     const isActive = workOrder?.status === status.name;
                     const colorClasses = getColorClasses(status.color, isActive);
@@ -1601,29 +1659,44 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                   })}
                 </div>
 
-                <div className="w-px h-6 bg-slate-300"></div>
+                <div className="w-px h-6 bg-slate-300 dark:bg-slate-700"></div>
 
                 <div className="flex items-center gap-3">
-                  <div
-                    onClick={() => openModal('workPRO')}
-                    className="flex items-center gap-1.5 cursor-pointer hover:bg-slate-100 px-2 py-1 rounded transition-colors"
-                  >
-                    <div className={`w-3 h-3 rounded-full ${workPROProject ? 'bg-green-500' : 'bg-orange-400'}`}></div>
-                    <span className="text-sm font-semibold text-slate-700">WorkPRO</span>
-                    {workPROProject ? (
-                      <Badge variant="outline" className="bg-green-100 text-green-800 text-xs">
-                        Connected
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="bg-orange-100 text-orange-700 text-xs">
-                        Connect
-                      </Badge>
-                    )}
-                  </div>
-
-                  {loadingWorkPRO && (
-                    <div className="flex items-center gap-2 text-slate-500">
+                  {loadingWorkPRO ? (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-slate-100 dark:bg-slate-850 text-slate-500 text-sm font-semibold border border-slate-200 dark:border-slate-800">
                       <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>WorkPRO</span>
+                    </div>
+                  ) : (
+                    <div 
+                      onClick={() => openModal('workPRO')}
+                      className="flex items-center gap-2.5 cursor-pointer group select-none"
+                    >
+                      <button
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded transition-all duration-200 text-sm font-bold shadow-sm focus:outline-none pointer-events-none ${
+                          workPROProject 
+                            ? 'bg-green-600 group-hover:bg-green-700 dark:bg-green-700 dark:group-hover:bg-green-800 text-white' 
+                            : 'bg-orange-500 group-hover:bg-orange-600 dark:bg-orange-600 dark:group-hover:bg-orange-700 text-white'
+                        }`}
+                      >
+                        <span>WorkPRO</span>
+                        {workPROProject ? (
+                          <SquarePen className="w-4 h-4" />
+                        ) : (
+                          <FolderPlus className="w-4 h-4" />
+                        )}
+                      </button>
+
+                      {workPROProject && (
+                        <div className="flex flex-col items-start text-left leading-none text-black dark:text-white">
+                          <span className="text-[11px] font-bold">
+                            {workPROTimeTotal.toFixed(2)} hrs
+                          </span>
+                          <span className="text-[9px] font-bold opacity-80 uppercase tracking-wide mt-0.5">
+                            {workPROProject.status?.replace(/_/g, ' ')}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1641,21 +1714,21 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
               </Button>
 
               <div
-                className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-slate-100"
+                className="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800"
                 onClick={handleAppointmentClick}
               >
                 <div className="text-sm">
                   {upcomingAppointment && upcomingAppointment.start_time ? (
                     <>
-                      <p className="font-semibold text-slate-800">
+                      <p className="font-semibold text-slate-800 dark:text-slate-200">
                         {format(new Date(upcomingAppointment.start_time), 'EEE, MMM d, yyyy')}
                       </p>
-                      <p className="text-slate-600">
+                      <p className="text-slate-600 dark:text-slate-400">
                         {format(new Date(upcomingAppointment.start_time), 'h:mm a')}
                       </p>
                     </>
                   ) : (
-                    <p className="font-semibold text-slate-500">No Appointment Scheduled</p>
+                    <p className="font-semibold text-slate-500 dark:text-slate-400">No Appointment Scheduled</p>
                   )}
                 </div>
               </div>
@@ -1684,6 +1757,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
               onChangeCustomer={handleAssignedCustomerChange}
               onEditVehicle={() => openModal('editVehicle')}
               onShowVehicleHistory={() => openModal('vehicleHistory')}
+              onShowVehicleDetails={() => openModal('vehicleDetails')}
               onEditWorkOrderDetails={() => openModal('editWorkOrderDetails')}
               onSelectedLineChange={setSelectedLineIndex}
               onOpenOdometerPrompt={handleOpenOdometerPrompt}
@@ -1744,7 +1818,10 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           {modals.workPRO && workOrder && (
             <WorkPROModal
               open={modals.workPRO}
-              onClose={() => closeModal('workPRO')}
+              onClose={() => {
+                closeModal('workPRO');
+                fetchWorkPROData();
+              }}
               workOrder={workOrder}
               customer={customer}
               vehicles={vehicle ? [vehicle] : []}
@@ -1752,7 +1829,6 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
             />
           )}
 
-          <ROInspectionModal open={modals.inspections} onClose={() => closeModal('inspections')} roNumber={workOrder.ro_number} />
           <ROApprovalsModal open={modals.approvals} onClose={() => closeModal('approvals')} workOrderId={workOrder.id} />
           <AdvancePaymentModal
             open={modals.payments}
@@ -1807,18 +1883,25 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
           )}
 
           <Dialog open={modals.editCustomer} onOpenChange={() => closeModal('editCustomer')}>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
               {customer && <CustomerForm customer={customer} onSubmit={handleCustomerUpdate} onCancel={() => closeModal('editCustomer')} />}
             </DialogContent>
           </Dialog>
 
           <Dialog open={modals.editVehicle} onOpenChange={() => closeModal('editVehicle')}>
-            <DialogContent>
+            <DialogContent className="max-h-[90vh] overflow-y-auto">
               {vehicle && <VehicleForm vehicle={vehicle} customers={[customer]} onSubmit={handleVehicleUpdate} onCancel={() => closeModal('editVehicle')} />}
             </DialogContent>
           </Dialog>
 
           <VehicleHistoryModal open={modals.vehicleHistory} onClose={() => closeModal('vehicleHistory')} vehicle={vehicle} />
+
+          <Dialog open={modals.vehicleDetails} onOpenChange={() => closeModal('vehicleDetails')}>
+            <DialogContent className="vehicle-history-dialog max-w-6xl max-h-[90vh] overflow-y-auto bg-slate-100 dark:bg-slate-900">
+              <DialogTitle className="sr-only">Vehicle Details</DialogTitle>
+              {vehicle && <VehicleDetails vehicle={vehicle} customer={customer} />}
+            </DialogContent>
+          </Dialog>
 
           <WorkOrderDetailsEditModal 
             open={modals.editWorkOrderDetails} 

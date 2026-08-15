@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { InventoryTxs, InventoryLocation, InventoryCategory } from '@/entities/all';
-import { base44 } from '@/api/base44Client';
+import { supabase } from '@/lib/supabase';
 import {
   Table,
   TableBody,
@@ -53,6 +52,7 @@ export default function LineItemsTable({
   onAddPart,
   onReturnPart,
   onReceivePart,
+  onMarkPartsOrdered,
   onCores,
   onDeleteLine, // Accept onDeleteLine prop
   onInsertLine,
@@ -89,14 +89,13 @@ export default function LineItemsTable({
       const partIds = [...new Set(lineItems.map(item => item.inventory_item_id).filter(Boolean))];
       if (partIds.length > 0) {
         try {
-          const response = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'InventoryItem',
-            match: { id: { in: partIds } }
-          });
-          const fetchedItems = response.data?.data || [];
+          const { data: fetchedItems, error } = await supabase
+            .from('InventoryItem')
+            .select('*')
+            .in('id', partIds);
+          if (error) throw error;
           const pricesMap = {};
-          fetchedItems.forEach(item => {
+          (fetchedItems || []).forEach(item => {
             pricesMap[item.id] = parseFloat(item.selling_price) || 0;
           });
           setInventoryPrices(pricesMap);
@@ -293,30 +292,27 @@ export default function LineItemsTable({
     try {
         // Fetch necessary data if not already loaded
         if (suppliers.length === 0 || inventoryCategories.length === 0) {
-            const [suppliersResponse, salesClassesData, locationsData, categoriesData] = await Promise.all([
-                base44.functions.invoke('SupabaseProxy', {
-                    action: 'read',
-                    table: 'Supplier'
-                }),
-                base44.functions.invoke('SupabaseProxy', { action: 'read' }).then(res => res.data?.data || []),
-                InventoryLocation.list(),
-                InventoryCategory.list()
+            const [suppliersResponse, salesClassesResponse, locationsResponse, categoriesResponse] = await Promise.all([
+                supabase.from('Supplier').select('*'),
+                supabase.from('SalesClass').select('*'),
+                supabase.from('InventoryLocation').select('*'),
+                supabase.from('InventoryCategory').select('*')
             ]);
-            setSuppliers(suppliersResponse.data?.data || []);
-            setSalesClasses(salesClassesData);
-            setInventoryLocations(locationsData);
-            setInventoryCategories(categoriesData);
+            setSuppliers(suppliersResponse.data || []);
+            setSalesClasses(salesClassesResponse.data || []);
+            setInventoryLocations(locationsResponse.data || []);
+            setInventoryCategories(categoriesResponse.data || []);
         }
 
         // Fetch the item details from Supabase
         console.log('Fetching item with ID:', line.inventory_item_id);
-        const itemResponse = await base44.functions.invoke('SupabaseProxy', {
-            action: 'read',
-            table: 'InventoryItem',
-            match: { id: line.inventory_item_id }
-        });
-        console.log('SupabaseProxy item response:', itemResponse);
-        const item = itemResponse.data?.data?.[0];
+        const { data: itemData, error: itemError } = await supabase
+            .from('InventoryItem')
+            .select('*')
+            .eq('id', line.inventory_item_id);
+        if (itemError) throw itemError;
+        console.log('Supabase item response:', itemData);
+        const item = itemData?.[0];
         console.log('Extracted item:', item);
         setEditingInventoryItem(item);
         setEditInventoryModalOpen(true);
@@ -367,12 +363,6 @@ export default function LineItemsTable({
               <span>Return Part</span>
             </ContextMenuItem>
           )}
-          {mode !== 'estimate' && (
-            <ContextMenuItem onClick={() => onReceivePart(index)} disabled={!line.qty_on_order || line.qty_on_order === 0}>
-              <Truck className="mr-2 h-4 w-4" />
-              <span>Receive Part</span>
-            </ContextMenuItem>
-          )}
           {line.inventory_item_id && (
             <ContextMenuItem onClick={() => handleOpenSerialNumModal(index)}>
               <Hash className="mr-2 h-4 w-4" />
@@ -385,6 +375,24 @@ export default function LineItemsTable({
               <span>Part Details</span>
             </ContextMenuItem>
           )}
+          <ContextMenuSeparator />
+        </>
+      )}
+      {mode !== 'estimate' && lineItems.some(l => (parseFloat(l?.qty_on_order) || 0) > 0 || (parseFloat(l?.qty_quoted) || 0) > 0) && (
+        <>
+          <ContextMenuItem onClick={() => onReceivePart()}>
+            <Truck className="mr-2 h-4 w-4" />
+            <span>Receive Parts</span>
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+        </>
+      )}
+      {mode !== 'estimate' && lineItems.some(l => (parseFloat(l?.qty_quoted) || 0) > 0) && (
+        <>
+          <ContextMenuItem onClick={() => onMarkPartsOrdered()}>
+            <Truck className="mr-2 h-4 w-4" />
+            <span>Mark Parts as Ordered</span>
+          </ContextMenuItem>
           <ContextMenuSeparator />
         </>
       )}
@@ -413,7 +421,7 @@ export default function LineItemsTable({
       </ContextMenuItem>
       <ContextMenuItem
         onClick={() => onDeleteLine(index)}
-        className="text-red-600 focus:text-red-700"
+        className="text-red-600 focus:text-red-700 dark:text-red-400 dark:focus:text-red-300"
         disabled={!line.description && !line.part_number} // Disable if line is empty
       >
         <Trash2 className="mr-2 h-4 w-4" />
@@ -451,15 +459,15 @@ export default function LineItemsTable({
             onKeyDown={(e) => handleKeyDown(e, index)}
             tabIndex={0}
             className={`
-              border-b border-slate-200 hover:bg-slate-50 cursor-pointer transition-colors
-              ${isSelected ? 'bg-blue-200 ring-2 ring-blue-400' : index % 2 === 0 ? 'bg-white' : 'bg-slate-100'}
+              border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors
+              ${isSelected ? 'bg-blue-200 dark:bg-blue-900/50 ring-2 ring-blue-400 dark:ring-blue-500' : index % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-100 dark:bg-slate-800/50'}
               ${isBold ? 'font-bold' : ''}
-              ${line.complete ? 'bg-green-50' : ''}
+              ${line.complete ? 'bg-green-50 dark:bg-green-900/20' : ''}
             `}
           >
             {/* Drag Handle Column */}
             <TableCell className="w-12 p-0 align-middle text-center">
-               <div {...draggableProvided.dragHandleProps} className="cursor-grab active:cursor-grabbing flex justify-center items-center w-full h-full min-h-[42px] text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+               <div {...draggableProvided.dragHandleProps} className="cursor-grab active:cursor-grabbing flex justify-center items-center w-full h-full min-h-[42px] text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                  <GripVertical className="w-6 h-6" />
                </div>
             </TableCell>
@@ -472,7 +480,7 @@ export default function LineItemsTable({
                 onChange={(e) => handleFieldChange(index, 'qty', e.target.value)}
                 onFocus={(e) => handleFieldInteraction(index, e)}
                 onClick={(e) => handleFieldInteraction(index, e)}
-                className={`w-16 h-8 text-center text-sm bg-white ${isBold ? 'font-bold' : ''}`}
+                className={`w-16 h-8 text-center text-sm bg-white dark:bg-slate-900 dark:text-slate-100 ${isBold ? 'font-bold' : ''}`}
                 disabled={isLocked}
                 data-line-index={index}
               />
@@ -486,7 +494,7 @@ export default function LineItemsTable({
                 onChange={(e) => handleFieldChange(index, 'hrs', e.target.value)}
                 onFocus={(e) => handleFieldInteraction(index, e)}
                 onClick={(e) => handleFieldInteraction(index, e)}
-                className={`w-16 h-8 text-center text-sm bg-white ${isBold ? 'font-bold' : ''}`}
+                className={`w-16 h-8 text-center text-sm bg-white dark:bg-slate-900 dark:text-slate-100 ${isBold ? 'font-bold' : ''}`}
                 disabled={isLocked}
                 data-line-index={index}
               />
@@ -501,7 +509,7 @@ export default function LineItemsTable({
                   onFocus={(e) => handleFieldInteraction(index, e)}
                   onClick={(e) => handleFieldInteraction(index, e)}
                   maxLength={MAX_DESCRIPTION_LENGTH}
-                  className={`w-full text-sm resize-none bg-white min-h-[32px] py-1 ${isBold ? 'font-bold' : ''}`}
+                  className={`w-full text-sm resize-none bg-white dark:bg-slate-900 dark:text-slate-100 min-h-[32px] py-1 ${isBold ? 'font-bold' : ''}`}
                   rows={
                     (line.description || '').length > 120 ? 3 : 
                     (line.description || '').length > 70 ? 2 : 1
@@ -511,25 +519,30 @@ export default function LineItemsTable({
                   data-line-index={index}
                 />
                 {hasPartNumber && (
-                  <div className="flex items-center gap-2 flex-wrap text-xs text-slate-500 px-2"> {/* Added px-2 for consistency with textarea */}
+                  <div className="flex items-center gap-2 flex-wrap text-xs text-slate-500 dark:text-slate-400 px-2"> {/* Added px-2 for consistency with textarea */}
                     <span className="font-mono">{line.part_number}</span>
                     {line.serial_num && (
-                      <Badge variant="outline" className="px-1 py-0 text-xs bg-slate-100 text-slate-600 border-slate-300">
+                      <Badge variant="outline" className="px-1 py-0 text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600">
                         S/N: {line.serial_num}
                       </Badge>
                     )}
                     {coreOutstanding > 0 && (
-                      <Badge variant="outline" className="px-1 py-0 text-xs bg-amber-50 text-amber-700 border-amber-300 whitespace-nowrap">
+                      <Badge variant="outline" className="px-1 py-0 text-xs bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700 whitespace-nowrap">
                         Cores ({coreOutstanding}) - ${coreOsamt.toFixed(2)}
                       </Badge>
                     )}
                     {line.qty_on_order > 0 && (
-                      <Badge variant="outline" className="px-1 py-0 text-xs bg-blue-50 text-blue-700 border-blue-300">
+                      <Badge variant="outline" className="px-1 py-0 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 border-blue-300 dark:border-blue-700">
                         On Order {line.qty_on_order}
                       </Badge>
                     )}
+                    {(parseFloat(line.qty_quoted) || 0) > 0 && (
+                      <Badge variant="outline" className="px-1 py-0 text-xs bg-rose-50 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 border-rose-300 dark:border-rose-700">
+                        Quoted (Qty {line.qty_quoted})
+                      </Badge>
+                    )}
                     {isPriceDifferent && (
-                      <Badge variant="outline" className="px-1 py-0 text-xs bg-green-50 text-green-700 border-green-300 whitespace-nowrap">
+                      <Badge variant="outline" className="px-1 py-0 text-xs bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700 whitespace-nowrap">
                         <AlertTriangle className="w-3 h-3 mr-1 inline" /> Price Different
                       </Badge>
                     )}
@@ -546,7 +559,7 @@ export default function LineItemsTable({
                 onChange={(e) => handleFieldChange(index, 'parts_ea', e.target.value)}
                 onFocus={(e) => handleFieldInteraction(index, e)}
                 onClick={(e) => handleFieldInteraction(index, e)}
-                className={`w-20 h-8 text-right text-sm bg-white ${isBold ? 'font-bold' : ''}`}
+                className={`w-20 h-8 text-right text-sm bg-white dark:bg-slate-900 dark:text-slate-100 ${isBold ? 'font-bold' : ''}`}
                 disabled={isLocked}
                 data-line-index={index}
               />
@@ -561,7 +574,7 @@ export default function LineItemsTable({
                 onFocus={(e) => handleFieldInteraction(index, e)}
                 onClick={(e) => handleFieldInteraction(index, e)}
                 disabled={isLocked}
-                className={`h-8 text-center text-sm bg-white ${isBold ? 'font-bold' : ''}`}
+                className={`h-8 text-center text-sm bg-white dark:bg-slate-900 dark:text-slate-100 ${isBold ? 'font-bold' : ''}`}
                 maxLength={5}
                 data-line-index={index}
               />
@@ -580,7 +593,7 @@ export default function LineItemsTable({
                 onChange={(e) => handleFieldChange(index, 'labour', e.target.value)}
                 onFocus={(e) => handleFieldInteraction(index, e)}
                 onClick={(e) => handleFieldInteraction(index, e)}
-                className={`w-20 h-8 text-right text-sm bg-white ${isBold ? 'font-bold' : ''}`}
+                className={`w-20 h-8 text-right text-sm bg-white dark:bg-slate-900 dark:text-slate-100 ${isBold ? 'font-bold' : ''}`}
                 disabled={isLocked}
                 data-line-index={index}
               />
@@ -617,7 +630,7 @@ export default function LineItemsTable({
             <DragDropContext onDragEnd={onDragEnd}>
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-slate-100">
+                  <TableRow className="bg-slate-100 dark:bg-slate-800">
                     <TableHead className="w-12 p-2"></TableHead>
                     <TableHead className="w-20 text-center text-xs font-semibold p-2">Qty</TableHead>
                     <TableHead className="w-20 text-center text-xs font-semibold p-2">Hrs</TableHead>
