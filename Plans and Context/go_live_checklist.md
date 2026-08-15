@@ -47,29 +47,32 @@ Production's `WorkOrder_Broadcast` trigger had a JWT hardcoded in plaintext in t
 - **Correction to this section's original framing:** "nothing on current-`main` consumes this broadcast" was wrong — re-checked `main`'s live `src/pages/WorkOrders.jsx` and it already subscribes to the `work_order_refresh`/`workorder-updated` channel today ("Zero Polling" live-refresh, no fallback). Turned out not to matter in practice: the webhook is async/non-blocking (`pg_net`), so it can't fail or delay the underlying `WorkOrder` write, and worst case during the deploy window was one missed live-refresh — nothing broke.
 - **Bonus find during dev testing (unrelated to this fix, separately fixed):** `src/lib/supabaseRealtimeClient.js` hardcodes production's Supabase URL/anon key for the realtime client, ignoring env vars — meaning dev's live-refresh could never have worked regardless of this trigger fix. Fixed on `development` to read from `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` like the regular client. `main`'s copy still has the old hardcode, but since `main` only ever runs against prod, it's a no-op there — will resolve naturally at cutover, not urgent before Aug 17.
 
-### 2d. Edge Functions → production
-None of these share a name with anything currently live on `main` — confirmed no collision risk, safe to deploy any time before go-live:
-- [ ] `autopro-generateWorkOrderPdf`
-- [ ] `autopro-processCustomerARAccounting`
-- [ ] `autopro-getworkorderlist`
-- [ ] `autopro-createworkorderdata`
-- [ ] `autopro-sendEmailViaSMTP`
-- [ ] `autopro-sendSms`
-- [ ] `autopro-sendARReceiptEmail`
-- [ ] `autopro-returnCoreToWO`
-- [ ] `autopro-changeWorkOrderCustomer`
-- [ ] `autopro-calculateARInterest`
-- [ ] `autopro-getAppliedPaymentDetails`
-- [ ] `autopro-getNotesBoardData`
-- [ ] `autopro-getSupplierReconcileInvoices`
-- [ ] `autopro-processSupplierStatementOCR`
-- [ ] `autopro-sendStatementEmail`
-- [ ] `autopro-sendBatchWorkOrderEmails`
-- [ ] `autopro-report-issue`
-- [ ] `workpro-report-issue`
+### 2d. Edge Functions → production — **DONE 2026-08-15, closed via a live dev-vs-prod diff, not the stale list below**
+Per this section's own prior warning, did a direct `list_edge_functions` comparison of dev (`sitihbdnuxifwibontcm`) vs. production (`hbcrwkmgsazqrvsrmxyr`) instead of trusting the checklist. That surfaced real staleness both ways — see notes below. All 15 genuine gaps deployed and confirmed `ACTIVE` (version 1) via `get_edge_function`, verify_jwt matched to each function's existing dev setting:
+- [x] `autopro-generateWorkOrderPdf` (verify_jwt: true)
+- [x] `autopro-processCustomerARAccounting` (verify_jwt: true)
+- [x] `autopro-getworkorderlist` (verify_jwt: true)
+- [x] `autopro-createworkorderdata` (verify_jwt: true)
+- [x] `autopro-sendEmailViaSMTP` (verify_jwt: false) — bundles `_shared/resend.ts`
+- [x] `autopro-sendSms` (verify_jwt: false) — bundles `_shared/twilio.ts`
+- [x] `autopro-sendARReceiptEmail` (verify_jwt: false) — bundles `_shared/resend.ts`
+- [x] `autopro-returnCoreToWO` (verify_jwt: true)
+- [x] `autopro-changeWorkOrderCustomer` (verify_jwt: true)
+- [x] `autopro-calculateARInterest` (verify_jwt: true)
+- [x] `autopro-getAppliedPaymentDetails` (verify_jwt: true)
+- [x] `autopro-getNotesBoardData` (verify_jwt: true)
+- [x] `autopro-getSupplierReconcileInvoices` (verify_jwt: false)
+- [x] `autopro-processSupplierStatementOCR` (verify_jwt: false)
+- [x] `autopro-generateARReceiptPDF` (verify_jwt: true) — **new find, was missing from this list entirely; only caught via the live diff**
+- [x] `autopro-sendStatementEmail` — **correction: already live on prod pre-session, not a gap.** Left checked, no redeploy needed.
+- [x] `autopro-sendBatchWorkOrderEmails` — **correction: already live on prod pre-session, not a gap.**
+- [x] `autopro-report-issue` — **correction: already live on prod pre-session, not a gap.**
+- [x] `workpro-report-issue` — **correction: already live on prod pre-session, not a gap.**
 - [x] `autopro-resendWebhook` — new function, native port of base44's inbound Resend delivery-callback webhook; deploying it alone does nothing until Resend's dashboard webhook URL is also manually repointed at it (no available tooling for that step — see `master_context.md` §3)
-- [x] `autopro-sendAppointmentReminders` / `autopro-sendTextReminders` — dev-only, `pg_cron`-scheduled, no frontend caller. Deploying the functions to production accomplishes nothing without also scheduling their `pg_cron` jobs there; full production port was explicitly deferred to a separate follow-up plan, not scoped here. Full history: `Plans and Context/Archive/Appointment_Reminders_implementation_plan.md`
-- [ ] Payroll's production frontend push + production Edge Function deploy — Phase 11's own doc noted these as "the user's own action," never confirmed done. **Before assuming this list above is complete: directly compare the full function list on dev (`sitihbdnuxifwibontcm`) vs. production (`hbcrwkmgsazqrvsrmxyr`) rather than relying on any single phase doc's memory of what it deployed** — this list was compiled from scattered per-phase notes, not a live diff.
+- [x] `autopro-sendAppointmentReminders` / `autopro-sendTextReminders` — **correction: the live diff shows both are already deployed to production** (contradicts this bullet's old "dev-only" framing). Still functionally dormant on prod either way, since their `pg_cron` jobs aren't scheduled there — that part of the old note still holds, full production port remains a separate follow-up. Full history: `Plans and Context/Archive/Appointment_Reminders_implementation_plan.md`
+- [ ] Payroll's production frontend push — Phase 11's own doc noted this as "the user's own action," never confirmed done. Note: `autopro-parsePayrollFile` (the Edge Function half) is already live on prod — this remaining item is specifically the frontend code push, which only happens at the full `main`↔`development` cutover, not before.
+- **Deliberately NOT deployed — found on dev during the live diff, confirmed untracked in the local repo (no matching directory under `supabase/functions/`), i.e. scratch/test artifacts, not real functions:** `autopro-checkreminderenv`, `autopro-testsharedmodule`, and 4 stray lowercase-duplicate slugs left over from the Aug 14 shared-module retrofit (`autopro-handleinvoiceconversiongl`, `autopro-handlesupplierinvoicelinegl`, `autopro-mergeinventoryitems`, `autopro-processinventoryreceipt` — each has a correctly-cased, real counterpart already live on prod). If any of these six ever turn out to be load-bearing, that's a signal something is wrong, not a reason to deploy them as-is.
+- **Deploy mechanics note for future reference:** for functions that import a `_shared/*.ts` helper via `../_shared/...` , the `deploy_edge_function` tool's `files[].name` must include that same `../` prefix (e.g. `"../_shared/resend.ts"`) — omitting it (`"_shared/resend.ts"`) nests the shared file one level too deep relative to where the entrypoint's import resolves, and the deploy fails to bundle. Confirmed by reproducing the failure on `autopro-sendARReceiptEmail`, then fixing it this way.
 
 ---
 
@@ -81,22 +84,22 @@ None of these share a name with anything currently live on `main` — confirmed 
 
 1. **Confirm the shop is done for the day** — no in-progress appointments/WOs/invoices being actively edited.
 2. **Export + import the "regular" dynamic tables** from Base44 (CSV path, ~30–45 min per the owner's estimate; verify a few rows post-import for the known data-type traps — `jsonb` columns landing as real JSON not a stringified blob, stringy-boolean columns, no silent decimal truncation into a `bigint` field):
-   - [ ] Appointment
-   - [ ] Approvals
-   - [ ] LinesOfCreditTransaction
-   - [ ] CashFlowSummary 
-   - [ ] CashFlowEntry
-   - [ ] DepositSlipBreakdown
-   - [ ] CashDrawerAdjustment
-   - [ ] CustomerPortalAudit - no real data exists for this yet, new feature coming to native app.
-   - [ ] CustomerPortalStatement
-   - [ ] CustomerPortalWorkOrder
-   - [ ] InventoryAuditLog (base44 entity is called InventoryTxs - same data, just renamed)
-   - [ ] InventoryLocation - mostly static, but might have new locations added, placed on dynamic table list as precaution
-   - [ ] InventoryReturn
-   - [ ] Levies
-   - [ ] SentEmailLog
-3. **Pull `SystemSettings` last, as close to the DNS flip as possible.** `next_invoice_number`/`next_ro_number` are live counters controlling WO/invoice numbering — this project already hit a real bug once where a stale counter collided with real existing numbers on the very first write after a copy. Don't let anything happen between this pull and the DNS switch that could create a new WO/invoice in Base44.
+   - [x] Appointment
+   - [x] Approvals
+   - [x] LinesOfCreditTransaction
+   - [x] CashFlowSummary 
+   - [x] CashFlowEntry
+   - [x] DepositSlipBreakdown
+   - [x] CashDrawerAdjustment
+   - [x] CustomerPortalAudit - no real data exists for this yet, new feature coming to native app.
+   - [x] CustomerPortalStatement
+   - [x] CustomerPortalWorkOrder
+   - [x] InventoryAuditLog (base44 entity is called InventoryTxs - same data, just renamed)
+   - [x] InventoryLocation - mostly static, but might have new locations added, placed on dynamic table list as precaution
+   - [x] InventoryReturn
+   - [x] Levies
+   - [x] SentEmailLog
+3. **Pull `SystemSettings` last, as close to the DNS flip as possible.** `next_invoice_number`/`next_ro_number` are live counters controlling WO/invoice numbering — this project already hit a real bug once where a stale counter collided with real existing numbers on the very first write after a copy. Don't let anything happen between this pull and the DNS switch that could create a new WO/invoice in Base44. **Done. 2026-08-15 3:08PM MST**
 4. **DNS switch + Vercel hosting cutover** (repoint `autopro.kensauto.ca`, confirm Vercel production builds from `main`, confirm `main`'s contents have already been replaced with `development`'s ahead of this moment). **The one true point-of-no-return step — if anything upstream isn't ready, stop here and delay, don't push through.**
 5. **Immediate post-cutover smoke test** (see Section 4) before considering the shop open for business the next morning.
 
