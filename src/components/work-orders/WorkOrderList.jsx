@@ -18,6 +18,7 @@ import {
   ChevronRight,
   FileText,
   Lock,
+  LockOpen,
   Copy,
   Ban
 } from "lucide-react";
@@ -78,6 +79,7 @@ function WorkOrderList({
   onEdit,   
   onStatusUpdate,
   onVoid,
+  onClearLock,
   currentUser,
   workOrderStatuses,
   currentSort,
@@ -342,7 +344,7 @@ function WorkOrderList({
                 {workOrder.stage === 'estimate' && onVoid && (
                   <>
                     <ContextMenuSeparator />
-                    <ContextMenuItem 
+                    <ContextMenuItem
                       onClick={(e) => {
                         e.stopPropagation();
                         onVoid(workOrder);
@@ -351,6 +353,21 @@ function WorkOrderList({
                     >
                       <Ban className="mr-2 h-4 w-4" />
                       Expired/Void
+                    </ContextMenuItem>
+                  </>
+                )}
+                {isLocked && onClearLock && (
+                  <>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onClearLock(workOrder);
+                      }}
+                      className="bg-red-600 text-white focus:bg-red-700 focus:text-white dark:bg-red-600 dark:text-white dark:focus:bg-red-700"
+                    >
+                      <LockOpen className="mr-2 h-4 w-4" />
+                      Clear Lock
                     </ContextMenuItem>
                   </>
                 )}
