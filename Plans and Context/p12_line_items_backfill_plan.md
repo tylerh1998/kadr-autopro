@@ -1,6 +1,6 @@
 # P12 Plan: `WorkOrder.line_items` Backfill (String → True jsonb Array), 3 Stages
 
-**Status:** DRAFT — awaiting approval. No code/database changes made yet.
+**Status:** **COMPLETE, 2026-08-14.** All 3 stages executed and verified — dev canary, dev whole-database (1,086 rows), production (1,166 rows). Zero corrupted `line_items` rows remain anywhere.
 
 **Source:** `Pre_go-live_plan.md` P12. Previously deferred pending exactly this kind of controlled-environment-first plan.
 
@@ -124,16 +124,32 @@ Explicitly **not** touched: `last_updated`, `last_updated_by`, `updated_at`, `to
 - [x] Stage 2: 100%-coverage content-equality guaranteed by construction (the UPDATE's new value is defined as the parsed old value, already dry-run-validated for every row pre-execution) — no per-row diff needed beyond the aggregate proof above
 - [x] Stage 2: `workorderversionhistory` row count unchanged (9,462→9,462) — zero spurious entries across all 1,086 rows, trigger-disable confirmed working at scale
 - [x] Stage 2: `get_parts_movement_v2` output unchanged for full-year range (row count, WIP sum, invoiced sum all identical)
-- [ ] Stage 2: user's own reporting/UI spot-checks — **awaiting user**
-- [ ] **Gate: user confirms Stage 2 clean before Stage 3 proceeds**
-- [ ] Stage 3: fresh dry-run against production's actual rows passes
-- [ ] Stage 3: production backfilled, trigger disabled/re-enabled
-- [ ] Stage 3: before/after financial sums identical, 100%-coverage content-equality proof passes
-- [ ] Stage 3: final repo-wide corruption count on production confirms 0 remaining
-- [ ] `Pre_go-live_plan.md`'s P12 entry updated to resolved, pointing at this plan
+- [x] Stage 2: user's own reporting/UI spot-checks — confirmed clean by user
+- [x] **Gate: user confirmed Stage 2 clean, authorized Stage 3**
+- [x] Stage 3: fresh dry-run against production's actual 1,166 corrupted rows — 0 failures
+- [x] Stage 3: production trigger setup re-verified directly (identical `audit_workorder_changes`/`WorkOrder_Broadcast` names/mechanism as dev, not assumed) before using the same DISABLE/ENABLE syntax
+- [x] Stage 3: production backfilled (1,166 rows), trigger disabled/re-enabled
+- [x] Stage 3: before/after financial sums identical (`total_amount`/`parts_total`/`labor_total`/`tax_amount`); row-count distribution 1,166→0 corrupted, 1,667 real-array rows, 2 legitimate nulls unchanged
+- [x] Stage 3: `workorderversionhistory` row count unchanged (8,632→8,632) — zero spurious entries at production scale
+- [x] Stage 3: `get_parts_movement_v2` output unchanged for full-year range (row count, WIP sum, invoiced sum all identical)
+- [x] Stage 3: final repo-wide corruption count on production confirms 0 remaining
+- [x] `Pre_go-live_plan.md`'s P12 entry updated to resolved, pointing at this plan
 
 ---
 
 ## 6) Completion Notes & Context
 
-*(Not yet executed — this section will be filled in during/after each stage.)*
+**Executed exactly as planned across all 3 stages — no deviations, no failures, no rollback needed.**
+
+**Stage 1 (dev, `RO51610` canary):** Both line items byte-identical before/after (School Bus Earnings VRD1/VRD2, $5,143.98/$6,643.60, `gl_account` `4050`, `supplier_invoice_line_id`s unchanged). Every audit-timestamp and financial column untouched. Zero new `workorderversionhistory` entries — confirmed both by direct query and by the user's own manual review of `WorkOrderHistoryModal`. Trigger-disable approach validated at the smallest possible scale before scaling up.
+
+**Stage 2 (dev, whole database, 1,086 rows):** Corrupted-row count 1,086→0. All four financial aggregates (`total_amount`/`parts_total`/`labor_total`/`tax_amount`) byte-identical before/after. `workorderversionhistory` row count unchanged (9,462→9,462) — trigger-disable held at scale, not just for one row. `get_parts_movement_v2` output (full-year range) byte-identical — meaningful independent proof, since that RPC already parsed both encodings correctly, so a correct backfill *can't* change its output. User's own reporting/UI spot-checks confirmed clean.
+
+**Stage 3 (production, 1,166 rows):** Re-verified production's trigger setup matched dev exactly before reusing the same script (not assumed). Fresh pre-flight dry-run against production's actual corrupted rows — 0 failures, independent of dev's earlier dry-run. Same full validation suite as Stage 2, all identical: corrupted-row count 1,166→0, all financial sums unchanged, history row count unchanged (8,632→8,632), `get_parts_movement_v2` output unchanged.
+
+**Final state:** Zero rows with `jsonb_typeof(line_items) = 'string'` on either dev or production. `WorkOrder.line_items` is now a true jsonb array on every row across the entire system (the 4 legitimately-null rows, 2 per branch, were never in scope and remain null).
+
+**Architectural notes carried forward:**
+- The `audit_workorder_changes` trigger (→ `process_workorder_audit()`, writing to `workorderversionhistory`) is a genuinely useful discovery for any *future* bulk/technical data-maintenance operation on `WorkOrder` — the `DISABLE TRIGGER` / `UPDATE` / `ENABLE TRIGGER` pattern used here is the template for any future fix that needs to touch many rows without polluting the audit trail with non-business-change noise. `WorkOrder_Broadcast` was deliberately left enabled throughout (harmless live-refresh signal) — only the audit trigger needed suppressing.
+- `WorkOrderHistoryModal.jsx`'s `session_id`-based dedup behavior (hides older rows sharing a session_id with a newer one) is worth remembering for any other future direct-SQL write to `WorkOrder` — explicitly nulling `session_id` (as done here) is the safe default when a raw `UPDATE` doesn't have a real editing-session context to attribute to.
+- This closes the last item from the pregolive_p1_p3_p4 and P2 batches' era — all of P1, P2, P3, P4, P5, and now P12 are resolved as of this session.

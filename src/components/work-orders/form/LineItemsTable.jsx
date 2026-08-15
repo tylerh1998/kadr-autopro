@@ -52,7 +52,6 @@ export default function LineItemsTable({
   onAddPart,
   onReturnPart,
   onReceivePart,
-  onReceiveQuotedPart,
   onMarkPartsOrdered,
   onCores,
   onDeleteLine, // Accept onDeleteLine prop
@@ -364,15 +363,6 @@ export default function LineItemsTable({
               <span>Return Part</span>
             </ContextMenuItem>
           )}
-          {mode !== 'estimate' && (
-            <ContextMenuItem
-              onClick={() => ((parseFloat(line.qty_on_order) || 0) > 0 ? onReceivePart(index) : onReceiveQuotedPart(index))}
-              disabled={!((parseFloat(line.qty_on_order) || 0) > 0 || (parseFloat(line.qty_quoted) || 0) > 0)}
-            >
-              <Truck className="mr-2 h-4 w-4" />
-              <span>Receive Part</span>
-            </ContextMenuItem>
-          )}
           {line.inventory_item_id && (
             <ContextMenuItem onClick={() => handleOpenSerialNumModal(index)}>
               <Hash className="mr-2 h-4 w-4" />
@@ -385,6 +375,15 @@ export default function LineItemsTable({
               <span>Part Details</span>
             </ContextMenuItem>
           )}
+          <ContextMenuSeparator />
+        </>
+      )}
+      {mode !== 'estimate' && lineItems.some(l => (parseFloat(l?.qty_on_order) || 0) > 0 || (parseFloat(l?.qty_quoted) || 0) > 0) && (
+        <>
+          <ContextMenuItem onClick={() => onReceivePart()}>
+            <Truck className="mr-2 h-4 w-4" />
+            <span>Receive Parts</span>
+          </ContextMenuItem>
           <ContextMenuSeparator />
         </>
       )}

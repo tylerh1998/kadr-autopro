@@ -43,10 +43,28 @@ serve(async (req) => {
     }
 
     const user = authData.user;
-    const { workOrderId, roNumber, lineItemId, receivedQuantity } = await req.json();
+    const { workOrderId, roNumber, receipts } = await req.json();
 
-    if ((!workOrderId && !roNumber) || !lineItemId || !receivedQuantity || receivedQuantity <= 0) {
+    // receipts: [{ lineItemId, quantity }] - replaces the old single { lineItemId, receivedQuantity } shape.
+    if ((!workOrderId && !roNumber) || !Array.isArray(receipts) || receipts.length === 0) {
       return new Response(JSON.stringify({ error: 'Invalid input parameters' }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
+    // String-normalized, same reasoning as the sibling bulk function: lineItemIds arriving from the
+    // frontend may be raw JS numbers or have passed through object-key coercion depending on the caller.
+    const receiptMap = new Map();
+    receipts.forEach(r => {
+      const qty = parseFloat(r?.quantity);
+      if (r?.lineItemId !== undefined && r?.lineItemId !== null && !isNaN(qty) && qty > 0) {
+        receiptMap.set(String(r.lineItemId), qty);
+      }
+    });
+
+    if (receiptMap.size === 0) {
+      return new Response(JSON.stringify({ error: 'No valid receipt quantities provided' }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
@@ -66,7 +84,7 @@ serve(async (req) => {
 
     let lineItems = [];
     try {
-      lineItems = typeof workOrder.line_items === 'string' 
+      lineItems = typeof workOrder.line_items === 'string'
         ? JSON.parse(workOrder.line_items || '[]')
         : (Array.isArray(workOrder.line_items) ? workOrder.line_items : []);
     } catch (e) {
@@ -76,59 +94,123 @@ serve(async (req) => {
       });
     }
 
-    const lineItemIndex = lineItems.findIndex(item => item.id === lineItemId);
-    if (lineItemIndex === -1) {
-      return new Response(JSON.stringify({ error: 'Line item not found in work order' }), {
+    // Preserve payload/array order - determines skip priority when shared-item stock runs out mid-batch.
+    const targetIndexes = [];
+    lineItems.forEach((li, idx) => {
+      if (receiptMap.has(String(li.id))) targetIndexes.push(idx);
+    });
+
+    if (targetIndexes.length === 0) {
+      return new Response(JSON.stringify({ error: 'None of the requested line items were found on this work order' }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
 
-    const lineItem = lineItems[lineItemIndex];
-    const resolvedInventoryItemId = lineItem.inventory_item_id;
+    const inventoryItemIds = [...new Set(
+      targetIndexes.map(idx => lineItems[idx].inventory_item_id).filter(Boolean)
+    )];
 
-    const currentQtyOnOrder = parseFloat(lineItem.qty_on_order) || 0;
-    if (receivedQuantity > currentQtyOnOrder) {
-      return new Response(JSON.stringify({ 
-        error: `Cannot receive ${receivedQuantity} units. Only ${currentQtyOnOrder} units are on order for this line.` 
-      }), {
+    let inventoryItemsMap = new Map();
+    if (inventoryItemIds.length > 0) {
+      const { data: inventoryItems, error: inventoryError } = await supabaseAdmin
+        .from('InventoryItem')
+        .select('*')
+        .in('id', inventoryItemIds);
+
+      if (inventoryError) {
+        return new Response(JSON.stringify({ error: 'Failed to fetch inventory items', details: inventoryError.message }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
+      (inventoryItems || []).forEach(item => inventoryItemsMap.set(item.id, item));
+    }
+
+    // Running per-item QOH/QOO, seeded from live DB values - decremented as each line in THIS batch is
+    // applied, so two selected lines sharing one inventory_item_id can't both spend the same physical stock.
+    const runningQOH = new Map();
+    const runningQOO = new Map();
+    inventoryItemsMap.forEach((item, id) => {
+      runningQOH.set(id, parseFloat(item.quantity_on_hand) || 0);
+      runningQOO.set(id, parseFloat(item.quantity_on_order) || 0);
+    });
+
+    const skipped = [];
+    const rpcCalls = [];
+
+    targetIndexes.forEach(idx => {
+      const line = lineItems[idx];
+      const requestedQty = receiptMap.get(String(line.id));
+      const invItem = inventoryItemsMap.get(line.inventory_item_id);
+
+      if (!line.inventory_item_id || !invItem) {
+        skipped.push({ lineItemId: line.id, reason: 'No matching inventory item found' });
+        return;
+      }
+
+      const qtyOnOrder = parseFloat(line.qty_on_order) || 0;
+      const qtyQuoted = parseFloat(line.qty_quoted) || 0;
+      // Same precedence the per-line context menu already uses today: on-order first.
+      const source = qtyOnOrder > 0 ? 'on_order' : (qtyQuoted > 0 ? 'quoted' : null);
+
+      if (!source) {
+        skipped.push({ lineItemId: line.id, reason: 'Line has no on-order or quoted quantity remaining' });
+        return;
+      }
+
+      const sourceQty = source === 'on_order' ? qtyOnOrder : qtyQuoted;
+      if (requestedQty > sourceQty) {
+        skipped.push({
+          lineItemId: line.id,
+          reason: `Requested ${requestedQty} exceeds ${source === 'on_order' ? 'on-order' : 'quoted'} quantity (${sourceQty})`
+        });
+        return;
+      }
+
+      const currentRunningQOH = runningQOH.get(line.inventory_item_id);
+      if (requestedQty > currentRunningQOH) {
+        skipped.push({
+          lineItemId: line.id,
+          reason: `Insufficient inventory - only ${currentRunningQOH} unit(s) remain available for this item after other selected lines in this batch`
+        });
+        return;
+      }
+
+      const newQOH = currentRunningQOH - requestedQty;
+      runningQOH.set(line.inventory_item_id, newQOH);
+
+      let newQOO = runningQOO.get(line.inventory_item_id);
+      if (source === 'on_order') {
+        newQOO = Math.max(0, newQOO - requestedQty);
+        runningQOO.set(line.inventory_item_id, newQOO);
+      }
+
+      lineItems[idx] = {
+        ...line,
+        ...(source === 'on_order'
+          ? { qty_on_order: Math.max(0, sourceQty - requestedQty) }
+          : { qty_quoted: Math.max(0, sourceQty - requestedQty) }),
+        inventory_processed: true,
+        cost_ea: invItem.cost || line.cost_ea || 0
+      };
+
+      rpcCalls.push({
+        itemId: line.inventory_item_id,
+        newQOH,
+        newQOO,
+        description: source === 'on_order'
+          ? `Issued to ${workOrder.ro_number} - ${line.description || line.part_number}`
+          : `Issued to ${workOrder.ro_number} from quote - ${line.description || line.part_number}`
+      });
+    });
+
+    if (rpcCalls.length === 0) {
+      return new Response(JSON.stringify({ error: 'No line items could be received', skipped }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" }
       });
     }
-
-    const { data: inventoryItem, error: inventoryItemError } = await supabaseAdmin
-      .from('InventoryItem')
-      .select('*')
-      .eq('id', resolvedInventoryItemId)
-      .maybeSingle();
-
-    if (inventoryItemError || !inventoryItem) {
-      return new Response(JSON.stringify({ error: `Inventory item not found for line item id ${lineItem.id}`, details: inventoryItemError?.message }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      });
-    }
-
-    const effectiveInventoryItemId = inventoryItem.id;
-    const currentQOH = parseFloat(inventoryItem.quantity_on_hand) || 0;
-    
-    if (currentQOH < receivedQuantity) {
-      return new Response(JSON.stringify({ 
-        error: `Insufficient inventory. Only ${currentQOH} units available in stock.` 
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      });
-    }
-
-    const newQtyOnOrder = Math.max(0, currentQtyOnOrder - receivedQuantity);
-    lineItems[lineItemIndex] = {
-      ...lineItem,
-      qty_on_order: newQtyOnOrder,
-      inventory_processed: true,
-      cost_ea: inventoryItem.cost || 0
-    };
 
     const { error: workOrderUpdateError } = await supabaseAdmin
       .from('WorkOrder')
@@ -142,41 +224,41 @@ serve(async (req) => {
       });
     }
 
-    const newQOH = currentQOH - receivedQuantity;
-    const newInventoryQOO = Math.max(0, (parseFloat(inventoryItem.quantity_on_order) || 0) - receivedQuantity);
-
-    const description = `Issued to ${workOrder.ro_number} - ${lineItem.description || lineItem.part_number}`;
-    
-    const { error: rpcError } = await supabaseAdmin.rpc('update_inventory_with_audit', {
-      p_item_id: effectiveInventoryItemId,
-      p_qoh: newQOH,
-      p_qoo: newInventoryQOO,
-      p_ro_number: workOrder.ro_number,
-      p_supplier_inv: null,
-      p_source_action: 'autopro-processWorkOrderPartReceive',
-      p_tx_type: 'Issued to WO',
-      p_description: description,
-      p_user_id: user.id || null,
-      p_user_name: user.email || null,
-      p_source_record_id: workOrder.id || null
-    });
-
-    if (rpcError) {
-      return new Response(JSON.stringify({
-        error: 'Failed to update inventory item via RPC',
-        details: rpcError.message
-      }), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
+    // Sequential, not Promise.all - same reasoning as autopro-processWorkOrderMarkQuotedOrdered: each
+    // call must land before the next reads/writes the same item, and this also gives one audit row per
+    // WO line received even when several lines share one inventory_item_id.
+    for (const call of rpcCalls) {
+      const { error: rpcError } = await supabaseAdmin.rpc('update_inventory_with_audit', {
+        p_item_id: call.itemId,
+        p_qoh: call.newQOH,
+        p_qoo: call.newQOO,
+        p_ro_number: workOrder.ro_number,
+        p_supplier_inv: null,
+        p_source_action: 'autopro-processWorkOrderPartReceive',
+        p_tx_type: 'Issued to WO',
+        p_description: call.description,
+        p_user_id: user.id || null,
+        p_user_name: user.email || null,
+        p_source_record_id: workOrder.id || null
       });
+
+      if (rpcError) {
+        return new Response(JSON.stringify({
+          error: 'Failed to update inventory item via RPC',
+          details: rpcError.message,
+          partiallyApplied: true
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" }
+        });
+      }
     }
 
     return new Response(JSON.stringify({
       success: true,
-      message: `Successfully received ${receivedQuantity} unit(s) and issued to work order`,
-      updatedLineItem: lineItems[lineItemIndex],
-      newInventoryQOH: newQOH,
-      newInventoryQOO: newInventoryQOO
+      message: `Received ${rpcCalls.length} of ${targetIndexes.length} selected line item(s)`,
+      updatedLineItems: targetIndexes.map(idx => lineItems[idx]),
+      skipped
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" }
@@ -184,8 +266,8 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in processWorkOrderPartReceive:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message || 'Internal server error' 
+    return new Response(JSON.stringify({
+      error: error.message || 'Internal server error'
     }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" }

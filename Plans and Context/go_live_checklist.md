@@ -23,20 +23,20 @@
 
 ## 2) Pre-Go-Live Work (any time before Aug 17, low risk, no coordination with staff needed)
 
-### 2a. Schema / migrations
-- [ ] Deploy `get_supplier_reconcile_invoices_rpc` to production (tracked file exists: `supabase/migrations/20260812000000_get_supplier_reconcile_invoices_rpc.sql` — read-only RPC, additive, zero collision risk)
+### 2a. Schema / migrations — **all 3 items DONE, section closed 2026-08-15**
+- [x] Deploy `get_supplier_reconcile_invoices_rpc` to production — **DONE 2026-08-15.** Applied tracked file `supabase/migrations/20260812000000_get_supplier_reconcile_invoices_rpc.sql` verbatim to `hbcrwkmgsazqrvsrmxyr` via `apply_migration` (recorded there as version `20260815...get_supplier_reconcile_invoices_rpc`). Confirmed function didn't already exist pre-deploy (`pg_proc` query returned empty), then confirmed live post-deploy (`pronargs: 1`, body present). Read-only RPC, purely additive — no collision, no existing caller to regress. `get_advisors` (security) afterward shows only the same `function_search_path_mutable` WARN every other function in this schema already carries — pre-existing repo-wide pattern, not a new issue, out of scope here.
 - [x] Deploy `add_cvip_odometer_to_customer_portal_work_order` to production — **DONE 2026-08-10.** 2 new nullable columns (`cvip text`, `odometer integer`, matching `WorkOrder`'s own column types) added to `CustomerPortalWorkOrder` on `hbcrwkmgsazqrvsrmxyr` via `apply_migration`, confirmed live via `information_schema.columns`. Migration file now tracked: `supabase/migrations/20260816000000_add_cvip_odometer_to_customer_portal_workorder.sql`. Also redeployed `autopro-createPortalSnapshot` (v1→v2, `verify_jwt` unchanged) since its already-committed source depended on these columns existing — confirmed live via `get_edge_function`. Found and closed while verifying the new "View In-App"/printable customer-approval-snapshot feature; full detail in `Archive/blueprint_verification_plan.md` Section 2.
-- [ ] `provision_supabase_functions_webhook_infra` (`WorkOrder_Broadcast` trigger + webhook) — **do not treat as a simple copy-over.** See Section 2c below; also currently untracked, needs a migration file written.
+- [x] `provision_supabase_functions_webhook_infra` (`WorkOrder_Broadcast` trigger + webhook) — **already resolved via Section 2c below, confirmed 2026-08-15.** This bullet's "currently untracked, needs a migration file written" note was stale — 2c's own work (completed 2026-08-12) wrote and deployed the tracked migration (`supabase/migrations/20260815000000_remove_workorder_broadcast_hardcoded_jwt.sql`). Re-verified live against production this session: `list_migrations` on `hbcrwkmgsazqrvsrmxyr` shows it applied (version `20260812173808`). No separate action needed — this bullet and 2c were tracking the same work.
 
 ### 2b. Static/config table data → production
-- [ ] `WorkOrderStatus` (8 rows on dev, 0 on prod)
-- [ ] `TagAlong` (13 rows on dev, 0 on prod)
+- [x] `WorkOrderStatus` (8 rows on dev, 0 on prod)
+- [x] `TagAlong` (13 rows on dev, 0 on prod)
 - [x] `OtherChargeList` already match 
-- [ ] GSTReturn - no changes happening until end of this quarter, we can port over now
-- [ ] LinesofCredit - just the list of the three credit cards we have. That's not changing, but LOC Transactions are dynamic.
-- [ ] Employee
-- [ ] FiscalPeriod
-- [ ] ReturnReason
+- [x] GSTReturn - no changes happening until end of this quarter, we can port over now
+- [x] LinesofCredit - just the list of the three credit cards we have. That's not changing, but LOC Transactions are dynamic.
+- [x] Employee
+- [x] FiscalPeriod
+- [x] ReturnReason
 
 ### 2c. `WorkOrder_Broadcast` — security fix, own mini-project — **DONE 2026-08-12**
 Production's `WorkOrder_Broadcast` trigger had a JWT hardcoded in plaintext in the trigger definition (flagged Phase 1). Investigated fully before fixing: the JWT decoded to each project's own public **anon key** (not a service-role key or third-party credential), and the called `WorkOrder-Broadcast` function never actually reads the header at all — it authenticates internally via the auto-injected `SUPABASE_SERVICE_ROLE_KEY`. So the fix was to drop the header entirely, not relocate it to Vault. Full writeup: `workorder_broadcast_update_plan.md`.
@@ -88,7 +88,7 @@ None of these share a name with anything currently live on `main` — confirmed 
    - [ ] CashFlowEntry
    - [ ] DepositSlipBreakdown
    - [ ] CashDrawerAdjustment
-   - [ ] CustomerPortalAudit
+   - [ ] CustomerPortalAudit - no real data exists for this yet, new feature coming to native app.
    - [ ] CustomerPortalStatement
    - [ ] CustomerPortalWorkOrder
    - [ ] InventoryAuditLog (base44 entity is called InventoryTxs - same data, just renamed)

@@ -12,7 +12,6 @@ import OtherChargeModal from '../OtherChargeModal';
 import AddPartToWOModal from '../WOAddInventoryModal';
 import ReturnWOPartModal from '../ReturnWOPartModal';
 import ReceivePartModal from '../ReceivePartModal';
-import ReceiveQuotedPartModal from '../ReceiveQuotedPartModal';
 import ROCoreModal from '../ROCoreModal';
 import MarkPartsOrderedModal from '../MarkPartsOrderedModal';
 
@@ -103,7 +102,6 @@ export default function WorkOrderForm({
     addPart: false,
     returnPart: false,
     receivePart: false,
-    receiveQuotedPart: false,
     cores: false,
     markOrdered: false,
   });
@@ -395,14 +393,9 @@ export default function WorkOrderForm({
     openModal('returnPart', lineIndex);
   }, [openModal]);
   
-  const handleReceivePart = useCallback((lineIndex) => {
-    console.log('=== DEBUG: handleReceivePart called with index:', lineIndex);
-    openModal('receivePart', lineIndex);
-  }, [openModal]);
-
-  const handleReceiveQuotedPart = useCallback((lineIndex) => {
-    console.log('=== DEBUG: handleReceiveQuotedPart called with index:', lineIndex);
-    openModal('receiveQuotedPart', lineIndex);
+  const handleReceivePart = useCallback(() => {
+    console.log('=== DEBUG: handleReceivePart called ===');
+    openModal('receivePart');
   }, [openModal]);
   
   const handleCores = useCallback((lineIndex) => {
@@ -748,102 +741,19 @@ export default function WorkOrderForm({
       closeModal('returnPart');
   };
   
-  const handleReceiveWorkOrderPart = async (lineItem, receivedQuantity, freshInventoryItem) => {
-      console.log('=== DEBUG: handleReceiveWorkOrderPart called ===');
-      console.log('Line item:', lineItem);
-      console.log('Received quantity:', receivedQuantity);
-      console.log('Fresh inventory item:', freshInventoryItem);
-      
-      if (!lineItem || !lineItem.inventory_item_id) {
-          console.error('Cannot receive part: missing line item or inventory_item_id');
-          return;
-      }
+  const handleWorkOrderPartsReceived = (updatedLineItems) => {
+      console.log('=== DEBUG: handleWorkOrderPartsReceived called ===', updatedLineItems);
+      // Server already computed the final qty_on_order/qty_quoted/cost_ea per line - apply its truth
+      // directly rather than recomputing client-side, same as handleWorkOrderPartsMarkedOrdered's approach.
+      const updatedById = new Map((updatedLineItems || []).map(li => [String(li.id), li]));
 
-      try {
-          const inventoryItem = freshInventoryItem || inventory.find(i => i.id === lineItem.inventory_item_id);
-          if (!inventoryItem) {
-              console.error('Inventory item not found for id:', lineItem.inventory_item_id);
-              alert('Inventory item not found.');
-              return;
-          }
+      tracedSetLineItems(prev => prev.map(li => {
+          const updated = updatedById.get(String(li.id));
+          return updated ? { ...li, ...updated } : li;
+      }));
 
-          console.log('=== DEBUG: Found inventory item:', inventoryItem);
-
-          tracedSetLineItems(prev => {
-              const updated = prev.map(li => {
-                  if (li.id === lineItem.id) {
-                      const currentQtyOnOrder = parseFloat(li.qty_on_order) || 0;
-                      const newQtyOnOrder = Math.max(0, currentQtyOnOrder - receivedQuantity);
-                      
-                      console.log('=== DEBUG: Updating line item ===');
-                      console.log('Current qty_on_order:', currentQtyOnOrder);
-                      console.log('New qty_on_order:', newQtyOnOrder);
-                      console.log('Current inventory_processed:', li.inventory_processed);
-                      console.log('New inventory_processed: true');
-                      
-                      return { 
-                          ...li, 
-                          qty_on_order: newQtyOnOrder,
-                          inventory_processed: true,
-                          cost_ea: freshInventoryItem?.cost || inventoryItem?.cost || 0
-                      };
-                  }
-                  return li;
-              });
-              
-              console.log('=== DEBUG: Line items after receive ===');
-              console.log('Updated line items:', updated);
-              return updated;
-          });
-          
-          setHasUnsavedChanges(true);
-          closeModal('receivePart');
-      } catch (error) {
-          console.error('Error in handleReceiveWorkOrderPart:', error);
-          alert('Failed to update line item. Please try again.');
-      }
-  };
-
-  const handleReceiveQuotedWorkOrderPart = async (lineItem, receivedQuantity, freshInventoryItem) => {
-      console.log('=== DEBUG: handleReceiveQuotedWorkOrderPart called ===');
-
-      if (!lineItem || !lineItem.inventory_item_id) {
-          console.error('Cannot receive quoted part: missing line item or inventory_item_id');
-          return;
-      }
-
-      try {
-          const inventoryItem = freshInventoryItem || inventory.find(i => i.id === lineItem.inventory_item_id);
-          if (!inventoryItem) {
-              console.error('Inventory item not found for id:', lineItem.inventory_item_id);
-              alert('Inventory item not found.');
-              return;
-          }
-
-          tracedSetLineItems(prev => {
-              const updated = prev.map(li => {
-                  if (li.id === lineItem.id) {
-                      const currentQtyQuoted = parseFloat(li.qty_quoted) || 0;
-                      const newQtyQuoted = Math.max(0, currentQtyQuoted - receivedQuantity);
-
-                      return {
-                          ...li,
-                          qty_quoted: newQtyQuoted,
-                          inventory_processed: true,
-                          cost_ea: freshInventoryItem?.cost || inventoryItem?.cost || 0
-                      };
-                  }
-                  return li;
-              });
-              return updated;
-          });
-
-          setHasUnsavedChanges(true);
-          closeModal('receiveQuotedPart');
-      } catch (error) {
-          console.error('Error in handleReceiveQuotedWorkOrderPart:', error);
-          alert('Failed to update line item. Please try again.');
-      }
+      setHasUnsavedChanges(true);
+      closeModal('receivePart');
   };
 
   const handleWorkOrderPartsMarkedOrdered = (markedLineItemIds) => {
@@ -1110,8 +1020,8 @@ export default function WorkOrderForm({
         case 'n':
           e.preventDefault();
           const selectedLine = displayLineItems[selectedLineIndex];
-          if (selectedLine && selectedLine.inventory_item_id && (parseFloat(selectedLine.qty_on_order) || 0) > 0) {
-            handleReceivePart(selectedLineIndex);
+          if (selectedLine && selectedLine.inventory_item_id && ((parseFloat(selectedLine.qty_on_order) || 0) > 0 || (parseFloat(selectedLine.qty_quoted) || 0) > 0)) {
+            handleReceivePart();
           }
           break;
         case 'd':
@@ -1171,7 +1081,6 @@ export default function WorkOrderForm({
         onAddPart={handleAddPart}
         onReturnPart={handleReturnPart}
         onReceivePart={handleReceivePart}
-        onReceiveQuotedPart={handleReceiveQuotedPart}
         onMarkPartsOrdered={handleMarkPartsOrdered}
         onCores={handleCores}
         onDeleteLine={handleDeleteLine} // Pass handleDeleteLine to LineItemsTable
@@ -1221,20 +1130,10 @@ export default function WorkOrderForm({
       <ReceivePartModal
         open={modals.receivePart}
         onClose={() => closeModal('receivePart')}
-        lineItem={currentLineItem}
-        inventoryItem={inventory.find(i => i.id === currentLineItem?.inventory_item_id)}
+        lineItems={displayLineItems}
         workOrderId={initialWorkOrder?.id}
         roNumber={initialWorkOrder?.ro_number}
-        onReceive={handleReceiveWorkOrderPart}
-      />
-      <ReceiveQuotedPartModal
-        open={modals.receiveQuotedPart}
-        onClose={() => closeModal('receiveQuotedPart')}
-        lineItem={currentLineItem}
-        inventoryItem={inventory.find(i => i.id === currentLineItem?.inventory_item_id)}
-        workOrderId={initialWorkOrder?.id}
-        roNumber={initialWorkOrder?.ro_number}
-        onReceive={handleReceiveQuotedWorkOrderPart}
+        onReceive={handleWorkOrderPartsReceived}
       />
       <MarkPartsOrderedModal
         open={modals.markOrdered}
