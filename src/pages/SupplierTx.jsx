@@ -414,9 +414,15 @@ export default function SupplierTxPage() {
         const dateB = new Date(b.invoice_date);
         if (dateA - dateB !== 0) return dateA - dateB;
         return (a.invoice_number || '').localeCompare(b.invoice_number || '', undefined, { numeric: true, sensitivity: 'base' });
-      }).map(invoice => ({ ...invoice, subtotal: Math.round(invoice.subtotal * 100) / 100, tax_amount: Math.round(invoice.tax_amount * 100) / 100, total_amount: Math.round(invoice.total_amount * 100) / 100, amount_paid: Math.round(invoice.amount_paid * 100) / 100, balance_due: Math.round(invoice.balance_due * 100) / 100, lines: invoice.lines.map(mapLine) }));
+      }).map(invoice => ({ ...invoice, subtotal: Math.round(invoice.subtotal * 100) / 100, tax_amount: Math.round(invoice.tax_amount * 100) / 100, total_amount: Math.round(invoice.total_amount * 100) / 100, amount_paid: Math.round(invoice.amount_paid * 100) / 100, balance_due: Math.round(invoice.balance_due * 100) / 100, lines: (invoice.lines || []).map(mapLine) }));
+      const formattedAllConceptualInvoices = (allInvoicesData || []).sort((a, b) => {
+        const dateA = new Date(a.invoice_date);
+        const dateB = new Date(b.invoice_date);
+        if (dateA - dateB !== 0) return dateA - dateB;
+        return (a.invoice_number || '').localeCompare(b.invoice_number || '', undefined, { numeric: true, sensitivity: 'base' });
+      }).map(invoice => ({ ...invoice, subtotal: Math.round(invoice.subtotal * 100) / 100, tax_amount: Math.round(invoice.tax_amount * 100) / 100, total_amount: Math.round(invoice.total_amount * 100) / 100, amount_paid: Math.round(invoice.amount_paid * 100) / 100, balance_due: Math.round(invoice.balance_due * 100) / 100, lines: (invoice.lines || []).map(mapLine) }));
       setConceptualInvoices(formattedConceptualInvoices);
-      setAllConceptualInvoices(allInvoicesData || []);
+      setAllConceptualInvoices(formattedAllConceptualInvoices);
       const roundedLines = enrichedLines.sort((a, b) => {
         const dateA = new Date(a.invoice_date);
         const dateB = new Date(a.invoice_date);
