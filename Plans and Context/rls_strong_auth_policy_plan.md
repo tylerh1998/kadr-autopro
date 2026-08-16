@@ -218,10 +218,19 @@
 - [x] Write migration: Category D (`storage.objects`, 3 staff buckets) — add restrictive gate
 - [x] Apply migration to dev (`sitihbdnuxifwibontcm`) — applied 2026-08-16, plus a same-day follow-up fix for `IssueReport` (see §6)
 - [x] Enroll a TOTP factor + passkey on a dev test account — done earlier (`test@kensauto.ca`, confirmed `aal2`)
-- [ ] Run all 7 dev verification steps above on `test.kensauto.ca`
-- [ ] Get your explicit go-ahead for production promotion
-- [ ] Apply migration to production (`hbcrwkmgsazqrvsrmxyr`)
-- [ ] Re-run steps 2, 4, 5 (the highest-risk checks) directly against production
+- [x] Steps 1, 3, 5, 7 — manually verified by you on `test.kensauto.ca`
+- [x] Step 2 (AAL1 blocked) — verified 2026-08-16 via [`scripts/verify-rls-checks.mjs`](scripts/verify-rls-checks.mjs): fresh no-MFA signup got 0 rows back from `Customer` (1,461 real rows) and `Employee` (9 real rows)
+- [x] Step 4 (anon denied) — verified 2026-08-16, same script: plain anon key got 0 rows back from `CustomerPortalStatement` (2 real rows), `CustomerPortalAudit` (51 real rows), and `Customer` (1,461 real rows, bonus check confirming the role-tighten fix too)
+- [x] Step 6 — verified 2026-08-16 via [`scripts/verify-userdevices-rls.mjs`](scripts/verify-userdevices-rls.mjs) without needing production or the myKADR UI: an AAL2 session's `UserDevices` insert succeeded (`201`); `verify_device_access()` (SECURITY DEFINER, anon-callable) returned `true`, confirming the PIN pre-auth check path is untouched; an AAL1-only session's insert was explicitly rejected (`403`, `"violates row-level security policy \"Requires strong auth\""`) — direct proof the "sudo mode is fake" gap (PIN setup previously enforced AAL2 client-side only) is now closed at the database level.
+
+**All 7 dev verification steps complete.** Dev implementation is fully verified. Only production promotion remains.
+- [x] Get your explicit go-ahead for production promotion
+- [x] Pre-apply safety check: re-queried production's live `pg_policies` state immediately before applying — confirmed it still matched the original assessment exactly (no drift since), so the migration's production-shape branches (Employee/UserDevices/IssueReport already correctly scoped, FiscalPeriod/CustomerPortalStatement in their known states) were verified accurate before running, not just assumed
+- [x] Apply migration to production (`hbcrwkmgsazqrvsrmxyr`) — applied 2026-08-16, clean, no errors
+- [x] Post-apply sweep on production (same "any table still granting `public`?" query used on dev) — only `flashcards` remains (intentionally out of scope, Category E); `get_advisors(security)` shows only the 2 expected INFO findings (`CustomerPortalAudit`/`CustomerPortalStatement`, correct intended state), nothing new
+- [x] Re-run steps 2, 4, 5 directly against production — done 2026-08-16 via [`scripts/verify-rls-checks-prod.mjs`](scripts/verify-rls-checks-prod.mjs): anon got 0 rows from `CustomerPortalStatement` (332 real rows), `CustomerPortalAudit` (1 real row), and `Customer` (1,463 real rows); a fresh no-MFA signup got 0 rows from `Customer`; a fresh AAL2 (throwaway signup + real TOTP enroll/verify) session got 5 real rows back from `FiscalPeriod` (6 total, `limit=5`) — direct live confirmation that Finding F1 is fixed on production, not just dev.
+
+**Plan complete.** Every assumption verified, every proposed change implemented, every verification step passed on both dev and production. Two throwaway test accounts exist on each project from the scripted checks (`rls-verify-*@kensauto.ca` on dev, `rls-verify-prod-*@kensauto.ca` on production) — unused, harmless, safe to delete from each project's Auth users list whenever convenient.
 
 ---
 
