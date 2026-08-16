@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Filter, FileText, Calendar, User as UserIcon, Car, RefreshCw, RotateCcw, Wrench, Clock, Users, AlertTriangle, CheckCircle, Link as LinkIcon, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Search, Filter, FileText, Calendar, User as UserIcon, Car, RefreshCw, Wrench, Clock, Users, AlertTriangle, CheckCircle, Link as LinkIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -45,9 +45,10 @@ export default function WorkOrdersPage() {
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-  const [showFlushConfirm, setShowFlushConfirm] = useState(false);
   const [showVoidConfirm, setShowVoidConfirm] = useState(false);
   const [voidTarget, setVoidTarget] = useState(null);
+  const [showClearLockConfirm, setShowClearLockConfirm] = useState(false);
+  const [clearLockTarget, setClearLockTarget] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   
   // WorkPRO state
@@ -993,27 +994,6 @@ export default function WorkOrdersPage() {
     }
   };
 
-  const handleFlushLocks = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('WorkOrder')
-        .update({ LockedByUser: null, locked_timestamp: null })
-        .not('LockedByUser', 'is', null)
-        .select('id');
-
-      if (error) throw new Error(error.message);
-      alert(`All work order locks have been flushed. (${data?.length || 0} flushed)`);
-      loadData();
-    } catch (error) {
-      console.error('Error flushing locks:', error);
-      alert('Failed to flush locks. Please try again.');
-    } finally {
-      setShowFlushConfirm(false);
-      setLoading(false);
-    }
-  };
-
   const handleVoidClick = (workOrder) => {
     setVoidTarget(workOrder);
     setShowVoidConfirm(true);
@@ -1035,6 +1015,31 @@ export default function WorkOrdersPage() {
     } finally {
       setShowVoidConfirm(false);
       setVoidTarget(null);
+    }
+  };
+
+  const handleClearLockClick = (workOrder) => {
+    setClearLockTarget(workOrder);
+    setShowClearLockConfirm(true);
+  };
+
+  const handleClearLockConfirm = async () => {
+    if (!clearLockTarget) return;
+
+    try {
+      const { error } = await supabase.rpc('set_workorder_lock', {
+        p_ro_number: clearLockTarget.ro_number,
+        p_action: 'force_release',
+        p_locked_by_user: currentUser?.email || '',
+      });
+      if (error) throw error;
+      loadData();
+    } catch (error) {
+      console.error('Error clearing work order lock:', error);
+      alert('Failed to clear lock. Please try again.');
+    } finally {
+      setShowClearLockConfirm(false);
+      setClearLockTarget(null);
     }
   };
 
@@ -1201,17 +1206,7 @@ export default function WorkOrdersPage() {
               <RefreshCw className={`w-4 h-4 mr-2 ${(loading || workPROLoading) ? 'animate-spin' : ''}`} />
               Refresh
             </Button>
-            
-
-              <Button
-                variant="destructive"
-                onClick={() => setShowFlushConfirm(true)}
-                className="bg-red-600 hover:bg-red-700 whitespace-nowrap"
-              >
-                <RotateCcw className="w-4 h-4 mr-2" />
-                Flush Locks
-              </Button>
-            <Button 
+            <Button
               onClick={handleCreateCounterSale}
               className="bg-green-600 hover:bg-green-700 whitespace-nowrap"
             >
@@ -1235,27 +1230,6 @@ export default function WorkOrdersPage() {
           </div>
         </div>
 
-        {/* Flush Locks Confirmation Dialog */}
-        <Dialog open={showFlushConfirm} onOpenChange={setShowFlushConfirm}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Confirm Flush All Locks</DialogTitle>
-              <DialogDescription className="text-red-600 dark:text-red-400 font-medium">
-                This will unlock all work orders. Progress of any unsaved work orders may not be saved. 
-                Verify that all open work orders are saved and closed across the platform before executing this.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setShowFlushConfirm(false)}>
-                Cancel
-              </Button>
-              <Button variant="destructive" onClick={handleFlushLocks}>
-                Confirm
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
         {/* Void/Expire Confirmation Dialog */}
         <Dialog open={showVoidConfirm} onOpenChange={setShowVoidConfirm}>
           <DialogContent>
@@ -1273,6 +1247,28 @@ export default function WorkOrdersPage() {
               </Button>
               <Button variant="destructive" onClick={handleVoidConfirm}>
                 Confirm Void
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Clear Lock Confirmation Dialog */}
+        <Dialog open={showClearLockConfirm} onOpenChange={setShowClearLockConfirm}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirm Clear Lock</DialogTitle>
+              <DialogDescription className="text-red-600 dark:text-red-400 font-medium">
+                This will unlock {clearLockTarget?.ro_number ? `Work Order ${clearLockTarget.ro_number}` : 'this work order'}.
+                Progress of any unsaved work in it may not be saved.
+                Verify no one is actively using it before proceeding.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowClearLockConfirm(false)}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleClearLockConfirm}>
+                Confirm
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1479,6 +1475,7 @@ export default function WorkOrdersPage() {
                 onEdit={handleEdit}
                 onStatusUpdate={handleStatusUpdate}
                 onVoid={handleVoidClick}
+                onClearLock={handleClearLockClick}
                 currentUser={currentUser}
                 workOrderStatuses={workOrderStatuses}
                 currentSort={estimatesSort}
@@ -1503,6 +1500,7 @@ export default function WorkOrdersPage() {
                 onEdit={handleEdit}
                 onStatusUpdate={handleStatusUpdate}
                 onVoid={handleVoidClick}
+                onClearLock={handleClearLockClick}
                 currentUser={currentUser}
                 workOrderStatuses={workOrderStatuses}
                 currentSort={wipSort}
@@ -1521,6 +1519,7 @@ export default function WorkOrdersPage() {
                   onEdit={handleEdit}
                   onStatusUpdate={handleStatusUpdate}
                   onVoid={handleVoidClick}
+                onClearLock={handleClearLockClick}
                   currentUser={currentUser}
                   workOrderStatuses={workOrderStatuses}
                   currentSort={invoicesSort}

@@ -31,6 +31,46 @@ export default function useDocumentEditorSave({
     setSaving(true);
 
     try {
+      // Lock-ownership check FIRST, before any inventory-affecting work below (deleted-line
+      // replenishment, pending returns, autopro-WOBulkGetParts) runs. A stolen/contested lock
+      // must be caught before any side effect fires, not after - see implementation_plan_wo_locking.md.
+      let refreshedLockTimestamp = workOrder.locked_timestamp;
+      if (mode === 'work_order' && !updatedDetails.hasOwnProperty('LockedByUser') && lockAcquiredRef.current) {
+        const { data: lockResult, error: lockError } = await supabase.rpc('set_workorder_lock', {
+          p_ro_number: workOrder.ro_number,
+          p_action: 'apply',
+          p_locked_by_user: currentUser?.email,
+        });
+        if (lockError) console.error('Lock refresh error:', lockError);
+
+        if (lockResult && lockResult.LockedByUser && lockResult.LockedByUser !== currentUser?.email) {
+          if (saveOptions.isBackgroundSave) {
+            // Autosave: fail silently, no dialog. The caller (DocumentEditor.jsx's autosave
+            // effect) surfaces a persistent banner instead of ever interrupting the user.
+            if (saveOptions.throwOnError) throw new Error(`Work order is locked by ${lockResult.LockedByUser}`);
+            return { success: false, lockConflict: true, lockedByUser: lockResult.LockedByUser };
+          }
+
+          const proceed = window.confirm(
+            `${lockResult.LockedByUser} currently holds this Work Order. Saving will overwrite any changes they've made since you started. Save anyway?`
+          );
+          if (!proceed) {
+            if (saveOptions.throwOnError) throw new Error('Save cancelled - work order is locked by another user');
+            return { success: false, cancelled: true };
+          }
+
+          const { data: forcedLockResult, error: forceLockError } = await supabase.rpc('set_workorder_lock', {
+            p_ro_number: workOrder.ro_number,
+            p_action: 'force_apply',
+            p_locked_by_user: currentUser?.email,
+          });
+          if (forceLockError) console.error('Force lock error:', forceLockError);
+          refreshedLockTimestamp = forcedLockResult?.locked_timestamp || refreshedLockTimestamp;
+        } else {
+          refreshedLockTimestamp = lockResult?.locked_timestamp || refreshedLockTimestamp;
+        }
+      }
+
       let workingLineItems = lineItemsOverride || lineItems;
       if (updatedDetails.default_taxable !== undefined && updatedDetails.default_taxable !== workOrder?.default_taxable) {
         workingLineItems = lineItems.map(line => ({
@@ -165,16 +205,8 @@ export default function useDocumentEditorSave({
       });
       console.log('DEBUG: Final API payload for WorkOrder update:', apiPayload);
 
-      if (mode === 'work_order' && !updatedDetails.hasOwnProperty('LockedByUser') && lockAcquiredRef.current) {
-        const { data: lockResult, error: lockError } = await supabase.rpc('set_workorder_lock', {
-          p_ro_number: workOrder.ro_number,
-          p_action: 'apply',
-          p_locked_by_user: currentUser?.email,
-        });
-        if (lockError) console.error('Lock refresh error:', lockError);
-        apiPayload.locked_timestamp = lockResult?.locked_timestamp || workOrder.locked_timestamp;
-        workOrderData.locked_timestamp = apiPayload.locked_timestamp;
-      }
+      apiPayload.locked_timestamp = refreshedLockTimestamp;
+      workOrderData.locked_timestamp = refreshedLockTimestamp;
 
       const functionPayload = {
         ...apiPayload,

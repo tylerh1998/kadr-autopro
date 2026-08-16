@@ -6,6 +6,7 @@ import WorkOrderForm from './form/WorkOrderForm';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 import { appParams } from '@/lib/app-params';
+import { releaseWorkOrderLockKeepAlive } from './utils/workOrderLockUtils';
 import { prepareWorkOrderSavePayload } from '@/components/work-orders/utils/buildWorkOrderSavePayload';
 import {
   Save,
@@ -136,6 +137,9 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   const isClosingAfterSaveRef = useRef(false);
   const backgroundSyncStartedRef = useRef(false);
   const [lockError, setLockError] = useState(null);
+  // Set when autosave detects someone else now holds the lock - drives a persistent, non-blocking
+  // banner rather than ever interrupting the user with a dialog. Cleared once a save succeeds again.
+  const [lockConflictUser, setLockConflictUser] = useState(null);
 
   // Add state for WorkPRO project data and new modals
   const [workPROProject, setWorkPROProject] = useState(null);
@@ -160,6 +164,9 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   const previousLineItemsRef = useRef([]);
   // Ref to track latest line items to prevent race conditions during save
   const latestLineItemsRef = useRef(lineItems);
+  // Ref to track the latest workOrder without making effects re-fire on every save (setWorkOrder
+  // creates a new object identity on every save/autosave - see the lock-release effect below).
+  const workOrderRef = useRef(workOrder);
 
   // Helper to handle processed returns to prevent double-dipping in handleSave
   const handleLineItemProcessed = useCallback((lineId) => {
@@ -171,6 +178,10 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   useEffect(() => {
     latestLineItemsRef.current = lineItems;
   }, [lineItems]);
+
+  useEffect(() => {
+    workOrderRef.current = workOrder;
+  }, [workOrder]);
 
   // Initialize previousLineItemsRef on first load of valid data to enable deletion tracking
   useEffect(() => {
@@ -283,15 +294,11 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       const shadowBody = (shadowStorageKey && window.localStorage.getItem(shadowStorageKey)) || buildShadowSaveRequest();
       if (shadowBody) {
         postKeepAliveFunction('autopro-saveworkorderdata', shadowBody);
-        return;
       }
     }
 
     if (lockAcquiredRef.current) {
-      postKeepAliveFunction('manageWorkOrderLock', JSON.stringify({
-        ro_number: workOrder.ro_number,
-        action: 'release',
-      }));
+      releaseWorkOrderLockKeepAlive(workOrder.ro_number);
     }
   }, [workOrder?.ro_number, hasUnsavedChanges, shadowStorageKey, buildShadowSaveRequest, postKeepAliveFunction]);
 
@@ -617,7 +624,14 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     };
   }, [mode, hasUnsavedChanges, dispatchBackgroundSaveOrRelease]);
 
-  // Release lock on unmount
+  // Release lock on unmount only - NOT on every workOrder content update. workOrder gets a new
+  // object identity on every save/autosave (setWorkOrder always spreads into a new object), so
+  // depending on the whole object here (as this effect used to) tore this effect down and re-ran
+  // its cleanup after every single save, releasing the lock and flipping lockAcquiredRef.current
+  // to false within seconds of opening a Work Order - silently letting anyone else acquire it,
+  // and (once the Phase 2 save-gate started depending on lockAcquiredRef.current) silently
+  // disabling that gate too. Depending on workOrder?.id (stable across saves to the same record)
+  // and reading the live value via workOrderRef.current at actual cleanup time fixes both.
   useEffect(() => {
     const currentWorkOrderId = workOrder?.id;
     const currentUserEmail = currentUser?.email;
@@ -628,7 +642,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       }
 
       try {
-        const freshWorkOrder = workOrder;
+        const freshWorkOrder = workOrderRef.current;
 
         if (freshWorkOrder && freshWorkOrder.LockedByUser === currentUserEmail) {
           const { error: lockError } = await supabase.rpc('set_workorder_lock', {
@@ -647,7 +661,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     return () => {
       releaseLock();
     };
-  }, [workOrder?.id, currentUser?.email, useFunctionData, workOrder]);
+  }, [workOrder?.id, currentUser?.email, useFunctionData]);
 
 
 
@@ -1029,9 +1043,24 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       return;
     }
 
+    // Early lock check, before the multi-step conversion wizard even starts - catches the
+    // conflict at the first click rather than only after the user has invested several steps.
+    if (currentUser && lockAcquiredRef.current) {
+      const { data: lockCheckResult, error: lockCheckError } = await supabase.rpc('set_workorder_lock', {
+        p_ro_number: workOrder.ro_number,
+        p_action: 'apply',
+        p_locked_by_user: currentUser.email,
+      });
+      if (lockCheckError) console.error('Lock check error:', lockCheckError);
+      if (lockCheckResult && lockCheckResult.LockedByUser && lockCheckResult.LockedByUser !== currentUser.email) {
+        alert(`This Work Order is currently open by ${lockCheckResult.LockedByUser}. You can't begin invoice conversion until it's released.`);
+        return;
+      }
+    }
+
     if(!window.confirm('Convert to Invoice?'))return;
     workOrder.vehicle_id==='69562a182efce2529204db01'?(await handleSave({}, false, null, { should_keep_lock: true }),setInvoiceConversionPhase(3)):setInvoiceConversionPhase(1);
-  }, [workOrder, lineItems]);
+  }, [workOrder, lineItems, currentUser]);
 
   const handleHeaderSaveClick = useCallback(async () => {
     if (saving) return;
@@ -1120,8 +1149,13 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   useEffect(() => {
     if (!hasUnsavedChanges || saving || !lockCheckComplete || !workOrder?.id) return;
 
-    const autoSaveTimer = window.setTimeout(() => {
-      handleSave({}, false, null, { silentError: true, should_keep_lock: true });
+    const autoSaveTimer = window.setTimeout(async () => {
+      const result = await handleSave({}, false, null, { silentError: true, should_keep_lock: true, isBackgroundSave: true });
+      if (result?.lockConflict) {
+        setLockConflictUser(result.lockedByUser);
+      } else if (result?.success) {
+        setLockConflictUser(null);
+      }
     }, 2000);
 
     return () => window.clearTimeout(autoSaveTimer);
@@ -1546,6 +1580,11 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       </style>
 
       <div className="min-h-screen screen-only-area">
+        {lockConflictUser && (
+          <div className="sticky top-0 z-30 bg-amber-500 dark:bg-amber-600 text-white px-4 py-2 text-sm font-medium text-center">
+            {lockConflictUser} now holds this Work Order — your changes aren't being auto-saved. Click Save to review.
+          </div>
+        )}
         <div className="bg-white dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 px-6 py-3 sticky top-0 z-20">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-6">

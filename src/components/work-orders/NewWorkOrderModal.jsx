@@ -462,7 +462,7 @@ export default function NewWorkOrderModal({
 
       {/* Customer Form Modal */}
       <Dialog open={showCustomerForm} onOpenChange={setShowCustomerForm}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <CustomerForm
             onSubmit={handleNewCustomerSubmit}
             onCancel={() => setShowCustomerForm(false)}
@@ -472,7 +472,7 @@ export default function NewWorkOrderModal({
 
       {/* Vehicle Form Modal */}
       <Dialog open={showVehicleForm} onOpenChange={setShowVehicleForm}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
           <VehicleForm
             customers={[selectedCustomer]}
             vehicle={useMemo(() => ({ customer_id: selectedCustomer?.id }), [selectedCustomer?.id])}

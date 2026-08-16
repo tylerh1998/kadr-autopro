@@ -36,6 +36,16 @@ serve(async (req) => {
       }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
+    // Lock-ownership backstop - independent of ROCoreModal.jsx's own client-side check.
+    const { data: lockCheckWorkOrder } = await supabaseAdmin
+      .from('WorkOrder')
+      .select('LockedByUser')
+      .eq('id', normalizedWorkOrderId)
+      .maybeSingle();
+    if (lockCheckWorkOrder?.LockedByUser && lockCheckWorkOrder.LockedByUser !== authData.user.email) {
+      return new Response(JSON.stringify({ success: false, error: `Work order is currently locked by ${lockCheckWorkOrder.LockedByUser}` }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
     const { data: matchingRecords, error: fetchError } = await supabaseAdmin
       .from('InventoryReturn')
       .select('*')

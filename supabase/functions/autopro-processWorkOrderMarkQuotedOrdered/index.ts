@@ -64,6 +64,14 @@ serve(async (req) => {
       });
     }
 
+    // Lock-ownership backstop - independent of MarkPartsOrderedModal.jsx's own client-side check.
+    if (workOrder.LockedByUser && workOrder.LockedByUser !== user.email) {
+      return new Response(JSON.stringify({ error: `Work order is currently locked by ${workOrder.LockedByUser}` }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      });
+    }
+
     let lineItems = [];
     try {
       lineItems = typeof workOrder.line_items === 'string'

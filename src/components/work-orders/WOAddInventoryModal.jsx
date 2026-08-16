@@ -58,6 +58,11 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder, m
   const partNumberRef = useRef(null);
   const descriptionRef = useRef(null);
 
+  // Lock-ownership gate - checked fresh on open, and again right before committing, since the
+  // lock can change while this modal is sitting open.
+  const [lockBlocked, setLockBlocked] = useState(false);
+  const [lockHolder, setLockHolder] = useState('');
+
   useEffect(() => {
     if (open) {
       loadDropdownData();
@@ -65,6 +70,34 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder, m
       setBatchItems([]);
     }
   }, [open]);
+
+  useEffect(() => {
+    const checkLock = async () => {
+      if (!open || !workOrder?.id) {
+        setLockBlocked(false);
+        setLockHolder('');
+        return;
+      }
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        const { data: freshWorkOrder } = await supabase
+          .from('WorkOrder')
+          .select('LockedByUser')
+          .eq('id', workOrder.id)
+          .maybeSingle();
+        if (freshWorkOrder?.LockedByUser && freshWorkOrder.LockedByUser !== authUser?.email) {
+          setLockBlocked(true);
+          setLockHolder(freshWorkOrder.LockedByUser);
+        } else {
+          setLockBlocked(false);
+          setLockHolder('');
+        }
+      } catch (error) {
+        console.error('Error checking work order lock:', error);
+      }
+    };
+    checkLock();
+  }, [open, workOrder?.id]);
   
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -448,6 +481,27 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder, m
     if (missingTireTaxItems.length > 0) {
         const proceed = window.confirm(`WARNING: The following parts appear to be tires but are missing a tire tax / enviro fee tag-along:\n\n${missingTireTaxItems.join('\n')}\n\nDo you want to proceed without adding the tax?`);
         if (!proceed) return;
+    }
+
+    // Re-check lock ownership right before committing - it may have changed while this modal
+    // was open. Batched items are preserved either way, nothing is lost on a block.
+    if (workOrder?.id) {
+        try {
+            const { data: { user: authUser } } = await supabase.auth.getUser();
+            const { data: freshWorkOrder } = await supabase
+                .from('WorkOrder')
+                .select('LockedByUser')
+                .eq('id', workOrder.id)
+                .maybeSingle();
+            if (freshWorkOrder?.LockedByUser && freshWorkOrder.LockedByUser !== authUser?.email) {
+                setLockBlocked(true);
+                setLockHolder(freshWorkOrder.LockedByUser);
+                alert(`This Work Order is now held by ${freshWorkOrder.LockedByUser}. Your batched items are still shown below - retry once you regain access.`);
+                return;
+            }
+        } catch (error) {
+            console.error('Error re-checking work order lock before commit:', error);
+        }
     }
 
     setProcessingBatch(true);
@@ -855,6 +909,11 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder, m
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto p-6">
+            {lockBlocked && (
+              <div className="mb-4 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-md text-sm font-medium">
+                This Work Order is currently held by {lockHolder} — you can't add parts until it's released.
+              </div>
+            )}
             <form onSubmit={handleAddToBatch} className="space-y-4">
             
             {/* Supplier Row */}
@@ -1291,7 +1350,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder, m
                 )}
                 <Button
                     onClick={() => handleProcessBatch('quoted')}
-                    disabled={batchItems.length === 0 || processingBatch}
+                    disabled={batchItems.length === 0 || processingBatch || lockBlocked}
                     variant="outline"
                     className="min-w-[170px] border-rose-300 text-rose-700 hover:bg-rose-50 dark:border-rose-700 dark:text-rose-400 dark:hover:bg-rose-900/20"
                 >
@@ -1310,7 +1369,7 @@ export default function WOAddInventoryModal({ open, onClose, onAdd, workOrder, m
                 {mode !== 'estimate' && (
                     <Button
                         onClick={() => handleProcessBatch('on_order')}
-                        disabled={batchItems.length === 0 || processingBatch}
+                        disabled={batchItems.length === 0 || processingBatch || lockBlocked}
                         className="bg-green-600 hover:bg-green-700 text-white min-w-[200px]"
                     >
                         {processingBatch ? (

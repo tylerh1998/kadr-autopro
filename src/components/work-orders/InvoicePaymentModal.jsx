@@ -42,6 +42,61 @@ export default function InvoicePaymentModal({
   const [invoiceDate, setInvoiceDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [invoiceDateLocked, setInvoiceDateLocked] = useState(false);
 
+  // Lock-ownership gate - checked fresh on open, and again right before committing, since the
+  // lock can change while this modal is sitting open.
+  const [lockBlocked, setLockBlocked] = useState(false);
+  const [lockHolder, setLockHolder] = useState('');
+
+  useEffect(() => {
+    const checkLock = async () => {
+      if (!open || !workOrder?.id) {
+        setLockBlocked(false);
+        setLockHolder('');
+        return;
+      }
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        const { data: freshWorkOrder } = await supabase
+          .from('WorkOrder')
+          .select('LockedByUser')
+          .eq('id', workOrder.id)
+          .maybeSingle();
+        if (freshWorkOrder?.LockedByUser && freshWorkOrder.LockedByUser !== authUser?.email) {
+          setLockBlocked(true);
+          setLockHolder(freshWorkOrder.LockedByUser);
+        } else {
+          setLockBlocked(false);
+          setLockHolder('');
+        }
+      } catch (error) {
+        console.error('Error checking work order lock:', error);
+      }
+    };
+    checkLock();
+  }, [open, workOrder?.id]);
+
+  const checkLockBeforeCommit = async () => {
+    if (!workOrder?.id) return true;
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const { data: freshWorkOrder } = await supabase
+        .from('WorkOrder')
+        .select('LockedByUser')
+        .eq('id', workOrder.id)
+        .maybeSingle();
+      if (freshWorkOrder?.LockedByUser && freshWorkOrder.LockedByUser !== authUser?.email) {
+        setLockBlocked(true);
+        setLockHolder(freshWorkOrder.LockedByUser);
+        alert(`This Work Order is now held by ${freshWorkOrder.LockedByUser}. Retry once you regain access.`);
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error('Error re-checking work order lock before commit:', error);
+      return true;
+    }
+  };
+
   // Helper to get customer display name
   const getCustomerDisplayName = () => {
     if (!customer) return '';
@@ -112,7 +167,7 @@ export default function InvoicePaymentModal({
   };
 
   const handleAddPayment = async () => {
-
+    if (!(await checkLockBeforeCommit())) return;
 
     try {
       setLoading(true);
@@ -193,6 +248,8 @@ export default function InvoicePaymentModal({
       return;
     }
 
+    if (!(await checkLockBeforeCommit())) return;
+
     try {
       setLoading(true);
 
@@ -268,6 +325,11 @@ export default function InvoicePaymentModal({
           </DialogDescription>
         </DialogHeader>
 
+        {lockBlocked && (
+          <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-md text-sm font-medium mt-4">
+            This Work Order is currently held by {lockHolder} — payments can't be processed until it's released.
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
           {/* Add Payment Form */}
           <div className="space-y-4 p-4 border rounded-lg">
@@ -353,7 +415,7 @@ export default function InvoicePaymentModal({
                 </div>
               </>
             )}
-            <Button onClick={handleAddPayment} className="w-full" disabled={loading || !newPayment.method}>
+            <Button onClick={handleAddPayment} className="w-full" disabled={loading || !newPayment.method || lockBlocked}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <PlusCircle className="w-4 h-4 mr-2" />} Add Payment
             </Button>
           </div>
@@ -418,7 +480,7 @@ export default function InvoicePaymentModal({
                           size="icon"
                           onClick={() => handleRemovePayment(payment)}
                           className="text-red-500 hover:text-red-700"
-                          disabled={loading}
+                          disabled={loading || lockBlocked}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>

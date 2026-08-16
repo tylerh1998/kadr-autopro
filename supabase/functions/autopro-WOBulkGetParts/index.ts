@@ -39,6 +39,20 @@ serve(async (req) => {
       throw new Error("Missing or invalid items array");
     }
 
+    // Lock-ownership backstop: this function is reachable both from the general save flow
+    // (already gated client-side) and directly from GetPartModal.jsx's own submit handler -
+    // verify independently here so neither path can write while someone else holds the lock.
+    if (workOrderId || roNumber) {
+      const lockQuery = supabase.from('WorkOrder').select('LockedByUser').limit(1);
+      const { data: lockCheckWorkOrder } = roNumber
+        ? await lockQuery.eq('ro_number', roNumber).maybeSingle()
+        : await lockQuery.eq('id', workOrderId).maybeSingle();
+
+      if (lockCheckWorkOrder?.LockedByUser && lockCheckWorkOrder.LockedByUser !== user.email) {
+        throw new Error(`Work order is currently locked by ${lockCheckWorkOrder.LockedByUser}`);
+      }
+    }
+
     const results = [];
     const debug_errors = [];
 

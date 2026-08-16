@@ -21,6 +21,12 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState('');
 
+  // Lock-ownership gate - checked fresh on open, and again right before committing, since the
+  // lock can change while this modal is sitting open. Never trust the `workOrder` prop's own
+  // LockedByUser field, which may be stale relative to the moment this modal actually opened.
+  const [lockBlocked, setLockBlocked] = useState(false);
+  const [lockHolder, setLockHolder] = useState('');
+
   // Quantity prompt dialog state
   const [showQuantityPrompt, setShowQuantityPrompt] = useState(false);
   const [partForQuantityPrompt, setPartForQuantityPrompt] = useState(null);
@@ -64,6 +70,34 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
       setContextPromptHandled(false);
     }
   }, [open]);
+
+  useEffect(() => {
+    const checkLock = async () => {
+      if (!open || !workOrder?.id) {
+        setLockBlocked(false);
+        setLockHolder('');
+        return;
+      }
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        const { data: freshWorkOrder } = await supabase
+          .from('WorkOrder')
+          .select('LockedByUser')
+          .eq('id', workOrder.id)
+          .maybeSingle();
+        if (freshWorkOrder?.LockedByUser && freshWorkOrder.LockedByUser !== authUser?.email) {
+          setLockBlocked(true);
+          setLockHolder(freshWorkOrder.LockedByUser);
+        } else {
+          setLockBlocked(false);
+          setLockHolder('');
+        }
+      } catch (error) {
+        console.error('Error checking work order lock:', error);
+      }
+    };
+    checkLock();
+  }, [open, workOrder?.id]);
 
   // Handle contextLineItem auto-selection
   useEffect(() => {
@@ -255,6 +289,26 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
       alert('Please select at least one part to add.');
       return;
     }
+
+    // Re-check lock ownership right before committing - it may have changed while this modal
+    // was open. Selected parts are preserved either way, nothing is lost on a block.
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const { data: freshWorkOrder } = await supabase
+        .from('WorkOrder')
+        .select('LockedByUser')
+        .eq('id', workOrder.id)
+        .maybeSingle();
+      if (freshWorkOrder?.LockedByUser && freshWorkOrder.LockedByUser !== authUser?.email) {
+        setLockBlocked(true);
+        setLockHolder(freshWorkOrder.LockedByUser);
+        alert(`This Work Order is now held by ${freshWorkOrder.LockedByUser}. Your selected parts are still shown below - retry once you regain access.`);
+        return;
+      }
+    } catch (error) {
+      console.error('Error re-checking work order lock before commit:', error);
+    }
+
     setLoading(true);
 
     const partsToAdd = [];
@@ -493,6 +547,12 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
             </DialogTitle>
           </DialogHeader>
 
+          {lockBlocked && (
+            <div className="bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 px-4 py-2 rounded-md text-sm font-medium">
+              This Work Order is currently held by {lockHolder} — you can't get parts until it's released.
+            </div>
+          )}
+
           <div className="flex-1 overflow-hidden flex flex-col gap-4">
             {/* Search Bar */}
             <div className="relative">
@@ -688,7 +748,7 @@ export default function GetPartModal({ open, onClose, onAddParts, contextLineIte
                 </Button>
                 <Button
                   onClick={handleAddSelectedParts}
-                  disabled={selectedParts.length === 0 || loading}
+                  disabled={selectedParts.length === 0 || loading || lockBlocked}
                   className="bg-blue-600 hover:bg-blue-700"
                 >
                   <Plus className="w-4 h-4 mr-2" />
