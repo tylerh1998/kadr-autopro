@@ -23,6 +23,7 @@ export default function ReceivePartModal({ open, onClose, lineItems, workOrderId
       if (!open || !workOrderId) {
         setLockBlocked(false);
         setLockHolder('');
+        setLoading(false);
         return;
       }
       try {
