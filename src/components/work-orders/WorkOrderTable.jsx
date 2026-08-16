@@ -1,8 +1,9 @@
 import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { 
+import {
   Lock,
+  LockOpen,
   DollarSign,
   ArrowUpDown,
   ArrowUp,
@@ -71,7 +72,8 @@ export default function WorkOrderTable({
   workOrderStatuses,
   currentSort,
   onSortChange,
-  onVoid
+  onVoid,
+  onClearLock
 }) {
   const getCustomerName = (workOrder) => {
     const customer = workOrder.Customer || customers.find(c => c.id === workOrder.customer_id);
@@ -323,7 +325,7 @@ export default function WorkOrderTable({
                       {workOrder.stage === 'estimate' && onVoid && (
                         <>
                           <ContextMenuSeparator />
-                          <ContextMenuItem 
+                          <ContextMenuItem
                             onClick={(e) => {
                               e.stopPropagation();
                               onVoid(workOrder);
@@ -332,6 +334,21 @@ export default function WorkOrderTable({
                           >
                             <Ban className="mr-2 h-4 w-4" />
                             Expired/Void
+                          </ContextMenuItem>
+                        </>
+                      )}
+                      {isLocked && onClearLock && (
+                        <>
+                          <ContextMenuSeparator />
+                          <ContextMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onClearLock(workOrder);
+                            }}
+                            className="bg-red-600 text-white focus:bg-red-700 focus:text-white dark:bg-red-600 dark:text-white dark:focus:bg-red-700"
+                          >
+                            <LockOpen className="mr-2 h-4 w-4" />
+                            Clear Lock
                           </ContextMenuItem>
                         </>
                       )}

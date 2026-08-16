@@ -173,7 +173,7 @@ function WorkOrderList({
   // Default to table immediately; only explicit true shows cards.
   if (currentUser?.wo_cards !== true) {
     return (
-      <WorkOrderTable 
+      <WorkOrderTable
         workOrders={workOrders}
         customers={customers}
         vehicles={vehicles}
@@ -183,6 +183,7 @@ function WorkOrderList({
         currentSort={currentSort}
         onSortChange={onSortChange}
         onVoid={onVoid}
+        onClearLock={onClearLock}
       />
     );
   }
