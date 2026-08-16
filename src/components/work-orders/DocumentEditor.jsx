@@ -164,6 +164,9 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   const previousLineItemsRef = useRef([]);
   // Ref to track latest line items to prevent race conditions during save
   const latestLineItemsRef = useRef(lineItems);
+  // Ref to track the latest workOrder without making effects re-fire on every save (setWorkOrder
+  // creates a new object identity on every save/autosave - see the lock-release effect below).
+  const workOrderRef = useRef(workOrder);
 
   // Helper to handle processed returns to prevent double-dipping in handleSave
   const handleLineItemProcessed = useCallback((lineId) => {
@@ -175,6 +178,10 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   useEffect(() => {
     latestLineItemsRef.current = lineItems;
   }, [lineItems]);
+
+  useEffect(() => {
+    workOrderRef.current = workOrder;
+  }, [workOrder]);
 
   // Initialize previousLineItemsRef on first load of valid data to enable deletion tracking
   useEffect(() => {
@@ -617,7 +624,14 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     };
   }, [mode, hasUnsavedChanges, dispatchBackgroundSaveOrRelease]);
 
-  // Release lock on unmount
+  // Release lock on unmount only - NOT on every workOrder content update. workOrder gets a new
+  // object identity on every save/autosave (setWorkOrder always spreads into a new object), so
+  // depending on the whole object here (as this effect used to) tore this effect down and re-ran
+  // its cleanup after every single save, releasing the lock and flipping lockAcquiredRef.current
+  // to false within seconds of opening a Work Order - silently letting anyone else acquire it,
+  // and (once the Phase 2 save-gate started depending on lockAcquiredRef.current) silently
+  // disabling that gate too. Depending on workOrder?.id (stable across saves to the same record)
+  // and reading the live value via workOrderRef.current at actual cleanup time fixes both.
   useEffect(() => {
     const currentWorkOrderId = workOrder?.id;
     const currentUserEmail = currentUser?.email;
@@ -628,7 +642,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
       }
 
       try {
-        const freshWorkOrder = workOrder;
+        const freshWorkOrder = workOrderRef.current;
 
         if (freshWorkOrder && freshWorkOrder.LockedByUser === currentUserEmail) {
           const { error: lockError } = await supabase.rpc('set_workorder_lock', {
@@ -647,7 +661,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     return () => {
       releaseLock();
     };
-  }, [workOrder?.id, currentUser?.email, useFunctionData, workOrder]);
+  }, [workOrder?.id, currentUser?.email, useFunctionData]);
 
 
 
