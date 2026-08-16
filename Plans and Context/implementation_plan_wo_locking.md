@@ -26,7 +26,7 @@ All three call their edge function directly from the modal's own handler — non
 
 **This turns out to protect a lot "for free."** Once the ownership check sits at the top of `handleSave`, *every* call site inherits it automatically — header Save/Close, payment add/delete, stage changes, customer/vehicle updates, send-email pre-save, estimate conversion, and every step of the invoice-conversion wizard (including its final, GL-triggering step). The only thing that still needs its own dedicated, *early* check is `handleConvertToInvoice` — because the conversion wizard is multiple steps long, and catching a conflict at the very first click (before the user invests three steps of time) is meaningfully better UX than only catching it at the final save.
 
-**`set_workorder_lock` does not exist on production today** — confirmed directly (`pg_proc` query against `hbcrwkmgsazqrvsrmxyr` returned zero rows), only on dev (`sitihbdnuxifwibontcm`, confirmed via the same query, contents match the archived design exactly, no drift). It also has no matching file anywhere in `supabase/migrations/` — a known, named gap in this project's own conventions (`master_context.md` §3: "Every live Postgres function/RPC change made via `apply_migration` needs a matching `.sql` file"). Phase 5 fixes both: a migration file is written for the very first time, and the function is created (not just deployed) on production.
+**`set_workorder_lock` does not exist on production today** — confirmed directly (`pg_proc` query against `hbcrwkmgsazqrvsrmxyr` returned zero rows), only on dev (`sitihbdnuxifwibontcm`, confirmed via the same query, contents match the archived design exactly, no drift). It also has no matching file anywhere in `supabase/migrations/` — a known, named gap in this project's own conventions (`master_context.md` §3: "Every live Postgres function/RPC change made via `apply_migration` needs a matching `.sql` file"). Phase 6 fixes both: a migration file is written for the very first time, and the function is created (not just deployed) on production.
 
 **Tab-close lock release is currently dead code, for two independent, compounding reasons**, both confirmed by direct reading of `DocumentEditor.jsx`:
 1. `postKeepAliveFunction` gates on `appParams?.token` (`src/lib/app-params.js`), a legacy Base44-era value the current native-auth login flow never populates.
@@ -35,6 +35,8 @@ All three call their edge function directly from the modal's own handler — non
 The working, already-proven pattern for this exact problem exists one module over: `releaseSupplierLockKeepAlive` (`src/components/utils/supplierLockUtils.jsx`) + `autopro-releaseSupplierLock` — correct URL, correct token (`window.__SUPABASE_JWT__`), a small dedicated edge function that resolves the caller from the JWT itself and does one atomic conditional update. Phase 1 copies this pattern exactly for Work Orders, as its own small addition — **it does not touch or attempt to fix `dispatchBackgroundSaveOrRelease`'s separate "shadow save of unsaved changes" mechanism**, which has the same URL bug but is a distinct, pre-existing feature outside this plan's scope (see Risk #6).
 
 **One deliberate behavior change, called out explicitly rather than left as a side effect:** today, `dispatchBackgroundSaveOrRelease` only *attempts* a lock release when there are *no* unsaved changes (the `hasUnsavedChanges` branch returns early into the broken shadow-save path instead). After this plan, the lock-release keepalive fires unconditionally on `beforeunload`/`pagehide` whenever the lock was acquired — regardless of unsaved-changes state — because holding the lock hostage doesn't protect unsaved work (the existing `beforeunload` confirm dialog already covers that), and only makes the locking problem worse.
+
+**Scope expansion (2026-08-15), after Phases 1-4 were confirmed working live:** with the original five checkpoints (Invoice conversion, Get Part, Receive Parts, Save, autosave) all tested and passing, three more decoupled/immediate-commit actions were identified as needing the same treatment: **Add Part** (`WOAddInventoryModal.jsx`, aliased `AddPartToWOModal` — writes `InventoryItem`/`InventoryAuditLog` and calls `update_inventory_with_audit` directly from the browser, no edge function involved), **Payments** (`AdvancePaymentModal.jsx` + `InvoicePaymentModal.jsx` — both insert a `CustomerPayments` row via the parent's `onProcessPayment` callback *before* that callback's own internal `handleSave` call resolves, and `AdvancePaymentModal.jsx` separately inserts `GLTransaction` rows *after*, unconditionally — meaning a lock conflict here could previously let a real payment and GL entries land regardless of any warning), and **Cores** (`ROCoreModal.jsx` — calls `autopro-returnCoreToWO` directly or inserts an `InventoryReturn` row, decoupled from save). One deliberate asymmetry: `update_inventory_with_audit` (used by Add Part) is a shared RPC used by many non-Work-Order features (supplier receiving, manual adjustments) — a lock check baked into it would incorrectly block unrelated inventory work, so Add Part gets a client-side-only gate, no server backstop, same reasoning applied to the "customer core returned" branch of Cores (a direct client insert, no dedicated edge function to backstop). `autopro-returnCoreToWO` (the "return to work order" branch of Cores) *is* a dedicated edge function and gets the full client+server treatment like Phase 3's three actions.
 
 **Scope, confirmed with you across this conversation, nothing left open:**
 1. Remove automatic stale-timeout lock stealing entirely — no more silent hand-off after 120 minutes.
@@ -70,7 +72,7 @@ Nothing has been built yet under this plan — it is a net-new initiative with n
 | 5 | `autopro-WOBulkGetParts` currently never fetches the `WorkOrder` row at all (it processes purely by `inventory_item_id`) — adding a fetch-by-`workOrderId`/`roNumber` step for the lock check is new code in an already-live, frequently-called function | Medium (regression risk to a working, frequently-used function) | Low | The added fetch is additive (a new early-return branch before the existing per-item loop, which is otherwise untouched) — dev-branch verification re-confirms the existing success path (multi-item batch, mixed QOH/QOO scenarios) still behaves identically when the lock check passes |
 | 6 | `dispatchBackgroundSaveOrRelease`'s "shadow save of unsaved changes" branch has the same URL-construction bug as the lock-release branch, but is explicitly **not** fixed by this plan (out of scope — locking only) — someone could later assume it's fixed because the sibling release path now works | Low (a pre-existing, unchanged gap, not a new one) | Low | Called out explicitly in this document (Section 1) and left untouched in the code, rather than silently left broken with no record; a future session touching WO autosave/unsaved-changes robustness should treat this as still-open |
 | 7 | The new "Clear Lock" context-menu action is deliberately not admin-gated (your explicit choice) — any staff member can clear any Work Order's lock at any time | Medium (could be clicked accidentally or maliciously) | Low | Confirmation dialog required before it fires (adapted from the existing Flush Locks dialog's warning copy); scoped to one Work Order at a time, not system-wide — bounds the blast radius of a mistake to a single record |
-| 8 | `set_workorder_lock` doesn't exist on production yet — every lock-acquire call in production will fail (function not found) until Phase 5's deploy lands, which is deliberately bundled at the end | High if go-live happens before Phase 5 | Low, if sequencing is respected | Explicitly called out here and in Phase 5 as a hard prerequisite for the broader go-live cutover — must not be forgotten or treated as "already handled" by an unrelated deploy |
+| 8 | `set_workorder_lock` doesn't exist on production yet — every lock-acquire call in production will fail (function not found) until Phase 6's deploy lands, which is deliberately bundled at the end | High if go-live happens before Phase 6 | Low, if sequencing is respected | Explicitly called out here and in Phase 6 as a hard prerequisite for the broader go-live cutover — must not be forgotten or treated as "already handled" by an unrelated deploy |
 
 ---
 
@@ -82,7 +84,8 @@ Autonomous agent work only (excludes your review/approval time between phases an
 - **Phase 2** (`handleSave` restructure, autosave banner wiring, `handleConvertToInvoice` gate): ~35-45 minutes
 - **Phase 3** (3 modals × open+submit client gates, 3 edge functions × server-side backstop, deployed to dev): ~50-65 minutes
 - **Phase 4** (`WorkOrders.jsx` Flush Locks removal + `WorkOrderList.jsx` Clear Lock context-menu item + dialog): ~25-35 minutes
-- **Phase 5** (production verification/deployment of everything, coordinated with broader go-live): ~20-30 minutes of agent work, timing otherwise driven by you
+- **Phase 5** (Add Part / Payments / Cores gates, 4 modals + 1 edge function, deployed to dev): ~45-55 minutes
+- **Phase 6** (production verification/deployment of everything, coordinated with broader go-live): ~20-30 minutes of agent work, timing otherwise driven by you
 
 **Total: roughly 2.5-3.5 hours of agent execution**, spread across your approval gates between phases and your own dev-branch UI verification time (Section 6).
 
@@ -154,7 +157,24 @@ Autonomous agent work only (excludes your review/approval time between phases an
 
 ---
 
-### Phase 5 — Production verification & deployment `[Pending]`
+### Phase 5 — Gate Add Part, Payments, and Cores `[Executed, backend verified — UI step pending your frontend deploy]`
+
+**Files impacted:**
+- `src/components/work-orders/WOAddInventoryModal.jsx` (Add Part)
+- `src/components/work-orders/AdvancePaymentModal.jsx`
+- `src/components/work-orders/InvoicePaymentModal.jsx`
+- `src/components/work-orders/ROCoreModal.jsx`
+- `supabase/functions/autopro-returnCoreToWO/index.ts`
+
+**TL;DR:** Same open+submit lock-check pattern as Phase 3, applied to three more decoupled/immediate-commit actions. Add Part and Cores get client-side gates only (no server backstop possible/appropriate — see Section 1's asymmetry note); Cores' "return to work order" path additionally gets a server-side backstop in its real edge function; both payment modals get the gate at the very top of their add/delete handlers, before any of their direct `CustomerPayments`/`GLTransaction` writes.
+
+**In-depth:** `WOAddInventoryModal.jsx` and `ROCoreModal.jsx` follow the exact Phase 3 shape — a fresh `WorkOrder.LockedByUser` check on open (blocking banner + disabled submit button(s) if held by someone else) and a second check immediately before the actual commit (`handleProcessBatch` / `handleSubmit`), preserving all entered state on a block. `AdvancePaymentModal.jsx` and `InvoicePaymentModal.jsx` each get a shared `checkLockBeforeCommit()` helper (since both have two distinct commit paths - add and delete/remove - needing the identical check) called as the very first line of `handleAddPayment`/`handleDeletePayment` (Advance) and `handleAddPayment`/`handleRemovePayment` (Invoice) - before `isStageInvoiceInDatabase()` or any other existing logic, so a lock conflict is caught before the `CustomerPayments` insert/delete ever fires, not after. `autopro-returnCoreToWO` gets the same server-side backstop shape as Phase 3's three functions: a `WorkOrder` fetch by `work_order_id` (new - this function never read the WorkOrder row before) immediately after input validation, rejecting if the resolved JWT user isn't the current `LockedByUser`.
+
+**Result (2026-08-15, dev project `sitihbdnuxifwibontcm`):** All four modals updated, lint-clean (2 pre-existing unused-import errors across `WOAddInventoryModal.jsx`/`InvoicePaymentModal.jsx`, confirmed via stash-compare against pre-change state, not introduced by this work). `autopro-returnCoreToWO` redeployed (version 12, `ACTIVE`, `verify_jwt: true`), OPTIONS preflight → 200 (no crash-at-boot). **Not yet verified: full authenticated end-to-end exercise** (a real conflicting-lock scenario hitting each modal's submit and the edge function's rejection path) — deferred to the same live-UI verification pass as the other phases, once pushed/deployed.
+
+---
+
+### Phase 6 — Production verification & deployment `[Pending]`
 
 **Files impacted:** none new — deployment/verification of everything from Phases 1-4, plus the first-ever migration file for `set_workorder_lock`.
 
@@ -194,9 +214,16 @@ Autonomous agent work only (excludes your review/approval time between phases an
 3. Click it, confirm the warning dialog appears with the adapted single-WO copy, cancel — confirm the lock is untouched.
 4. Click it again, confirm — confirm the lock clears (reload the list/row to verify server-side, not just optimistic UI) and the other session, if still open, is now unaware it's lost the lock (expected — the next save attempt in that session is exactly what Phase 2's gate is for).
 
-**Phase 5 (after dev verification fully passes, at production-deploy time):**
+**Phase 5 (dev branch, full UI, one qualifying dev Work Order per action):**
+1. Add Part: with the lock held by another simulated user, open Add Part — confirm the blocking banner, then regain the lock, batch a part, force the lock to another user before submitting — confirm the block with the batch still shown, not cleared.
+2. Advance Payment / Invoice Payment: same pattern on "Apply Payment"/"Add Payment" and on deleting an existing payment — confirm the block fires before any `CustomerPayments`/`GLTransaction` row is written (verify via the connector that no such row was created for the blocked attempt).
+3. Cores: same pattern on "Process Core" for both the "Customer Core Returned" and "Return Core to Work Order" actions.
+4. Directly via the connector: call `autopro-returnCoreToWO` against a Work Order locked by a different user than the JWT's — confirm server-side rejection.
+5. With the lock correctly held throughout, confirm all four actions still succeed end-to-end exactly as before this plan (no regression).
+
+**Phase 6 (after dev verification fully passes, at production-deploy time):**
 1. Confirm via `pg_get_functiondef` against `hbcrwkmgsazqrvsrmxyr` that `set_workorder_lock` now exists in production for the first time, matching the dev-verified definition exactly.
-2. Confirm all four production-deployed edge functions respond correctly to an OPTIONS preflight (200, no crash-at-construction) and reject an unauthenticated request appropriately, before any real traffic relies on them.
+2. Confirm all production-deployed edge functions respond correctly to an OPTIONS preflight (200, no crash-at-construction) and reject an unauthenticated request appropriately, before any real traffic relies on them.
 3. Immediately after the coordinated frontend+backend production deploy, repeat a lightweight version of Phase 2/3/4's UI checks against a real (or deliberately low-risk) production Work Order.
 
 ---
@@ -261,7 +288,7 @@ END;
 $$;
 ```
 
-Deploy step: `apply_migration` against `sitihbdnuxifwibontcm` only. Production is untouched until Phase 5.
+Deploy step: `apply_migration` against `sitihbdnuxifwibontcm` only. Production is untouched until Phase 6.
 
 #### 1b. New file: `supabase/functions/autopro-releaseWorkOrderLock/index.ts`
 

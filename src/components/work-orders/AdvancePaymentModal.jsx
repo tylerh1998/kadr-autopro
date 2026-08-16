@@ -26,8 +26,63 @@ export default function AdvancePaymentModal({
   const [paymentDate, setPaymentDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [processing, setProcessing] = useState(false);
 
+  // Lock-ownership gate - checked fresh on open, and again right before committing, since the
+  // lock can change while this modal is sitting open.
+  const [lockBlocked, setLockBlocked] = useState(false);
+  const [lockHolder, setLockHolder] = useState('');
+
   // Use the passed-in work order's stage for immediate UI feedback.
   const isInvoiceUI = workOrder?.stage === 'invoice';
+
+  useEffect(() => {
+    const checkLock = async () => {
+      if (!open || !workOrder?.id) {
+        setLockBlocked(false);
+        setLockHolder('');
+        return;
+      }
+      try {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        const { data: freshWorkOrder } = await supabase
+          .from('WorkOrder')
+          .select('LockedByUser')
+          .eq('id', workOrder.id)
+          .maybeSingle();
+        if (freshWorkOrder?.LockedByUser && freshWorkOrder.LockedByUser !== authUser?.email) {
+          setLockBlocked(true);
+          setLockHolder(freshWorkOrder.LockedByUser);
+        } else {
+          setLockBlocked(false);
+          setLockHolder('');
+        }
+      } catch (error) {
+        console.error('Error checking work order lock:', error);
+      }
+    };
+    checkLock();
+  }, [open, workOrder?.id]);
+
+  const checkLockBeforeCommit = async () => {
+    if (!workOrder?.id) return true;
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const { data: freshWorkOrder } = await supabase
+        .from('WorkOrder')
+        .select('LockedByUser')
+        .eq('id', workOrder.id)
+        .maybeSingle();
+      if (freshWorkOrder?.LockedByUser && freshWorkOrder.LockedByUser !== authUser?.email) {
+        setLockBlocked(true);
+        setLockHolder(freshWorkOrder.LockedByUser);
+        alert(`This Work Order is now held by ${freshWorkOrder.LockedByUser}. Retry once you regain access.`);
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error('Error re-checking work order lock before commit:', error);
+      return true;
+    }
+  };
 
   // Parse existing payments from workOrder.payments
   useEffect(() => {
@@ -108,6 +163,8 @@ export default function AdvancePaymentModal({
   };
 
   const handleAddPayment = async () => {
+    if (!(await checkLockBeforeCommit())) return;
+
     if (await isStageInvoiceInDatabase()) {
       alert("Action Blocked: Payments cannot be added to a locked invoice. Please revert to Work Order stage to proceed.");
       return;
@@ -200,6 +257,8 @@ export default function AdvancePaymentModal({
   };
 
   const handleDeletePayment = async (paymentToDelete) => {
+    if (!(await checkLockBeforeCommit())) return;
+
     if (await isStageInvoiceInDatabase()) {
       alert("Action Blocked: Payments cannot be deleted from a locked invoice. Please revert to Work Order stage to proceed.");
       return;
@@ -328,6 +387,11 @@ export default function AdvancePaymentModal({
           <DialogTitle>Take Payment for RO #{workOrder?.ro_number}</DialogTitle>
         </DialogHeader>
         <div className="mt-4 space-y-6">
+          {lockBlocked && (
+            <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-md text-sm font-medium">
+              This Work Order is currently held by {lockHolder} — payments can't be processed until it's released.
+            </div>
+          )}
           {/* Add Payment Form - Hide in View Only */}
           {!viewOnly && (
             <Card>
@@ -386,9 +450,9 @@ export default function AdvancePaymentModal({
                       className="mt-1"
                     />
                   </div>
-                  <Button 
+                  <Button
                     onClick={handleAddPayment}
-                    disabled={isInvoiceUI || processing}
+                    disabled={isInvoiceUI || processing || lockBlocked}
                     className="mt-5"
                   >
                     {processing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
@@ -422,7 +486,7 @@ export default function AdvancePaymentModal({
                         size="sm"
                         onClick={() => handleDeletePayment(payment)}
                         className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-900/30"
-                        disabled={isInvoiceUI || processing}
+                        disabled={isInvoiceUI || processing || lockBlocked}
                       >
                         {processing ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Delete'}
                       </Button>

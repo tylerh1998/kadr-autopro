@@ -16,6 +16,11 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
   const [loading, setLoading] = useState(false);
   const qtyInputRef = useRef(null);
 
+  // Lock-ownership gate - checked fresh on open, and again right before committing, since the
+  // lock can change while this modal is sitting open.
+  const [lockBlocked, setLockBlocked] = useState(false);
+  const [lockHolder, setLockHolder] = useState('');
+
   useEffect(() => {
     if (open && lineItem) {
       setQty('');
@@ -25,6 +30,33 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
       });
     }
   }, [open, lineItem]);
+
+  useEffect(() => {
+    const checkLock = async () => {
+      if (!open || !workOrder?.id) {
+        setLockBlocked(false);
+        setLockHolder('');
+        return;
+      }
+      try {
+        const { data: freshWorkOrder } = await supabase
+          .from('WorkOrder')
+          .select('LockedByUser')
+          .eq('id', workOrder.id)
+          .maybeSingle();
+        if (freshWorkOrder?.LockedByUser && freshWorkOrder.LockedByUser !== employee?.email) {
+          setLockBlocked(true);
+          setLockHolder(freshWorkOrder.LockedByUser);
+        } else {
+          setLockBlocked(false);
+          setLockHolder('');
+        }
+      } catch (error) {
+        console.error('Error checking work order lock:', error);
+      }
+    };
+    checkLock();
+  }, [open, workOrder?.id, employee?.email]);
 
   const coreCost = parseFloat(lineItem?.core_cost) || 0;
   const coreRet = parseFloat(lineItem?.core_ret) || 0;
@@ -52,6 +84,26 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
     if (coreAction === 'return_to_work_order' && !workOrder?.id) {
       alert('Work order is missing. Please reload and try again.');
       return;
+    }
+
+    // Re-check lock ownership right before committing - it may have changed while this modal
+    // was open. Entered qty/action are preserved either way, nothing is lost on a block.
+    if (workOrder?.id) {
+      try {
+        const { data: freshWorkOrder } = await supabase
+          .from('WorkOrder')
+          .select('LockedByUser')
+          .eq('id', workOrder.id)
+          .maybeSingle();
+        if (freshWorkOrder?.LockedByUser && freshWorkOrder.LockedByUser !== employee?.email) {
+          setLockBlocked(true);
+          setLockHolder(freshWorkOrder.LockedByUser);
+          alert(`This Work Order is now held by ${freshWorkOrder.LockedByUser}. Retry once you regain access.`);
+          return;
+        }
+      } catch (error) {
+        console.error('Error re-checking work order lock before commit:', error);
+      }
     }
 
     setLoading(true);
@@ -144,6 +196,11 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {lockBlocked && (
+            <div className="p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-md text-sm font-medium">
+              This Work Order is currently held by {lockHolder} — you can't process cores until it's released.
+            </div>
+          )}
           <div>
             <p className="text-sm text-slate-600 dark:text-slate-400 mb-2">
               <strong>Part:</strong> {lineItem.part_number} - {lineItem.description}
@@ -200,7 +257,7 @@ export default function ROCoreModal({ open, onClose, lineItem, workOrder, onCore
           <Button variant="outline" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button onClick={handleSubmit} disabled={loading}>
+          <Button onClick={handleSubmit} disabled={loading || lockBlocked}>
             {loading ? 'Processing...' : 'Process Core'}
           </Button>
         </DialogFooter>
