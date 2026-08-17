@@ -3,15 +3,15 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import moment from 'moment-timezone';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
-import { 
-  FileText, 
-  Users, 
-  Car, 
-  Package, 
-  Calendar, 
-  DollarSign, 
-  CreditCard, 
-  UserCheck, 
+import {
+  FileText,
+  Users,
+  Car,
+  Package,
+  Calendar,
+  DollarSign,
+  CreditCard,
+  UserCheck,
   Settings,
   PlusCircle,
   List,
@@ -49,7 +49,7 @@ import {
   Shield,
   User as UserIcon,
   AlertCircle
-  } from 'lucide-react';
+} from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -377,11 +377,11 @@ function LayoutContent({ children, currentPageName }) {
     console.log('🎯 handleMenuClick called with action:', action);
     console.log('📍 Current location:', window.location.href);
     console.log('📍 Current pathname:', window.location.pathname);
-    
+
     setHoveredItem(null);
     setIsMobileMenuOpen(false);
     setMobileDropdownOpen(null);
-    
+
     switch (action) {
       case 'openNewWorkOrderModal':
         console.log('✅ Opening New Work Order Modal');
@@ -437,119 +437,119 @@ function LayoutContent({ children, currentPageName }) {
     }
   };
 
-const navigationItems = [
-  {
-    title: "WIP",
-    icon: FileText,
-    defaultUrl: createPageUrl("WorkOrders"),
-    activePaths: ["/WorkOrders", "/WorkOrderEdit", "/WorkOrderView", "/CreditInvoice", "/InvoiceConversion"],
-    dropdown: [
-      { title: "List", url: createPageUrl("WorkOrders"), icon: List },
-      { title: "Search WIP", action: "openSearchWIPModal", icon: Search },
-      { title: "Find Part/Serial #", action: "FindPartModal", icon: Search },
-      { title: "Reports", action: "showManagementReports", icon: BarChart3 },
-    ]
-  },
-  {
-    title: "Customers",
-    icon: Users,
-    defaultUrl: createPageUrl("Customers"),
-    activePaths: ["/Customers", "/EmailLog", "/CustomerARSummary", "/CustomerARTransactions"],
-    dropdown: [
-      { title: "Create", action: "createCustomer", icon: UserCheck },
-      { title: "List", url: createPageUrl("Customers"), icon: List },
-      { title: "Account Receivables", url: createPageUrl("CustomerARSummary"), icon: Receipt },
-      { title: "Email/Text Log", url: createPageUrl("EmailLog"), icon: Mail },
+  const navigationItems = [
+    {
+      title: "WIP",
+      icon: FileText,
+      defaultUrl: createPageUrl("WorkOrders"),
+      activePaths: ["/WorkOrders", "/WorkOrderEdit", "/WorkOrderView", "/CreditInvoice", "/InvoiceConversion"],
+      dropdown: [
+        { title: "List", url: createPageUrl("WorkOrders"), icon: List },
+        { title: "Search WIP", action: "openSearchWIPModal", icon: Search },
+        { title: "Find Part/Serial #", action: "FindPartModal", icon: Search },
+        { title: "Reports", action: "showManagementReports", icon: BarChart3 },
       ]
-  },
-  {
-    title: "Vehicles",
-    icon: Car,
-    defaultUrl: createPageUrl("Vehicles"),
-    activePaths: ["/Vehicles"],
-    dropdown: [
-      { title: "Add", action: "addVehicle", icon: PlusCircle },
-      { title: "List", url: createPageUrl("Vehicles"), icon: List },
-    ]
-  },
-  {
-    title: "Inventory",
-    icon: Package,
-    defaultUrl: createPageUrl("InventoryList"),
-    activePaths: ["/InventoryList", "/InventoryReturns", "/InventoryAdd"],
-    dropdown: [
-      { title: "List", url: createPageUrl("InventoryList"), icon: List },
-      { title: "Add", url: createPageUrl("InventoryAdd"), icon: Plus },
-      { title: "Returns", url: createPageUrl("InventoryReturns"), icon: RotateCcw },
-      { title: "Reports", action: "showInventoryReports", icon: BarChart3 },
-    ]
-  },
-  {
-    title: "Scheduling",
-    icon: Calendar,
-    url: createPageUrl("Schedule"),
-    activePaths: ["/Schedule"],
-  },
-  {
-    title: "Suppliers",
-    icon: DollarSign,
-    defaultUrl: createPageUrl("Suppliers"),
-    activePaths: ["/Suppliers", "/SupplierTx", "/APSummary", "/LinesOfCredit", "/SupplierTxView"],
-    dropdown: [
-      { title: "Suppliers", url: createPageUrl("Suppliers"), icon: Truck },
-      { title: "AP Summary", url: createPageUrl("APSummary"), icon: BookOpen },
-      { title: "Lines of Credit", url: createPageUrl("LinesOfCredit"), icon: Landmark },
-    ]
-  },
-  (() => {
-    const accountingBase = {
-      title: "Accounting",
-      icon: CreditCard,
-      defaultUrl: createPageUrl("CashDrawer"),
-      activePaths: ["/CashDrawer", "/ChequeRegister", "/Taxes", "/JournalEntries", "/ChartOfAccounts", "/Bank", "/FiscalPeriods", "/Reconcile", "/ReconcileReport", "/ChequeWriter", "/PLReport", "/BalanceSheet", "/FinancialDashboard", "/GLAcct", "/CashFlow"],
-    };
-
-    if (employee?.autopro_access_lvl === 'lvl3_user') {
-      return {
-        ...accountingBase,
-        dropdown: [
-          { title: "Cash Drawer", url: createPageUrl("CashDrawer"), icon: Wallet },
-          { title: "Bank Accounts", url: createPageUrl("Bank"), icon: University },
-          { title: "Cash Flow", url: createPageUrl("CashFlow"), icon: TrendingUp },
-          { title: "Accounting", action: "showAccountingReports", icon: Calculator },
-          { title: "Reports", action: "openFinancialDashboard", icon: BarChart3 },
-        ]
-      };
-    } else if (employee?.accts_pay_access === true) {
-      return {
-        ...accountingBase,
-        dropdown: [
-          { title: "Cash Drawer", url: createPageUrl("CashDrawer"), icon: Wallet },
-          { title: "Cash Flow", url: createPageUrl("CashFlow"), icon: TrendingUp },
-        ]
-      };
-    } else {
-      return {
+    },
+    {
+      title: "Customers",
+      icon: Users,
+      defaultUrl: createPageUrl("Customers"),
+      activePaths: ["/Customers", "/EmailLog", "/CustomerARSummary", "/CustomerARTransactions"],
+      dropdown: [
+        { title: "Create", action: "createCustomer", icon: UserCheck },
+        { title: "List", url: createPageUrl("Customers"), icon: List },
+        { title: "Account Receivables", url: createPageUrl("CustomerARSummary"), icon: Receipt },
+        { title: "Email/Text Log", url: createPageUrl("EmailLog"), icon: Mail },
+      ]
+    },
+    {
+      title: "Vehicles",
+      icon: Car,
+      defaultUrl: createPageUrl("Vehicles"),
+      activePaths: ["/Vehicles"],
+      dropdown: [
+        { title: "Add", action: "addVehicle", icon: PlusCircle },
+        { title: "List", url: createPageUrl("Vehicles"), icon: List },
+      ]
+    },
+    {
+      title: "Inventory",
+      icon: Package,
+      defaultUrl: createPageUrl("InventoryList"),
+      activePaths: ["/InventoryList", "/InventoryReturns", "/InventoryAdd"],
+      dropdown: [
+        { title: "List", url: createPageUrl("InventoryList"), icon: List },
+        { title: "Add", url: createPageUrl("InventoryAdd"), icon: Plus },
+        { title: "Returns", url: createPageUrl("InventoryReturns"), icon: RotateCcw },
+        { title: "Reports", action: "showInventoryReports", icon: BarChart3 },
+      ]
+    },
+    {
+      title: "Scheduling",
+      icon: Calendar,
+      url: createPageUrl("Schedule"),
+      activePaths: ["/Schedule"],
+    },
+    {
+      title: "Suppliers",
+      icon: DollarSign,
+      defaultUrl: createPageUrl("Suppliers"),
+      activePaths: ["/Suppliers", "/SupplierTx", "/APSummary", "/LinesOfCredit", "/SupplierTxView"],
+      dropdown: [
+        { title: "Suppliers", url: createPageUrl("Suppliers"), icon: Truck },
+        { title: "AP Summary", url: createPageUrl("APSummary"), icon: BookOpen },
+        { title: "Lines of Credit", url: createPageUrl("LinesOfCredit"), icon: Landmark },
+      ]
+    },
+    (() => {
+      const accountingBase = {
         title: "Accounting",
         icon: CreditCard,
-        url: createPageUrl("CashDrawer"),
-        activePaths: ["/CashDrawer"],
+        defaultUrl: createPageUrl("CashDrawer"),
+        activePaths: ["/CashDrawer", "/ChequeRegister", "/Taxes", "/JournalEntries", "/ChartOfAccounts", "/Bank", "/FiscalPeriods", "/Reconcile", "/ReconcileReport", "/ChequeWriter", "/PLReport", "/BalanceSheet", "/FinancialDashboard", "/GLAcct", "/CashFlow"],
       };
-    }
-  })(),
-  {
-    title: "Payroll",
-    icon: UserCheck,
-    url: createPageUrl("Payroll"),
-    activePaths: ["/Payroll", "/WorkPro"],
-  },
-  {
-    title: "Setup",
-    url: createPageUrl("Setup"),
-    icon: Settings,
-    activePaths: ["/Setup"],
-  },
-];
+
+      if (employee?.autopro_access_lvl === 'lvl3_user') {
+        return {
+          ...accountingBase,
+          dropdown: [
+            { title: "Cash Drawer", url: createPageUrl("CashDrawer"), icon: Wallet },
+            { title: "Bank Accounts", url: createPageUrl("Bank"), icon: University },
+            { title: "Cash Flow", url: createPageUrl("CashFlow"), icon: TrendingUp },
+            { title: "Accounting", action: "showAccountingReports", icon: Calculator },
+            { title: "Reports", action: "openFinancialDashboard", icon: BarChart3 },
+          ]
+        };
+      } else if (employee?.accts_pay_access === true) {
+        return {
+          ...accountingBase,
+          dropdown: [
+            { title: "Cash Drawer", url: createPageUrl("CashDrawer"), icon: Wallet },
+            { title: "Cash Flow", url: createPageUrl("CashFlow"), icon: TrendingUp },
+          ]
+        };
+      } else {
+        return {
+          title: "Accounting",
+          icon: CreditCard,
+          url: createPageUrl("CashDrawer"),
+          activePaths: ["/CashDrawer"],
+        };
+      }
+    })(),
+    {
+      title: "Payroll",
+      icon: UserCheck,
+      url: createPageUrl("Payroll"),
+      activePaths: ["/Payroll", "/WorkPro"],
+    },
+    {
+      title: "Setup",
+      url: createPageUrl("Setup"),
+      icon: Settings,
+      activePaths: ["/Setup"],
+    },
+  ];
 
   const handleLogout = async () => {
     try {
@@ -576,19 +576,19 @@ const navigationItems = [
     setIsMobileMenuOpen(false);
     setMobileDropdownOpen(null);
   };
-  
+
   const pagesWithoutNavbar = [
-    'WorkOrderEdit', 
-    'EstimateEdit', 
-    'WorkOrderView', 
-    'CreditInvoice', 
-    'InvoiceConversion', 
-    'GLAcct', 
-    'WorkPROView', 
-    'StockReorderReport', 
-    'GeneralLedger', 
-    'GLJournal', 
-    'FinancialDashboard', 
+    'WorkOrderEdit',
+    'EstimateEdit',
+    'WorkOrderView',
+    'CreditInvoice',
+    'InvoiceConversion',
+    'GLAcct',
+    'WorkPROView',
+    'StockReorderReport',
+    'GeneralLedger',
+    'GLJournal',
+    'FinancialDashboard',
     'InventoryValuation',
     'PLReport',
     'ChartOfAccounts',
@@ -610,14 +610,14 @@ const navigationItems = [
       <header className="no-print bg-white dark:bg-slate-950 shadow-sm border-b border-slate-200 dark:border-slate-800 sticky top-0 z-40">
         {isTraining && (
           <div className="bg-orange-500 text-white text-center py-1 text-sm font-bold shadow-inner">
-            Training Version of AutoPRO. No changes in this application will affect the live database.
+            Test Version of AutoPRO. No changes in this application will affect the live database.
           </div>
         )}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Left: Logo, AutoPRO, and Mobile Menu Button */}
             <div className="flex items-center gap-4">
-              <div 
+              <div
                 onClick={() => {
                   openTechClockStatusModal();
                 }}
@@ -676,20 +676,19 @@ const navigationItems = [
                               });
                               handleLockedNavigation(item.defaultUrl);
                             }}
-                            className={`flex flex-col items-center gap-1 px-3 py-2 transition-colors duration-200 cursor-pointer rounded-md ${
-                              isActive
+                            className={`flex flex-col items-center gap-1 px-3 py-2 transition-colors duration-200 cursor-pointer rounded-md ${isActive
                                 ? 'bg-blue-600 text-white'
                                 : 'text-slate-600 dark:text-slate-300 hover:text-blue-700 dark:hover:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                            }`}
+                              }`}
                           >
                             <item.icon className="w-5 h-5" />
                             <span className="text-sm font-medium">{item.title}</span>
                           </div>
                         );
                       })()}
-                      
+
                       {hoveredItem === item.title && (
-                        <div 
+                        <div
                           className="absolute top-full left-1/2 transform -translate-x-1/2 mt-1 w-56 bg-white dark:bg-slate-900 rounded-lg shadow-lg border border-slate-200 dark:border-slate-800 py-2 z-50"
                           onMouseEnter={() => handleMouseEnter(item.title)}
                           onMouseLeave={handleMouseLeave}
@@ -745,11 +744,10 @@ const navigationItems = [
                               window.location.href = item.url;
                             }
                           }}
-                          className={`flex flex-col items-center gap-1 px-3 py-2 transition-colors duration-200 cursor-pointer rounded-md ${
-                            isActive
+                          className={`flex flex-col items-center gap-1 px-3 py-2 transition-colors duration-200 cursor-pointer rounded-md ${isActive
                               ? 'bg-blue-600 text-white'
                               : 'text-slate-600 dark:text-slate-300 hover:text-blue-700 dark:hover:text-blue-400 hover:bg-slate-50 dark:hover:bg-slate-800'
-                          }`}
+                            }`}
                         >
                           <item.icon className="w-5 h-5" />
                           <span className="text-sm font-medium">{item.title}</span>
@@ -767,18 +765,17 @@ const navigationItems = [
               <button
                 onClick={handleClockToggle}
                 disabled={!isEmployee || clockLoading}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-300 ${
-                  !isEmployee || clockLoading
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg transition-all duration-300 ${!isEmployee || clockLoading
                     ? 'bg-blue-600 text-white opacity-90 cursor-not-allowed'
-                    : isClockedIn 
-                      ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/60' 
+                    : isClockedIn
+                      ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/60'
                       : 'bg-green-600 dark:bg-green-700 text-white hover:bg-green-700 dark:hover:bg-green-600 shadow-sm'
-                }`}
+                  }`}
               >
                 {clockLoading ? (
-                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
-                   <Clock className="w-5 h-5" />
+                  <Clock className="w-5 h-5" />
                 )}
                 <div className="flex flex-col items-start">
                   <span className={`text-xs ${isClockedIn || !isEmployee || clockLoading ? 'font-medium' : 'font-bold'}`}>
@@ -816,9 +813,9 @@ const navigationItems = [
                         </span>
                         <span className="text-xs font-normal text-slate-500 dark:text-slate-400 leading-none">
                           {employee?.admin === true ? "Program Administrator" :
-                           employee?.autopro_access_lvl === 'lvl3_user' ? "Executive Access" :
-                           employee?.autopro_access_lvl === 'lvl2_user' ? "Supervisor Access" :
-                           "Standard Access"}
+                            employee?.autopro_access_lvl === 'lvl3_user' ? "Executive Access" :
+                              employee?.autopro_access_lvl === 'lvl2_user' ? "Supervisor Access" :
+                                "Standard Access"}
                         </span>
                         <span className="text-[11px] font-medium text-[#1fa291] leading-none mt-0.5">
                           Manage Account &rarr;
@@ -834,41 +831,41 @@ const navigationItems = [
                     </a>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                        <a href="https://p3plzcpnl507860.prod.phx3.secureserver.net:2096/" target="_blank" rel="noopener noreferrer" className="cursor-pointer">
-                          <Mail className="mr-2 h-4 w-4" />
-                          <span>KADR Email</span>
-                        </a>
+                    <a href="https://p3plzcpnl507860.prod.phx3.secureserver.net:2096/" target="_blank" rel="noopener noreferrer" className="cursor-pointer">
+                      <Mail className="mr-2 h-4 w-4" />
+                      <span>KADR Email</span>
+                    </a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <a href="https://paypro.kensauto.ca" target="_blank" rel="noopener noreferrer" className="cursor-pointer">
+                      <DollarSign className="mr-2 h-4 w-4" />
+                      <span>KADR PayPRO</span>
+                    </a>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <a href="https://registry-pos-tracker-b5793593.base44.app/" target="_blank" rel="noopener noreferrer" className="cursor-pointer">
+                      <FileText className="mr-2 h-4 w-4" />
+                      <span>Registries POS</span>
+                    </a>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleToggleDarkMode} className="cursor-pointer">
+                    {darkMode ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
+                    <span>{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setShowReportIssueModal(true)} className="cursor-pointer">
+                    <AlertCircle className="mr-2 h-4 w-4" />
+                    <span>Report Issue</span>
+                  </DropdownMenuItem>
+                  {employee?.admin === true && (
+                    <>
+                      <DropdownMenuItem onClick={() => window.location.href = createPageUrl('Admin')} className="cursor-pointer">
+                        <Shield className="mr-2 h-4 w-4" />
+                        <span>Admin Dashboard</span>
                       </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <a href="https://paypro.kensauto.ca" target="_blank" rel="noopener noreferrer" className="cursor-pointer">
-                          <DollarSign className="mr-2 h-4 w-4" />
-                          <span>KADR PayPRO</span>
-                        </a>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <a href="https://registry-pos-tracker-b5793593.base44.app/" target="_blank" rel="noopener noreferrer" className="cursor-pointer">
-                          <FileText className="mr-2 h-4 w-4" />
-                          <span>Registries POS</span>
-                        </a>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={handleToggleDarkMode} className="cursor-pointer">
-                      {darkMode ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
-                      <span>{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setShowReportIssueModal(true)} className="cursor-pointer">
-                        <AlertCircle className="mr-2 h-4 w-4" />
-                        <span>Report Issue</span>
-                      </DropdownMenuItem>
-                      {employee?.admin === true && (
-                        <>
-                          <DropdownMenuItem onClick={() => window.location.href = createPageUrl('Admin')} className="cursor-pointer">
-                            <Shield className="mr-2 h-4 w-4" />
-                            <span>Admin Dashboard</span>
-                          </DropdownMenuItem>
-                          </>
-                          )}
-                      <DropdownMenuSeparator />
+                    </>
+                  )}
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} className="cursor-pointer bg-red-600 text-white font-bold focus:bg-red-700 focus:text-white">
                     <LogOut className="mr-2 h-4 w-4" />
                     <span>Logout</span>
@@ -893,11 +890,10 @@ const navigationItems = [
                       return (
                         <button
                           onClick={() => toggleMobileDropdown(item.title)}
-                          className={`w-full flex items-center justify-between px-6 py-4 transition-colors ${
-                            isActive
+                          className={`w-full flex items-center justify-between px-6 py-4 transition-colors ${isActive
                               ? 'bg-blue-600 text-white'
                               : 'text-slate-700 hover:bg-slate-50'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center gap-3">
                             <item.icon className="w-5 h-5" />
@@ -911,7 +907,7 @@ const navigationItems = [
                         </button>
                       );
                     })()}
-                    
+
                     {mobileDropdownOpen === item.title && (
                       <div className="bg-slate-50 py-2">
                         {item.dropdown.map((subItem) => (
@@ -958,11 +954,10 @@ const navigationItems = [
                             window.location.href = item.url;
                           }
                         }}
-                        className={`flex items-center gap-3 px-6 py-4 transition-colors cursor-pointer ${
-                          isActive
+                        className={`flex items-center gap-3 px-6 py-4 transition-colors cursor-pointer ${isActive
                             ? 'bg-blue-600 text-white'
                             : 'text-slate-700 hover:bg-slate-50'
-                        }`}
+                          }`}
                       >
                         <item.icon className="w-5 h-5" />
                         <span className="font-medium">{item.title}</span>
@@ -982,7 +977,7 @@ const navigationItems = [
       </main>
 
       {/* Modals */}
-      
+
       <FindPartModal
         open={showFindPartModal}
         onClose={() => setShowFindPartModal(false)}
@@ -999,7 +994,7 @@ const navigationItems = [
         onClose={() => setShowNewVehicleModal(false)}
       />
 
-      <ReportModal 
+      <ReportModal
         open={showReportModal}
         onClose={() => setShowReportModal(false)}
         reportType={reportType}
@@ -1020,7 +1015,7 @@ const navigationItems = [
             const newWorkOrder = response.data?.data;
             const pageName = newWorkOrder?.stage === 'estimate' ? "EstimateEdit" : "WorkOrderEdit";
             const url = createPageUrl(pageName) + "?id=" + newWorkOrder.ro_number;
-            
+
             if (employee?.OpenNewWindow === false) {
               window.location.href = url;
             } else {

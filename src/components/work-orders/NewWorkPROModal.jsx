@@ -44,14 +44,12 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
   useEffect(() => {
     const loadEmployees = async () => {
       try {
-        const { data: allEmployees, error: employeesError } = await supabase.from('Employee').select('*');
+        const { data: techs, error: employeesError } = await supabase
+          .from('Employee')
+          .select('*')
+          .eq('employee_type', 'tech');
         if (employeesError) throw employeesError;
-        const techs = allEmployees.filter(emp => 
-          emp.position === 'technician' || 
-          emp.position === 'apprentice' ||
-          emp.position === 'service_advisor'
-        );
-        setEmployees(techs);
+        setEmployees(techs || []);
       } catch (error) {
         console.error('Error loading employees:', error);
       }

@@ -1,0 +1,11 @@
+-- Same-day follow-up to 20260816034659_add_staff_strong_auth_rls.sql.
+-- That migration's own IssueReport step assumed its shape matched production
+-- (already "Allow authenticated insert", authenticated-only, no role change
+-- needed) without independently checking dev. Dev actually still had the
+-- generic wide-open "Enable all operations for all users" policy (`TO public`)
+-- underneath the new restrictive gate -- a RESTRICTIVE policy scoped `TO
+-- authenticated` does nothing against anon traffic if a permissive `TO public`
+-- policy is left in place alongside it, so this closed a real, if brief and
+-- dev-only, exposure window. Caught via a post-apply "does anything still
+-- grant public/anon?" sweep. Full detail: rls_strong_auth_policy_plan.md.
+alter policy "Enable all operations for all users" on public."IssueReport" to authenticated;

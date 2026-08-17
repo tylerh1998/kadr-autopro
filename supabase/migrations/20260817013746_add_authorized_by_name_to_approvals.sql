@@ -1,0 +1,17 @@
+-- Production counterpart of 20260817013753_add_authorized_by_name_to_approvals.sql,
+-- applied separately to hbcrwkmgsazqrvsrmxyr (production) which assigned its
+-- own migration version for the identical SQL -- see master_context.md's note
+-- on the two Supabase projects having independent migration histories.
+--
+-- IF NOT EXISTS matters here, unlike most other backfilled files in this batch:
+-- Supabase's GitHub preview-branch check replays every local migration file it
+-- doesn't already have on record for that specific version, against the preview
+-- (dev) database -- it has no concept of "this file's comment says production
+-- only." A file whose version was only ever actually applied to production (like
+-- this one) is unrecognized on dev and gets replayed fresh there regardless.
+-- Every *other* per-project counterpart file in this batch already happened to
+-- be safe under that replay (CREATE OR REPLACE FUNCTION / DROP...IF EXISTS
+-- policies are naturally idempotent) -- a plain ADD COLUMN is not, and this is
+-- the one that actually broke: "column already exists" the moment this file
+-- replayed against dev, which already has the column from its own counterpart.
+alter table "Approvals" add column if not exists authorized_by_name text;
