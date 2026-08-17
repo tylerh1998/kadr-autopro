@@ -100,6 +100,9 @@ export default function TechDirectory() {
       <Card>
         <CardHeader>
           <CardTitle>Tech Setup</CardTitle>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+            Pay rates are only used for profitability calculations, not for payroll calculations.
+          </p>
         </CardHeader>
         <CardContent>
           {loading ? (
