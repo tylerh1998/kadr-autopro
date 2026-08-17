@@ -42,8 +42,17 @@ export default function WorkOrderDetailsEditModal({ open, onClose, workOrder, on
   };
 
   const handleSave = () => {
+    // Postgres rejects an empty string for a `date` column (`invalid input syntax for type
+    // date: ""`), which the native date input produces when cleared - coerce to null so
+    // clearing the date doesn't fail the whole save.
+    const sanitizedFormData = {
+      ...formData,
+      est_date: formData.est_date || null,
+      wo_date: formData.wo_date || null,
+    };
+
     // Save work order details first, then update line items
-    onSave(formData, false, null, { should_keep_lock: true });
+    onSave(sanitizedFormData, false, null, { should_keep_lock: true });
     
     // If default_taxable changed, update all line items AFTER work order is updated
     if (formData.default_taxable !== workOrder.default_taxable && onUpdateLineItems && lineItems) {

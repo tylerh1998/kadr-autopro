@@ -193,6 +193,7 @@ export default function InventoryAddPage() {
     const [batchResult, setBatchResult] = useState({ successfulInvoices: [], failedInvoices: [] });
     const [ocrModalOpen, setOcrModalOpen] = useState(false);
     const [duplicateInvoices, setDuplicateInvoices] = useState({});
+    const [fiscalPeriodIssues, setFiscalPeriodIssues] = useState({});
 
     const filteredLocations = useMemo(() => {
         if (!currentItem.location) return inventoryLocations || [];
@@ -536,6 +537,32 @@ export default function InventoryAddPage() {
         }
     }, [batchItems, duplicateInvoices]);
 
+    useEffect(() => {
+        const checkFiscalPeriods = async () => {
+            const newChecks = { ...fiscalPeriodIssues };
+            let changed = false;
+
+            for (const group of batchItems) {
+                if (group.invoice_date && newChecks[group.invoice_date] === undefined) {
+                    try {
+                        const result = await checkFiscalPeriodStatus(group.invoice_date);
+                        newChecks[group.invoice_date] = result;
+                        changed = true;
+                    } catch (err) {
+                        console.error("Error checking fiscal period for batch group:", err);
+                    }
+                }
+            }
+            if (changed) {
+                setFiscalPeriodIssues(newChecks);
+            }
+        };
+
+        if (batchItems.length > 0) {
+            checkFiscalPeriods();
+        }
+    }, [batchItems, fiscalPeriodIssues]);
+
     const handleAddToBatch = async () => {
         setAddToBatchError('');
         setIsCategorySuggested(false);
@@ -743,13 +770,14 @@ export default function InventoryAddPage() {
         let hasHardErrors = false;
         let subtotalMismatchInvoices = [];
         let totalMismatchInvoices = [];
+        let fiscalPeriodErrorInvoices = [];
 
         let missingTireTaxItems = [];
 
         for (const group of batchItems) {
             const isMissingGroupInfo = !group.supplier_id || !group.invoice_number || !group.invoice_date;
             const hasRowErrors = group.partItems.some(item => !item.part_number || !item.description || !item.quantity_received || !item.cost || !item.sales_class || !item.selling_price);
-            
+
             group.partItems.forEach(item => {
                 if (item.missing_tire_tax) {
                     missingTireTaxItems.push(item.part_number || item.description || 'Unknown Part');
@@ -758,6 +786,18 @@ export default function InventoryAddPage() {
 
             if (isMissingGroupInfo || hasRowErrors) {
                 hasHardErrors = true;
+            }
+
+            // Re-validate the fiscal period here regardless of source (manual entry, OCR, or a
+            // re-opened/edited batch group), since OCR-populated dates never pass through the
+            // manual date input's blur/select handlers where this check normally runs.
+            if (group.invoice_date) {
+                const fiscalCheck = await checkFiscalPeriodStatus(group.invoice_date);
+                if (!fiscalCheck.isValid) {
+                    hasHardErrors = true;
+                    const supplierName = suppliers.find(s => String(s.id) === String(group.supplier_id))?.name || 'Unknown Supplier';
+                    fiscalPeriodErrorInvoices.push(`${supplierName} - Invoice #${group.invoice_number || 'Unknown'} (${group.invoice_date}): ${fiscalCheck.message}`);
+                }
             }
 
             const actualSubtotal = group.partItems.reduce((sum, item) => sum + (item.line_total || 0), 0);
@@ -778,7 +818,12 @@ export default function InventoryAddPage() {
         }
 
         if (hasHardErrors) {
-            alert('Cannot save batch: One or more invoices have missing mandatory fields (Supplier, Invoice #, Date, Part #, Description, Cost, Sales Class, or Selling Price). Please fix them before saving.');
+            let errorMsg = 'Cannot save batch: One or more invoices have missing mandatory fields (Supplier, Invoice #, Date, Part #, Description, Cost, Sales Class, or Selling Price).';
+            if (fiscalPeriodErrorInvoices.length > 0) {
+                errorMsg += `\n\nFiscal period issues:\n${fiscalPeriodErrorInvoices.join('\n')}`;
+            }
+            errorMsg += '\n\nPlease fix them before saving.';
+            alert(errorMsg);
             saveInProgressRef.current = false;
             return;
         }
@@ -1773,17 +1818,20 @@ export default function InventoryAddPage() {
 
                                     const isDuplicate = duplicateInvoices[`${group.supplier_id}-${group.invoice_number}`];
                                     const hasRowErrors = group.partItems.some(item => !item.part_number || !item.description || !item.quantity_received || !item.cost || !item.sales_class || !item.selling_price);
-                                    const groupHasError = isMissingGroupInfo || subtotalMismatch || totalMismatch || hasRowErrors || isDuplicate;
-                                    
+                                    const fiscalIssue = group.invoice_date ? fiscalPeriodIssues[group.invoice_date] : null;
+                                    const hasFiscalIssue = !!(fiscalIssue && !fiscalIssue.isValid);
+                                    const groupHasError = isMissingGroupInfo || subtotalMismatch || totalMismatch || hasRowErrors || isDuplicate || hasFiscalIssue;
+
                                     const errorMessages = [];
                                     if (isMissingGroupInfo) errorMessages.push("Missing Supplier, Invoice #, or Date");
                                     if (subtotalMismatch) errorMessages.push(`Subtotal mismatch (OCR Expected: $${group.ocr_expected_subtotal?.toFixed(2)}, Actual: $${actualTotalForMismatch.toFixed(2)})`);
                                     if (totalMismatch) errorMessages.push(`Total mismatch (OCR Expected: $${group.invoice_total?.toFixed(2)}, Actual: $${calculatedGrandTotal.toFixed(2)})`);
                                     if (hasRowErrors) errorMessages.push("One or more rows have missing information");
                                     if (isDuplicate) errorMessages.push("Invoice appears to be a duplicate");
+                                    if (hasFiscalIssue) errorMessages.push(fiscalIssue.message);
 
                                     return (
-                                    <div key={groupIndex} className={`bg-slate-50 dark:bg-slate-800 rounded-lg p-4 ${isMissingGroupInfo ? 'border-2 border-orange-400 dark:border-orange-600' : ''}`}>
+                                    <div key={groupIndex} className={`bg-slate-50 dark:bg-slate-800 rounded-lg p-4 ${(isMissingGroupInfo || hasFiscalIssue) ? 'border-2 border-orange-400 dark:border-orange-600' : ''}`}>
                                         <div className="font-semibold text-slate-800 dark:text-slate-200 mb-3 pb-2 border-b border-slate-300 dark:border-slate-600 flex items-center gap-2">
                                             {isMissingGroupInfo && (
                                                 <Badge variant="destructive" className="bg-orange-500 hover:bg-orange-600">ERROR INVOICE</Badge>
@@ -1793,6 +1841,12 @@ export default function InventoryAddPage() {
                                                 <Badge variant="outline" className="ml-2 border-orange-500 dark:border-orange-700 text-orange-500 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/30 flex items-center gap-1 text-xs px-2 py-0">
                                                     <TriangleAlert className="w-3 h-3" />
                                                     Duplicate Entry
+                                                </Badge>
+                                            )}
+                                            {hasFiscalIssue && (
+                                                <Badge variant="destructive" className="ml-2 bg-red-600 hover:bg-red-700 flex items-center gap-1 text-xs px-2 py-0">
+                                                    <TriangleAlert className="w-3 h-3" />
+                                                    Fiscal Period Error
                                                 </Badge>
                                             )}
                                         </div>

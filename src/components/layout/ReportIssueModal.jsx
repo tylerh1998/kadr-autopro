@@ -79,7 +79,8 @@ export default function ReportIssueModal({ isOpen, onClose, user, currentEmploye
             url: window.location.href,
             userEmail: currentEmployeeData?.email || user?.email || "Unknown User",
             employeeName: currentEmployeeData?.full_name || "Unknown",
-            consoleLogs: getCapturedLogs()
+            consoleLogs: getCapturedLogs(),
+            attachments: uploadedAttachments
           }
         });
       } catch (funcErr) {
