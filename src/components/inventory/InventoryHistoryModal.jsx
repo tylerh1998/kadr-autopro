@@ -3,13 +3,20 @@ import { supabase } from '@/lib/supabase';
 import { createPageUrl } from '@/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { History, Search, PackageX, X, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import ModalCloseButton from '@/components/ui/modal-close-button';
+import { History, PackageX, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { format } from 'date-fns';
+
+function getCreatedByDisplay(createdBy) {
+  if (!createdBy) return 'Unknown';
+  if (createdBy.endsWith('@no-reply.base44.com')) return 'System';
+  return createdBy;
+}
 
 export default function InventoryHistoryModal({ open, onClose, partNumber, inventoryItemId }) {
   const [transactions, setTransactions] = useState([]);
@@ -137,17 +144,27 @@ export default function InventoryHistoryModal({ open, onClose, partNumber, inven
     }
 
     return (
-      <div className="space-y-1 text-sm">
+      <div className="space-y-2 text-sm">
         {qohChange !== 0 && (
-          <div className={`flex items-center gap-1 ${qohChange > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-            {qohChange > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-            <span className="font-medium">QOH: {qohChange > 0 ? '+' : ''}{qohChange}</span>
+          <div className={qohChange > 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
+            <div className="flex items-center gap-1">
+              {qohChange > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+              <span className="font-medium">{qohChange > 0 ? '+' : ''}{qohChange} QOH</span>
+            </div>
+            <div className="pl-4 text-xs text-slate-500 dark:text-slate-400">
+              {tx.old_quantity ?? 0} &rarr; {tx.new_quantity ?? 0}
+            </div>
           </div>
         )}
         {orderedChange !== 0 && (
-          <div className={`flex items-center gap-1 ${orderedChange > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400'}`}>
-            {orderedChange > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-            <span className="font-medium">Ordered: {orderedChange > 0 ? '+' : ''}{orderedChange}</span>
+          <div className={orderedChange > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-600 dark:text-gray-400'}>
+            <div className="flex items-center gap-1">
+              {orderedChange > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+              <span className="font-medium">{orderedChange > 0 ? '+' : ''}{orderedChange} QOO</span>
+            </div>
+            <div className="pl-4 text-xs text-slate-500 dark:text-slate-400">
+              {tx.old_quantity_on_order ?? 0} &rarr; {tx.new_quantity_on_order ?? 0}
+            </div>
           </div>
         )}
       </div>
@@ -191,17 +208,14 @@ export default function InventoryHistoryModal({ open, onClose, partNumber, inven
   };
 
   return (
+    <TooltipProvider>
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl h-[80vh] flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <History className="w-6 h-6" />
-              Inventory History: {currentPartNumber}
-            </div>
-            <Button variant="ghost" size="icon" onClick={onClose}>
-              <X className="w-4 h-4" />
-            </Button>
+      <DialogContent className="max-w-5xl h-[80vh] flex flex-col [&>button:last-child]:hidden">
+        <ModalCloseButton onClick={onClose} />
+        <DialogHeader className="pr-16">
+          <DialogTitle className="flex items-center gap-2">
+            <History className="w-6 h-6" />
+            Inventory History: {currentPartNumber}
           </DialogTitle>
           <DialogDescription>
             View the complete transaction history for this inventory item.
@@ -237,7 +251,19 @@ export default function InventoryHistoryModal({ open, onClose, partNumber, inven
                   {transactions.map((tx) => (
                     <TableRow key={tx.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40">
                       <TableCell className="text-sm">
-                        {tx.tx_date ? format(new Date(tx.tx_date), 'MMM d, yyyy\nh:mm a') : 'N/A'}
+                        {tx.tx_date ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="cursor-default w-fit">
+                                <div>{format(new Date(tx.tx_date), 'MMM d, yyyy')}</div>
+                                <div className="text-xs text-slate-500 dark:text-slate-400">{format(new Date(tx.tx_date), 'h:mm a')}</div>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {getCreatedByDisplay(tx.created_by)}
+                            </TooltipContent>
+                          </Tooltip>
+                        ) : 'N/A'}
                       </TableCell>
                       <TableCell>{getTxTypeBadge(tx.tx_type)}</TableCell>
                       <TableCell>{renderReference(tx)}</TableCell>
@@ -259,5 +285,6 @@ export default function InventoryHistoryModal({ open, onClose, partNumber, inven
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </TooltipProvider>
   );
 }
