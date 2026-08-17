@@ -128,6 +128,11 @@ serve(async (req) => {
       return res({ success: false, error: 'Invalid invoice date format. Must be YYYY-MM-DD' }, { status: 400 });
     }
 
+    const createFiscalCheck = await checkFiscalPeriodStatus(supabase, invoice_date);
+    if (!createFiscalCheck.isValid) {
+      return res({ success: false, error: 'Fiscal period error', message: createFiscalCheck.message }, { status: 400 });
+    }
+
     const { data: supplier, error: supplierError } = await supabase
       .from('Supplier')
       .select('*')

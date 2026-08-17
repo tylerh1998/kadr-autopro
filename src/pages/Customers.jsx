@@ -138,6 +138,11 @@ export default function CustomersPage() {
     navigate(`${createPageUrl('CustomerARTransactions')}?customerId=${customer.id}&from=customers`);
   };
 
+  const handleEmailLogClick = (customer, e) => {
+    e.stopPropagation();
+    navigate(`${createPageUrl('EmailLog')}?customerId=${customer.id}`);
+  };
+
   const handleVehicleHistoryClick = (customer, e) => {
     e.stopPropagation();
     setSelectedCustomerForHistory(customer);
@@ -290,6 +295,15 @@ export default function CustomersPage() {
                     >
                       <History className="w-4 h-4 mr-2" />
                       History
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100 dark:hover:bg-slate-700"
+                      onClick={(e) => handleEmailLogClick(customer, e)}
+                    >
+                      <Mail className="w-4 h-4 mr-2" />
+                      Emails
                     </Button>
                     <Button
                       variant="outline"

@@ -1138,7 +1138,26 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     }
 
     if(!window.confirm('Convert to Invoice?'))return;
-    workOrder.vehicle_id==='69562a182efce2529204db01'?(await handleSave({}, false, null, { should_keep_lock: true }),setInvoiceConversionPhase(3)):setInvoiceConversionPhase(1);
+
+    // '69562a182efce2529204db01' is the permanent "Counter Sale" placeholder vehicle used for
+    // over-the-counter parts sales with no real vehicle attached (see WorkOrders.jsx's
+    // handleCreateCounterSale, which hardcodes this same ID). It has no odometer and no repair
+    // description to review, so skip straight to the invoice-date step of the conversion wizard.
+    if (workOrder.vehicle_id === '69562a182efce2529204db01') {
+      try {
+        // useDocumentEditorSave only rejects when throwOnError is set - without it the promise
+        // always resolves (even on failure, as {success:false}) and this catch would never run,
+        // silently advancing to phase 3 on top of a failed save. silentError suppresses the
+        // hook's own generic alert so the user sees exactly one message, not two.
+        await handleSave({}, false, null, { should_keep_lock: true, silentError: true, throwOnError: true });
+        setInvoiceConversionPhase(3);
+      } catch (error) {
+        console.error('Error starting counter sale invoice conversion:', error);
+        alert('Failed to start invoice conversion. Please try again.');
+      }
+    } else {
+      setInvoiceConversionPhase(1);
+    }
   }, [workOrder, lineItems, currentUser]);
 
   const handleHeaderSaveClick = useCallback(async () => {

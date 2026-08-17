@@ -8,12 +8,16 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { getCapturedLogs } from "@/lib/logCollector";
+import AttachmentUploader from "./AttachmentUploader";
+
+const ATTACHMENT_BUCKET = "kadr-issue-report-attachments";
 
 export default function ReportIssueModal({ isOpen, onClose, user, currentEmployeeData, isGloballyClockedIn }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [severity, setSeverity] = useState("medium");
+  const [attachmentFiles, setAttachmentFiles] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -24,9 +28,22 @@ export default function ReportIssueModal({ isOpen, onClose, user, currentEmploye
     setErrorMsg("");
 
     try {
+      const reportId = crypto.randomUUID();
+      const uploadedAttachments = [];
+
+      for (const file of attachmentFiles) {
+        const ext = file.name.includes(".") ? file.name.split(".").pop() : "";
+        const path = `${reportId}/${crypto.randomUUID()}${ext ? `.${ext}` : ""}`;
+        const { error: uploadError } = await supabase.storage
+          .from(ATTACHMENT_BUCKET)
+          .upload(path, file, { contentType: file.type });
+        if (uploadError) throw new Error(`Failed to upload "${file.name}": ${uploadError.message}`);
+        uploadedAttachments.push({ path, filename: file.name, size: file.size, mime_type: file.type });
+      }
+
       const { error } = await supabase.from('IssueReport').insert([
         {
-          id: crypto.randomUUID(),
+          id: reportId,
           created_date: new Date().toISOString(),
           updated_date: new Date().toISOString(),
           created_by: currentEmployeeData?.email || user?.email || "Unknown User",
@@ -39,6 +56,7 @@ export default function ReportIssueModal({ isOpen, onClose, user, currentEmploye
           status: 'new',
           url: window.location.href,
           console_logs: getCapturedLogs(),
+          attachments: uploadedAttachments.length > 0 ? uploadedAttachments : null,
           metadata: {
             browser: navigator.userAgent,
             screen_resolution: `${window.innerWidth}x${window.innerHeight}`,
@@ -61,7 +79,8 @@ export default function ReportIssueModal({ isOpen, onClose, user, currentEmploye
             url: window.location.href,
             userEmail: currentEmployeeData?.email || user?.email || "Unknown User",
             employeeName: currentEmployeeData?.full_name || "Unknown",
-            consoleLogs: getCapturedLogs()
+            consoleLogs: getCapturedLogs(),
+            attachments: uploadedAttachments
           }
         });
       } catch (funcErr) {
@@ -72,7 +91,7 @@ export default function ReportIssueModal({ isOpen, onClose, user, currentEmploye
       setIsSubmitted(true);
     } catch (e) {
       console.error("Error submitting support ticket:", e);
-      setErrorMsg("Failed to submit the issue report. Please try again.");
+      setErrorMsg(e.message || "Failed to submit the issue report. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -83,6 +102,7 @@ export default function ReportIssueModal({ isOpen, onClose, user, currentEmploye
     setDescription("");
     setErrorMessage("");
     setSeverity("medium");
+    setAttachmentFiles([]);
     setIsSubmitted(false);
     setErrorMsg("");
     onClose();
@@ -90,7 +110,7 @@ export default function ReportIssueModal({ isOpen, onClose, user, currentEmploye
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="sm:max-w-[475px] border border-slate-200 dark:border-slate-800">
+      <DialogContent className="sm:max-w-[475px] max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-800">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
             <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-500" />
@@ -146,6 +166,11 @@ export default function ReportIssueModal({ isOpen, onClose, user, currentEmploye
                 rows={2}
                 className="bg-transparent border-slate-200 dark:border-slate-700 text-foreground"
               />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-slate-700 dark:text-slate-300">Attachments (screenshots or a PDF)</Label>
+              <AttachmentUploader files={attachmentFiles} onFilesChange={setAttachmentFiles} disabled={isSubmitting} />
             </div>
 
             <div className="space-y-2 border-t border-slate-200 dark:border-slate-800 pt-3">

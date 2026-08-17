@@ -63,6 +63,9 @@ serve(async (req) => {
             documentContextNote = `\nCONTEXT NOTE: This document may be a screenshot of an online parts-ordering cart or order-confirmation page rather than a formal supplier invoice. Such screenshots often lack a formal invoice number, invoice date, subtotal, freight, or GST breakdown - if these are not clearly present, return empty string / 0 for those fields rather than guessing. Still extract every line item exactly as instructed below.`;
         }
 
+        const todayIso = new Date().toISOString().split('T')[0];
+        const todayContext = `\nCRITICAL INSTRUCTION: Today's date is ${todayIso}. Invoices are almost always entered within days or weeks of being issued. If a date's format is genuinely ambiguous (unclear which part is the day, month, or year), prefer the interpretation closest to today's date rather than one that would place the invoice many years in the past or future.`;
+
         const prompt = `You are a highly accurate invoice parser.
 Analyze the provided document (which may contain multiple distinct invoices) and extract the following information.
 CRITICAL INSTRUCTION: There may be handwritten (pen) edits on the invoice, such as a crossed-out part number with a new handwritten part number next to it. YOU MUST PRIORITIZE HANDWRITTEN EDITS. If a printed part number is crossed out, extract the handwritten one instead.
@@ -71,7 +74,7 @@ CRITICAL INSTRUCTION: Core charges (e.g., "Core Deposit", "NET CORE") are often 
 CRITICAL INSTRUCTION: Enviro fees (e.g., "Tire Levy", "Filter Levy", "Enviro Fee") are also often listed as separate line items or in a separate column. Like cores, DO NOT extract them as standalone items. IMPORTANT: When an environmental fee is listed as a separate line item, it always applies to the part on the line DIRECTLY BELOW it. DO NOT attach it to the part above it. Find the main part directly below the fee, and set "enviro_fee" to the unit amount of the fee for that item.
 CRITICAL INSTRUCTION: Often there is a short Manufacturer (MFG) code (e.g., a 3-letter or 3-digit code like "AGL" or "MPA") listed right before the actual part number, either in a separate column or at the start of the string. DO NOT include the MFG code in the "part_number" field. Only extract the true part number itself.
 CRITICAL INSTRUCTION: Part Number Normalization: Strip all non-alphanumeric characters (such as dashes, asterisks, spaces, slashes) from the extracted part number. The final "part_number" should ONLY contain letters and numbers (e.g., "A-123*4" becomes "A1234").
-CRITICAL INSTRUCTION: The unit cost is sometimes labeled as "NET", "NET COST", or "UNIT". Pay close attention to these columns to correctly extract the unit cost.${supplierNamesContext}${documentContextNote}
+CRITICAL INSTRUCTION: The unit cost is sometimes labeled as "NET", "NET COST", or "UNIT". Pay close attention to these columns to correctly extract the unit cost.${supplierNamesContext}${documentContextNote}${todayContext}
 Format the output EXACTLY as a JSON object with no markdown wrappers or additional text, matching this structure:
 {
   "invoices": [
