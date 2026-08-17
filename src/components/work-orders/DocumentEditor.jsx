@@ -639,7 +639,10 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
               .maybeSingle();
             if (error || !data || !isActive) return;
 
-            if (data.LockedByUser !== currentUser.email) {
+            // A transition to null/empty is our own normal release-on-save/close, not a steal -
+            // ignore it and keep listening, so a later real takeover still gets caught (and gets
+            // the real holder's name, not a stale one from this no-op check).
+            if (data.LockedByUser && data.LockedByUser !== currentUser.email) {
               lockAcquiredRef.current = false;
               const displayName = await resolveLockHolderName(data.LockedByUser);
               if (!isActive) return;
