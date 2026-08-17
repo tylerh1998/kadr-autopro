@@ -21,11 +21,21 @@ export default function useDocumentEditorSave({
   setHasUnsavedChanges,
   setSaving,
   sessionId,
+  isLockedByOtherUser,
 }) {
   return useCallback(async (updatedDetails = {}, showAlertOnSuccess = true, lineItemsOverride = null, saveOptions = {}) => {
     if (!workOrder || !workOrder.id) {
       console.error('Cannot save: workOrder or workOrder.id is missing');
       return;
+    }
+
+    // Sticky, session-permanent gate: once a live lock-conflict has been detected (see
+    // DocumentEditor.jsx's realtime subscription), this stays true for the rest of the session
+    // even after the other user releases the lock - our in-memory copy is provably stale at that
+    // point and must never overwrite whatever they saved. Checked first, before any side effect.
+    if (isLockedByOtherUser) {
+      if (saveOptions.throwOnError) throw new Error('This Work Order was modified by another user - reload to see the latest version before making further changes.');
+      return { success: false, lockConflict: true, sessionInvalidated: true };
     }
 
     setSaving(true);
@@ -285,5 +295,6 @@ export default function useDocumentEditorSave({
     setHasUnsavedChanges,
     setSaving,
     sessionId,
+    isLockedByOtherUser,
   ]);
 }

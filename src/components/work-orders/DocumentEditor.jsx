@@ -5,6 +5,7 @@ import { useAuth } from '@/lib/AuthContext';
 import WorkOrderForm from './form/WorkOrderForm';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
+import { getSupabaseRealtimeClient } from '@/lib/supabaseRealtimeClient';
 import { appParams } from '@/lib/app-params';
 import { releaseWorkOrderLockKeepAlive } from './utils/workOrderLockUtils';
 import { prepareWorkOrderSavePayload } from '@/components/work-orders/utils/buildWorkOrderSavePayload';
@@ -290,7 +291,11 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
     backgroundSyncStartedRef.current = true;
 
-    if (hasUnsavedChanges) {
+    // This bypasses useDocumentEditorSave entirely (it's a raw keepalive fetch, not handleSave),
+    // so the sticky isLockedByOtherUser gate has to be checked here explicitly too - otherwise
+    // closing the tab after a live-detected lock conflict would still silently overwrite whatever
+    // the other user saved, via this exact path.
+    if (hasUnsavedChanges && !isLockedByOtherUser) {
       const shadowBody = (shadowStorageKey && window.localStorage.getItem(shadowStorageKey)) || buildShadowSaveRequest();
       if (shadowBody) {
         postKeepAliveFunction('autopro-saveworkorderdata', shadowBody);
@@ -300,7 +305,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     if (lockAcquiredRef.current) {
       releaseWorkOrderLockKeepAlive(workOrder.ro_number);
     }
-  }, [workOrder?.ro_number, hasUnsavedChanges, shadowStorageKey, buildShadowSaveRequest, postKeepAliveFunction]);
+  }, [workOrder?.ro_number, hasUnsavedChanges, shadowStorageKey, buildShadowSaveRequest, postKeepAliveFunction, isLockedByOtherUser]);
 
   useEffect(() => {
     if (!shadowStorageKey) return;
@@ -586,6 +591,76 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     acquireLock();
   }, [workOrder, currentUser, lockCheckComplete, setWorkOrder, navigate, roNumber]);
 
+  // Live lock-conflict detection: listens on the same 'work_order_refresh' broadcast channel
+  // WorkOrders.jsx's list view already uses, but scoped (via source_id) to this one Work Order,
+  // purely to catch someone else taking the lock while we hold it. This closes a real data-loss
+  // gap: if user B takes the lock, saves, and releases before user A's next save, A's save-time
+  // lock check sees the lock is free, silently re-acquires it, and overwrites B's changes with
+  // no warning. Once this detects a conflict it is STICKY for the rest of the session (drives the
+  // same isLockedByOtherUser full-screen block as opening an already-locked WO) - even after B
+  // releases, A's in-memory copy is provably stale and must never be saved over B's, so this is
+  // never re-checked/cleared back to false. See useDocumentEditorSave's isLockedByOtherUser gate.
+  useEffect(() => {
+    if (!currentUser?.email) return;
+
+    let isActive = true;
+    let realtimeChannel = null;
+
+    const resolveLockHolderName = async (email) => {
+      if (!email) return 'Another User';
+      try {
+        const { data: lockingEmployees } = await supabase
+          .from('Employee')
+          .select('full_name')
+          .eq('email', email);
+        return lockingEmployees?.[0]?.full_name || email;
+      } catch (_) {
+        return email;
+      }
+    };
+
+    const startRealtime = async () => {
+      const realtimeClient = await getSupabaseRealtimeClient();
+      if (!isActive) return;
+
+      realtimeChannel = realtimeClient
+        .channel('work_order_refresh')
+        .on('broadcast', { event: 'workorder-updated' }, async (message) => {
+          const sourceId = message?.payload?.source_id;
+          const currentWorkOrderId = workOrderRef.current?.id;
+          if (!sourceId || !currentWorkOrderId || sourceId !== currentWorkOrderId) return;
+          if (!lockAcquiredRef.current) return;
+
+          try {
+            const { data, error } = await supabase
+              .from('WorkOrder')
+              .select('LockedByUser')
+              .eq('id', currentWorkOrderId)
+              .maybeSingle();
+            if (error || !data || !isActive) return;
+
+            if (data.LockedByUser !== currentUser.email) {
+              lockAcquiredRef.current = false;
+              const displayName = await resolveLockHolderName(data.LockedByUser);
+              if (!isActive) return;
+              setLockedByUserName(displayName);
+              setIsLockedByOtherUser(true);
+            }
+          } catch (fetchError) {
+            console.error('Lock-conflict check failed:', fetchError);
+          }
+        })
+        .subscribe();
+    };
+
+    startRealtime();
+
+    return () => {
+      isActive = false;
+      realtimeChannel?.unsubscribe();
+    };
+  }, [currentUser?.email]);
+
   // Ctrl+P shortcut for PDF modal
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -692,6 +767,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     setHasUnsavedChanges,
     setSaving,
     sessionId: sessionIdRef.current,
+    isLockedByOtherUser,
   });
 
   const handleProcessAdvancePayment = useCallback(async (action, payload) => {
@@ -1147,7 +1223,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   }, [handleHeaderSaveClick]);
 
   useEffect(() => {
-    if (!hasUnsavedChanges || saving || !lockCheckComplete || !workOrder?.id) return;
+    if (!hasUnsavedChanges || saving || !lockCheckComplete || !workOrder?.id || isLockedByOtherUser) return;
 
     const autoSaveTimer = window.setTimeout(async () => {
       const result = await handleSave({}, false, null, { silentError: true, should_keep_lock: true, isBackgroundSave: true });
@@ -1159,7 +1235,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
     }, 2000);
 
     return () => window.clearTimeout(autoSaveTimer);
-  }, [hasUnsavedChanges, saving, lockCheckComplete, workOrder?.id, handleSave]);
+  }, [hasUnsavedChanges, saving, lockCheckComplete, workOrder?.id, handleSave, isLockedByOtherUser]);
 
   const handleCustomerUpdate = async (customerData) => {
     try {

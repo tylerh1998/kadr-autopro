@@ -2,4 +2,11 @@
 -- applied separately to sitihbdnuxifwibontcm (dev) which assigned its own
 -- migration version for the identical SQL -- see master_context.md's note on
 -- the two Supabase projects having independent migration histories.
-alter table "Approvals" add column authorized_by_name text;
+--
+-- IF NOT EXISTS for the same reason as the production file: the GitHub
+-- preview-branch check replays any locally-tracked version it doesn't already
+-- have on record for the target (dev) database, with no awareness of which
+-- project a file is "for" -- see that file's comment for the fuller
+-- explanation. Made idempotent here too even though this exact version is
+-- already recognized as applied on dev, for consistency and as insurance.
+alter table "Approvals" add column if not exists authorized_by_name text;
