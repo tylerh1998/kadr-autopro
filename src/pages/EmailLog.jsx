@@ -5,12 +5,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { format } from 'date-fns';
-import { Mail, Search, CheckCircle, XCircle, AlertTriangle, Clock, Ban, RefreshCw, Eye, MousePointerClick, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Mail, Search, CheckCircle, XCircle, AlertTriangle, Clock, Ban, RefreshCw, Eye, MousePointerClick, ChevronLeft, ChevronRight, Filter, X } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { useSearchParams } from 'react-router-dom';
 import EmailLogDetailsModal from '../components/emails/EmailLogDetailsModal';
 
 export default function EmailLogPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const customerIdFilter = searchParams.get('customerId');
+
   const [logs, setLogs] = useState([]);
   const [customers, setCustomers] = useState({});
   const [workOrders, setWorkOrders] = useState({});
@@ -30,13 +34,20 @@ export default function EmailLogPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
+      let logsQuery = supabase.from('SentEmailLog').select('*').order('sent_date', { ascending: false });
+      logsQuery = customerIdFilter ? logsQuery.eq('customer_id', customerIdFilter) : logsQuery.limit(200);
+
+      const customersQuery = customerIdFilter
+        ? supabase.from('Customer').select('*').eq('id', customerIdFilter)
+        : supabase.from('Customer').select('*');
+
       const [
         { data: logsData, error: logsError },
         { data: customersData, error: customersError },
         { data: workOrdersData, error: workOrdersError }
       ] = await Promise.all([
-        supabase.from('SentEmailLog').select('*').order('sent_date', { ascending: false }).limit(200),
-        supabase.from('Customer').select('*'),
+        logsQuery,
+        customersQuery,
         supabase.from('WorkOrder').select('*')
       ]);
 
@@ -65,8 +76,13 @@ export default function EmailLogPage() {
   };
 
   useEffect(() => {
+    setCurrentPage(1);
     fetchData();
-  }, []);
+  }, [customerIdFilter]);
+
+  const handleClearCustomerFilter = () => {
+    setSearchParams({});
+  };
 
   const handleRowClick = (log) => {
     setSelectedLog(log);
@@ -127,6 +143,22 @@ export default function EmailLogPage() {
         <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Email/Text Log</h1>
           <p className="text-slate-600 mt-1 dark:text-slate-400">History of all emails and text messages sent from the platform.</p>
+          {customerIdFilter && (
+            <Badge
+              variant="outline"
+              className="mt-3 bg-blue-50 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-900/60 pl-2.5 pr-1.5 py-1.5"
+            >
+              <Filter className="w-3 h-3 mr-1.5" />
+              Filtered by customer: {getCustomerDisplayName(customers[customerIdFilter])}
+              <button
+                onClick={handleClearCustomerFilter}
+                className="ml-2 hover:bg-blue-100 dark:hover:bg-blue-900/60 rounded-full p-0.5 transition-colors"
+                aria-label="Clear customer filter"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </Badge>
+          )}
         </div>
 
         <Card>
