@@ -110,7 +110,7 @@ export default function ReportIssueModal({ isOpen, onClose, user, currentEmploye
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-      <DialogContent className="sm:max-w-[475px] border border-slate-200 dark:border-slate-800">
+      <DialogContent className="sm:max-w-[475px] max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-800">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
             <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-500" />
