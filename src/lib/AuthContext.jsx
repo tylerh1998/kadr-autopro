@@ -8,6 +8,7 @@ export const AuthProvider = ({ children }) => {
   const [session, setSession] = useState(null);
   const [employee, setEmployee] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [needsEnrollment, setNeedsEnrollment] = useState(false);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
   useEffect(() => {
@@ -36,15 +37,26 @@ export const AuthProvider = ({ children }) => {
             const methodStr = (typeof m === 'string' ? m : m?.method || '').toLowerCase();
             return methodStr.includes('webauthn') || methodStr.includes('passkey');
           });
-          
-          const fullyAuth = aal && (aal.currentLevel === aal.nextLevel || isPasskey);
-          setIsAuthenticated(fullyAuth);
+
+          // A zero-factor account has currentLevel === nextLevel === 'aal1',
+          // which used to satisfy the equality check below and let it straight
+          // into the app - every gated table then silently returned 0 rows
+          // (RLS filters, no error). Require an actual step-up to aal2 (or a
+          // passkey session, which stays aal1 by design) instead of treating
+          // "nothing to step up to" as equivalent to "stepped up."
+          const steppedUp = aal && (aal.currentLevel === 'aal2' || isPasskey);
+          const noFactorsEnrolled = !!aal && aal.currentLevel === 'aal1' && aal.nextLevel === 'aal1' && !isPasskey;
+          setIsAuthenticated(steppedUp);
+          setNeedsEnrollment(noFactorsEnrolled);
         } catch (e) {
           console.error("AuthContext AAL check error:", e);
-          setIsAuthenticated(true);
+          // Fail closed, not open - an AAL-check failure used to grant access.
+          setIsAuthenticated(false);
+          setNeedsEnrollment(false);
         }
       } else {
         setIsAuthenticated(false);
+        setNeedsEnrollment(false);
       }
       setIsLoadingAuth(false);
     };
@@ -91,6 +103,7 @@ export const AuthProvider = ({ children }) => {
       session,
       employee,
       isAuthenticated,
+      needsEnrollment,
       isLoadingAuth,
       logout,
       navigateToLogin,

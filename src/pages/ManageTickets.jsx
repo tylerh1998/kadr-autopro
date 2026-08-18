@@ -443,19 +443,6 @@ export default function ManageTickets() {
                   </div>
                 </div>
 
-                {selectedReport.console_logs?.length > 0 && (
-                  <div className="space-y-1.5">
-                    <Label className="text-slate-700 dark:text-slate-300">Console Logs</Label>
-                    <div className="max-h-64 overflow-y-auto rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-2 font-mono text-xs space-y-0.5">
-                      {selectedReport.console_logs.map((log, i) => (
-                        <div key={i} className={LOG_TYPE_COLOR[log.type] || 'text-slate-500'}>
-                          <span className="opacity-60">{format(new Date(log.timestamp), 'HH:mm:ss')}</span> [{log.type}] {log.message}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
                 {selectedReport.attachments?.length > 0 && (
                   <div className="space-y-1.5">
                     <Label className="text-slate-700 dark:text-slate-300">Attachments</Label>
@@ -486,6 +473,19 @@ export default function ManageTickets() {
                     {savingField === 'notes' ? 'Saving...' : 'Save Notes'}
                   </Button>
                 </div>
+
+                {selectedReport.console_logs?.length > 0 && (
+                  <div className="space-y-1.5 border-t border-slate-200 dark:border-slate-800 pt-4">
+                    <Label className="text-slate-700 dark:text-slate-300">Console Logs</Label>
+                    <div className="max-h-64 overflow-y-auto rounded-md border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 p-2 font-mono text-xs space-y-0.5">
+                      {selectedReport.console_logs.map((log, i) => (
+                        <div key={i} className={LOG_TYPE_COLOR[log.type] || 'text-slate-500'}>
+                          <span className="opacity-60">{format(new Date(log.timestamp), 'HH:mm:ss')}</span> [{log.type}] {log.message}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
