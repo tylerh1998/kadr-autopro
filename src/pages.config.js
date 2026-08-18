@@ -85,6 +85,16 @@ import ReconcileSupplier from './pages/ReconcileSupplier';
 import Schedule from './pages/Schedule';
 import Setup from './pages/Setup';
 import StockReorderReport from './pages/StockReorderReport';
+import PayproEmployees from './pages/paypro/Employees';
+import PayproEditEmployee from './pages/paypro/EditEmployee';
+import PayproTimeRecords from './pages/paypro/TimeRecords';
+import PayproPayroll from './pages/paypro/Payroll';
+import PayproPayStubs from './pages/paypro/PayStubs';
+import PayproRemittances from './pages/paypro/Remittances';
+import PayproT4s from './pages/paypro/T4s';
+import PayproReports from './pages/paypro/Reports';
+import PayproTrends from './pages/paypro/Trends';
+import PayproSetup from './pages/paypro/Setup';
 import SupplierTx from './pages/SupplierTx';
 import SupplierTxView from './pages/SupplierTxView';
 import Suppliers from './pages/Suppliers';
@@ -136,6 +146,16 @@ export const PAGES = {
     "Schedule": Schedule,
     "Setup": Setup,
     "StockReorderReport": StockReorderReport,
+    "paypro/Employees": PayproEmployees,
+    "paypro/EditEmployee": PayproEditEmployee,
+    "paypro/TimeRecords": PayproTimeRecords,
+    "paypro/Payroll": PayproPayroll,
+    "paypro/PayStubs": PayproPayStubs,
+    "paypro/Remittances": PayproRemittances,
+    "paypro/T4s": PayproT4s,
+    "paypro/Reports": PayproReports,
+    "paypro/Trends": PayproTrends,
+    "paypro/Setup": PayproSetup,
     "SupplierTx": SupplierTx,
     "SupplierTxView": SupplierTxView,
     "Suppliers": Suppliers,

@@ -49,7 +49,8 @@ import {
   Shield,
   User as UserIcon,
   AlertCircle,
-  Ticket
+  Ticket,
+  MoreHorizontal
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -74,6 +75,7 @@ import { TechClockStatusProvider, useTechClockStatus } from './components/contex
 import { createworkorderdata } from '@/api/workOrderFunctions';
 import { SupplierLockProvider, useSupplierLock } from './components/context/SupplierLockContext';
 import ReportIssueModal from './components/layout/ReportIssueModal';
+import PayrollMoreModal from './components/paypro/PayrollMoreModal';
 
 function LayoutContent({ children, currentPageName }) {
   const [showFindPartModal, setShowFindPartModal] = useState(false);
@@ -86,6 +88,7 @@ function LayoutContent({ children, currentPageName }) {
   const { isOpen: showTechClockStatusModal, openTechClockStatusModal, closeTechClockStatusModal } = useTechClockStatus();
   const [showGlobalClockInModal, setShowGlobalClockInModal] = useState(false);
   const [showReportIssueModal, setShowReportIssueModal] = useState(false);
+  const [showPayrollMoreModal, setShowPayrollMoreModal] = useState(false);
   const [hoveredItem, setHoveredItem] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -433,6 +436,10 @@ function LayoutContent({ children, currentPageName }) {
         console.log('✅ Opening Financial Dashboard');
         window.open(createPageUrl('FinancialDashboard'), '_blank', 'width=1400,height=900');
         break;
+      case 'openPayrollMoreModal':
+        console.log('✅ Opening Payroll More Modal');
+        setShowPayrollMoreModal(true);
+        break;
       default:
         console.log('⚠️ Unknown action:', action);
     }
@@ -538,7 +545,19 @@ function LayoutContent({ children, currentPageName }) {
         };
       }
     })(),
-    {
+    employee?.paypro_user === true ? {
+      title: "Payroll",
+      icon: UserCheck,
+      defaultUrl: createPageUrl("paypro/Employees"),
+      activePaths: ["/paypro/"],
+      dropdown: [
+        { title: "Employees", url: createPageUrl("paypro/Employees"), icon: Users },
+        { title: "Time Records", url: createPageUrl("paypro/TimeRecords"), icon: Clock },
+        { title: "Payroll", url: createPageUrl("paypro/Payroll"), icon: Calculator },
+        { title: "Pay Stubs", url: createPageUrl("paypro/PayStubs"), icon: Receipt },
+        { title: "More...", action: "openPayrollMoreModal", icon: MoreHorizontal },
+      ]
+    } : {
       title: "Payroll",
       icon: UserCheck,
       url: createPageUrl("Payroll"),
@@ -1052,6 +1071,11 @@ function LayoutContent({ children, currentPageName }) {
         user={user}
         currentEmployeeData={employee}
         isGloballyClockedIn={isClockedIn}
+      />
+
+      <PayrollMoreModal
+        open={showPayrollMoreModal}
+        onClose={() => setShowPayrollMoreModal(false)}
       />
     </div>
   );

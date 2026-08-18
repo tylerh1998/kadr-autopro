@@ -409,7 +409,9 @@ Every migration is idempotent (`ADD COLUMN IF NOT EXISTS`, `DROP POLICY IF EXIST
 
 ---
 
-### Phase 2 — Module Scaffolding, Auth Swap, Layout Disposition & Navigation  `[Pending]`
+### Phase 2 — Module Scaffolding, Auth Swap, Layout Disposition & Navigation  `[Code-complete on development, uncommitted — pending push + live verification]`
+
+Full execution detail, deviations, and learnings: `phase_2_implementation_plan.md`.
 
 **TL;DR** — Stand up `/paypro/*` routing, delete PayPRO's base44 auth and its entire Layout, build the entity shim, and wire the Payroll nav dropdown + More modal.
 
