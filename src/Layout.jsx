@@ -48,7 +48,8 @@ import {
   Moon,
   Shield,
   User as UserIcon,
-  AlertCircle
+  AlertCircle,
+  Ticket
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -862,6 +863,10 @@ function LayoutContent({ children, currentPageName }) {
                       <DropdownMenuItem onClick={() => window.location.href = createPageUrl('Admin')} className="cursor-pointer">
                         <Shield className="mr-2 h-4 w-4" />
                         <span>Admin Dashboard</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => window.location.href = createPageUrl('ManageTickets')} className="cursor-pointer">
+                        <Ticket className="mr-2 h-4 w-4" />
+                        <span>Manage Tickets</span>
                       </DropdownMenuItem>
                     </>
                   )}

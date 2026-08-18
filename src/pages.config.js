@@ -76,6 +76,7 @@ import InvoiceConversion from './pages/InvoiceConversion';
 import JournalEntries from './pages/JournalEntries';
 import LankarImport from './pages/LankarImport';
 import LinesOfCredit from './pages/LinesOfCredit';
+import ManageTickets from './pages/ManageTickets';
 import PLReport from './pages/PLReport';
 import Payroll from './pages/Payroll';
 import Reconcile from './pages/Reconcile';
@@ -126,6 +127,7 @@ export const PAGES = {
     "JournalEntries": JournalEntries,
     "LankarImport": LankarImport,
     "LinesOfCredit": LinesOfCredit,
+    "ManageTickets": ManageTickets,
     "PLReport": PLReport,
     "Payroll": Payroll,
     "Reconcile": Reconcile,
