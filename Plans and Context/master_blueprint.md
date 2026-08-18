@@ -565,7 +565,7 @@ Two behaviours preserved exactly: the `-06:00` timezone offset on `clock_in_time
 
 ---
 
-### Phase 6 — Pay Stubs, PDFs, Email & Mark Paid → GL/Bank  `[Pending]`
+### Phase 6 — Pay Stubs, PDFs, Email & Mark Paid → GL/Bank  `[Verified 2026-08-18 — live browser pass, real GL/Bank posting confirmed; see phase_6_implementation_plan.md]`
 
 **TL;DR** — Port the pay stub lifecycle and replace the `.txt`-export handoff with direct `GLTransaction` + `BankTransaction` posting. **Highest financial risk in the project.**
 

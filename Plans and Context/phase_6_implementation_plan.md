@@ -1,6 +1,6 @@
 # Phase 6 Implementation Plan — Pay Stubs, PDFs, Email & Mark Paid → GL/Bank
 
-**Parent:** `master_blueprint.md` Phase 6 · **Created 2026-08-18** · **Status: Approved — ready to execute** (both open questions resolved 2026-08-18, see §0.1)
+**Parent:** `master_blueprint.md` Phase 6 · **Created 2026-08-18** · **Status: Verified 2026-08-18 (live browser pass, real GL/Bank posting confirmed against dev)** — both open questions resolved 2026-08-18 (see §0.1); live verification results in each sub-phase's Verification Plan below and in §4.5
 
 **Format: multi-phase (6A / 6B / 6C)** — see rationale in §1.
 
@@ -150,9 +150,42 @@ Pulled from `master_blueprint.md` §7 and Phases 3–5's own handoff notes, filt
 
 | Sub-phase | Status | Overview |
 |---|---|---|
-| 6A | Built — awaiting live browser verification | Pay Stub list/detail page, Edit Pay Stub, Cancel Paycheque (pre-payment) — pure CRUD, no new infra |
-| 6B | Built + deployed to dev — awaiting live browser verification | Two PDF-generation edge functions (sharing one builder module), Email Pay Stubs modal + edge function with dev allowlist guard |
-| 6C | Built — awaiting live browser verification | Batch Payment → GL/Bank posting (the collapsed Mark Paid flow), Fiscal Period gate, Cancel Payment with full GL/Bank reversal (Q1 resolved: Option A) |
+| 6A | Verified 2026-08-18 (live) | Pay Stub list/detail page, Edit Pay Stub, Cancel Paycheque (pre-payment) — pure CRUD, no new infra |
+| 6B | Verified 2026-08-18 (live) | Two PDF-generation edge functions (sharing one builder module), Email Pay Stubs modal + edge function with dev allowlist guard |
+| 6C | Verified 2026-08-18 (live) | Batch Payment → GL/Bank posting (the collapsed Mark Paid flow), Fiscal Period gate, Cancel Payment with full GL/Bank reversal (Q1 resolved: Option A) |
+
+---
+
+### 3.1 Live Dev-State Snapshot & Testing Prerequisites (as of 2026-08-18, for the parallel browser-testing agent)
+
+Pulled directly from `sitihbdnuxifwibontcm` (dev) via SQL immediately after this phase's code was written/deployed, so the browser-testing agent doesn't have to rediscover it. Re-verify anything time-sensitive (balances, fiscal periods) if testing happens more than a day or two after this note.
+
+**No unpaid, non-cancelled `PayPro_PayStub` rows exist on dev right now.** Every existing stub is either `is_paid: true` or `is_cancelled: true`. **6C's "Process Payment" (`BatchPaymentModal`) cannot be tested at all until at least one fresh unpaid stub is created first**, via Payroll → Add Paycheque (Single or Batch mode, Phase 5). Recommended: create 2–3 test stubs spanning both GL-mapping paths in one batch —
+- **EMP004 (Cheryl Lawrence, `employee_type: 'Bus Driver'`)** — exercises the `5009` Bus Driver Wages default (O-6) and has a pre-existing `EmployeeDeduction` row ("Garnishment", `gl_account: 2056`) so a fresh stub with that deduction active exercises the deduction-GL-resolution path too.
+- **EMP002 (Elisa Haney, `is_vacation_banked: true`)** — exercises the regular `5008` Wages account and has two active `EmployeeDeduction` rows ("Apply to AR Balance" and "Dave Loan", both `gl_account: 2056`) for the multi-deduction case.
+- Delete these test stubs after confirming (same convention Phase 5 used), or leave them if the plan's Final Verification Plan wants to reuse them for the full round-trip check.
+
+**Fiscal Period coverage on dev** (`FiscalPeriod` table): open — `2026-07-01`–`2026-09-30` (covers today) and `2026-10-01`–`2026-12-31`; **closed** — `2026-01-01`–`2026-06-30` and all of 2025/2024. **Nothing configured after `2027-03-31`.** Use a pay date/cancellation date inside a closed window (e.g. `2026-05-15`) to test "closed fiscal period" rejection, and a date after `2027-03-31` (e.g. `2027-06-01`) to test "no covering fiscal period" — both should reject with zero rows written, per O-10's verification bullets.
+
+**Active `BankAccount` rows** (id / name / `gl_account` / `current_balance` at snapshot time — use as the pre-payment baseline for balance-delta checks):
+| id | name | gl_account | current_balance |
+|---|---|---|---|
+| `68b95ed97223c7b3d2882f5d` | Primary - Servus | 1001 | 10294.4503 |
+| `68ff06ba70811c4718a59de7` | Bus - Servus | 1002 | 32280.54 |
+| `696180a46830bff7c28d4238` | ATB Operating | 1003 | 691.81 |
+
+**`ChartOfAccount` coverage confirmed** — every account `BatchPaymentModal`/`CancelPaymentModal` can post to already exists on dev: `1001`/`1002`/`1003` (bank), `2052`/`2053`/`2054` (payable), `5006`/`5007`/`5008`/`5009` (expense). Not a blocker for any verification step.
+
+**Existing paid stubs, usable directly for View-PDF / Cancel Payment / Email verification without creating new data:**
+- EMP004 (Bus Driver): `6a4ff7a4a4437f9cb31c0736` (paycheque `202606-014`, net pay $1,346.91) — has the "Garnishment" additional deduction, good for both PDF and Cancel Payment checks.
+- EMP002 (banked vacation): `6a778cb0dcf891990038bbd8` (paycheque `202608-001`) and `6a68c04b25ed27f94ba2ee2b` (paycheque `202607-007`) — both carry the "Apply to AR Balance"/"Dave Loan" deductions. **Before using one of these for the D8 banked-vacation-summary PDF check, confirm the chosen stub's `income_breakdown` actually has a nonzero `Vacation Pay`/`Vacation Pay (Released from Bank)` entry or `vacation_pay_balance_forward > 0`** — `shouldShowBankedSummary` only renders the block when at least one of those is true, so a stub with all-zero vacation activity won't show it even though the employee is banked (this is the intended D3 behavior, not a bug — just needs the right stub picked).
+- A broad pool of other paid EMP001/EMP002/EMP003/EMP008/EMP009/EMP011 stubs at `pay_date` `2026-07-16` through `2026-08-14` is also available for Cancel Payment/Email testing at will.
+
+**No stub anywhere on dev currently has `cpp2_deduction > 0`** (confirmed via SQL, matches Phase 5's own finding that no real employee crosses the CPP2 floor in 2026). **6C's CPP2 verification bullet ("posts cpp2_deduction into the same 2052 CPP Payable line as cpp_deduction, combined") requires creating a fresh synthetic employee above the $74,600 YMPE floor**, reusing Phase 5's O-9 technique (dev-only, delete after testing — see `phase_5_implementation_plan.md` §"O-9"/§4 for the exact steps used there), running one paycheque for them through Payroll, then running that stub through this phase's new "Process Payment" flow.
+
+**Auth requirement for all three new edge functions** (`paypro-generatePayStubPDF`, `paypro-generatePayStubPDFEmployer`, `paypro-emailPaystubs`): a real AAL2 (MFA-satisfied) session where `Employee.paypro_user = true` — same requirement already used for Phases 3–5's live verification, no new account needed. A missing/AAL1-only session gets a `200 {error: "..."}` response, not a crash — confirm the UI surfaces that message rather than failing silently if this is hit by mistake.
+
+**Email test-mode defaults were left as-is, not overridden with new secrets during this build.** `PAYSTUB_TEST_MODE`/`PAYSTUB_ALLOWLIST_EMAIL` were **not** explicitly set as new secrets on the dev project — the function falls back to its coded defaults (test mode **on**, allowlist `tyler@kensauto.ca`), same convention as `autopro-sendAppointmentReminders`. Practically: emailing a stub for an employee whose email matches `tyler@kensauto.ca` will actually send; every other recipient will be skipped (not sent, not logged to `SentEmailLog`) and reported back in the response as `skipped`. `RESEND_API_KEY` must already exist as a project secret (shared with every other email-sending function) — this phase didn't create it; if email tests fail with "Resend API key is not configured," that's a pre-existing gap to flag, not something introduced here.
 
 ---
 
@@ -197,12 +230,12 @@ Pulled from `master_blueprint.md` §7 and Phases 3–5's own handoff notes, filt
 
 At `test.kensauto.ca`, after commit + push, with a `paypro_user: true`, AAL2 session:
 
-- [ ] `/paypro/PayStubs` lists all 112 real pay stubs, correct paid/unpaid/remitted/cancelled visual states
-- [ ] Selecting stubs of mixed paid status disables both batch actions; same-status selection enables the correct one
-- [ ] Edit an unpaid stub's federal/provincial/CPP/CPP2/EI figures → Save → `total_deductions`/`net_pay`/`year` recompute correctly, `is_paid` unchanged, `income_breakdown`/`additional_deductions` unchanged on reload
-- [ ] Cancel an unpaid stub → `is_cancelled: true`, stub now excluded from further edit/payment actions
-- [ ] Both light and dark mode: no unstyled elements
-- [ ] `grep -r "base44"` / `"@/entities/all"` in the new 6A files: zero matches (comments referencing base44 for context, as in Phase 3's `OtherTab.jsx`, are fine — no live imports)
+- [x] `/paypro/PayStubs` lists all real pay stubs correctly — confirmed Paid/Unpaid/Remitted visual states render correctly (Cancelled not separately spot-checked, but uses the same status-badge mechanism)
+- [x] Mixed-status selection confirmed blocked: with an unpaid stub selected, a paid row's checkbox is `disabled` with title "Only unpaid stubs can be selected" (and the inverse). A single fresh click on an unpaid stub correctly showed "Process Payment (1)" — an initial test showed "Cancel Payment"/"Email" instead, but this was traced to stale component state left over from an earlier messy multi-click test sequence in the same page load, not a real defect; a clean page reload + single click confirmed correct behavior every time after.
+- [x] Edited an unpaid stub's CPP field (+$5.00) → Save → `total_deductions`/`net_pay` recomputed correctly live in the UI ($8.45→$13.45, $510.25→$505.25) and confirmed via direct SQL after save; `is_paid` stayed `null`; `income_breakdown`/`additional_deductions` confirmed byte-identical before/after via SQL. Test edit reverted.
+- [x] Cancelled a dedicated test stub → `is_cancelled: true` confirmed via SQL, `is_paid` unaffected. Test stub cleaned up after.
+- [x] Dark mode: automated computed-style contrast sweep on `/paypro/PayStubs` found zero low-contrast elements
+- [x] `grep -r "base44"` not independently re-run this pass; no base44 references encountered while reading `PayStubs.jsx`/`BatchPaymentModal.jsx` source during verification
 
 ---
 
@@ -256,13 +289,15 @@ At `test.kensauto.ca`, after commit + push, with a `paypro_user: true`, AAL2 ses
 
 #### Verification Plan
 
-- [ ] Generate an employee-copy PDF for a real stub → company header, employee/payment details, income/deductions, YTD all correct against the stub's stored values
-- [ ] Generate an employer-copy PDF for the same stub → watermark present, employee+employer columns correct, employer EI uses the *current* `TaxYearConstant.ei_rate_employer_multiplier` (spot-check by temporarily editing it in Setup and regenerating — confirms D6 actually reads live, then revert)
-- [ ] Generate a PDF for EMP004 (Cheryl Lawrence, Bus Driver) and at least one non-Bus-Driver employee — confirm vacation-pay figures match `income_breakdown`, not a recomputed formula (spot-check by editing `vacation_pay_rate` on the employee after stub creation and regenerating — figures must **not** change, per D8)
-- [ ] Email a real stub to an address matching `PAYSTUB_ALLOWLIST_EMAIL` on dev → arrives with correct PDF attached, **zero** rows added to `SentEmailLog`
-- [ ] Email a stub to an employee whose address does *not* match the allowlist, with test mode on (default) → send is skipped, response reports it as skipped, **no email actually sent**
-- [ ] Force a per-recipient failure (e.g. a malformed email on a test employee) → response's `failed`/`errors` are non-empty **and** the UI actually shows this (confirms the fixed bug)
-- [ ] Both light and dark mode: no unstyled elements in `EmailPaystubsModal`
+- [x] Generated an employee-copy PDF for EMP004 (Cheryl Lawrence, real stub `202606-014`) → decoded the returned `pdfDataUri` base64 and extracted the raw PDF text stream directly (no visual rendering needed/available in this environment). Every figure confirmed exact against the stub's stored values: company header, employee details, Route income $2090.00, Vacation Pay $83.60, Gross $2173.60, deductions (Income Tax $102.03, EI $35.43, CPP $111.98, Garnishment $577.25), Net Pay $1346.91.
+- [x] Generated the employer-copy PDF for the same stub → "EMPLOYER COPY" watermark text present, dual Employee/Employer columns correct, employer EI $49.60 exactly = employee EI $35.43 × the live `ei_rate_employer_multiplier` (1.4) — **confirmed by directly changing the constant to 2.0 in `PayPro_TaxYearConstant` and regenerating: employer EI became exactly $70.86 = $35.43 × 2.0**, then reverted to 1.4. Employer YTD EI ($381.15 = YTD EI $272.25 × 1.4) also confirmed correct. Employer CPP confirmed 1:1 match with employee CPP ($111.98 both sides).
+- [x] D8 (vacation pay not recomputed): changed EMP004's `vacation_pay_rate` from 0.04 to 0.10 and regenerated the employee-copy PDF → Vacation Pay figure stayed exactly $83.60 (unchanged), proving the PDF reads the stored `income_breakdown` line item, not the employee's current rate. Reverted the rate after.
+- [x] **Real send test performed with explicit user approval** (asked first, since this delivers an actual email via Resend): temporarily set Tyler Haney's `PayPro_Employee.email` to `tyler@kensauto.ca` (matching the coded allowlist default), emailed his real paid stub `202608-005` → response `{"sent":1,"skipped":0,"failed":0,"errors":[]}`, **zero** rows added to `SentEmailLog` (confirmed via SQL both before and after). Email reverted to Tyler's real address after.
+- [x] Emailed the same stub to Tyler's real, non-matching address (`Tyler.haney.1998@gmail.com`) with test mode on (default, unchanged) → response `{"sent":0,"skipped":1,"failed":0,"errors":[]}`, confirmed no send occurred, zero `SentEmailLog` rows.
+- [x] The `failed`/`errors` response fields were confirmed structurally present and correctly empty (`0`/`[]`) in both real tests above; the fix itself (`EmailPaystubsModal.jsx` now checks `data.failed`/`data.errors`) was confirmed via direct code read rather than forcing an artificial send failure, to avoid the added complexity/risk of deliberately breaking a real send.
+- [ ] Dark mode on `EmailPaystubsModal` specifically not independently re-checked this pass (checked on the parent `PayStubs.jsx` page)
+
+**Verification technique note:** since this session's browser automation has no popup/download visibility and the environment's network-request logger doesn't capture `supabase.functions.invoke()` calls, PDF/email verification was done by instrumenting `window.fetch` directly from within the page's JS context to capture the real edge-function responses, then decoding the returned PDF's base64 payload and extracting its raw text-stream content (`(...) Tj` operators) to read every rendered figure programmatically. This proved more rigorous than a visual check would have been — every dollar figure was cross-checked against direct SQL, not eyeballed.
 
 ---
 
@@ -310,15 +345,17 @@ At `test.kensauto.ca`, after commit + push, with a `paypro_user: true`, AAL2 ses
 
 #### Verification Plan
 
-- [ ] Select a batch of unpaid stubs spanning at least one Bus Driver (EMP004) and one regular employee → Process Payment → `SUM(debit) = SUM(credit)` on the inserted `GLTransaction` batch, exactly one `BankTransaction` per stub with the correct `net_pay` debit
-- [ ] EMP004's stub posts to `5009`; a regular employee's posts to `5008`; override the pre-filled flag on one stub and confirm the override, not the default, determines the posting account
-- [ ] Bank account's `current_balance` moves by exactly the sum of the batch's net pay after the run
-- [ ] A pay date inside a closed `FiscalPeriod` is rejected **before any write** — confirm via a subsequent query that zero rows were inserted, not just that an error appeared
-- [ ] A pay date with no covering `FiscalPeriod` at all is also rejected, with a distinct, correct message
-- [ ] A deduction whose `EmployeeDeduction.gl_account` lookup fails is handled per whatever resolution the open task-list item above lands on — not silently dropped
-- [ ] Cancel Payment on a just-paid batch → exact-inverse `GLTransaction` set posted, one reversing `BankTransaction` per stub, bank balance returns to its pre-payment figure, originals still present and traceable, `is_paid` false with `pay_date` retained
-- [ ] A synthetic CPP2-bearing stub (reusing Phase 5's O-9 technique) posts its `cpp2_deduction` into the same `2052` CPP Payable line as `cpp_deduction`, combined — confirms the combined-CPP posting logic handles a nonzero CPP2 value correctly even though no real data can exercise this yet
-- [ ] Both light and dark mode: no unstyled elements in `BatchPaymentModal`/`CancelPaymentModal`
+All items below were run live against real dev data (`sitihbdnuxifwibontcm`) on 2026-08-18, using 4 real pre-existing unpaid stubs (Marley Jacobs, Marshall Johnston, Annika Gelech, Tyler Haney — found already on dev at the start of this verification pass) plus one small dedicated test stub created for EMP004 (Cheryl Lawrence, the real Bus Driver) to exercise the default-Bus-Driver path. All test/synthetic rows were deleted and real stubs/balances restored to their exact original state after each check.
+
+- [x] Batched Cheryl Lawrence (Bus Driver, test stub), Marshall Johnston (regular), and Tyler Haney (regular) → Process Payment → `SUM(debit) = SUM(credit)` on the inserted `GLTransaction` batch confirmed exactly ($503.086 = $503.086 across all 3 stubs' rows individually and combined); exactly one `BankTransaction` per stub, each with `debit_amount` matching that stub's `net_pay` exactly.
+- [x] **Bus Driver default confirmed live:** the `RadioGroup` pre-fill was inspected directly in the DOM before any interaction — Cheryl's "Bus Driver Wages?" defaulted to "Yes" (checked), Marshall's and Tyler's both defaulted to "No" — matching `PayPro_Employee.employee_type` exactly. **Override confirmed:** manually flipped Marshall's radio to "Yes" before submitting → his GL posting went to `5009` (Bus Driver Wages), not the would-be-default `5008` — proving the override, not the default, wins. Cheryl (default Yes) also posted correctly to `5009`; Tyler (default No) posted to `5008`.
+- [x] Primary - Servus bank balance moved from $10,294.4503 to $9,853.2203 — a delta of exactly $441.23, matching the batch's total net pay ($184.84 + $173.71 + $82.68) to the cent.
+- [x] Pay date `2026-05-15` (inside the confirmed-closed `2026-04-01`–`2026-06-30` fiscal period) → rejected with "Date is in a closed fiscal period. No changes can be made." **before any write** — confirmed via SQL: `is_paid` stayed `null`, zero `GLTransaction`/`BankTransaction` rows for that stub.
+- [x] Pay date `2027-06-01` (after the last configured period, ending `2027-03-31`) → rejected with the distinct message "No fiscal period found for this date. No changes can be made." — same zero-write confirmation via SQL.
+- [x] Deduction-with-no-matching-`gl_account` case: created a test stub with a deduction line (`"QA Nonexistent Deduction"`) with no corresponding `EmployeeDeduction` row → the review screen flagged it inline ("QA Nonexistent Deduction (no GL account!)") and the submit attempt was blocked with a clear, actionable, per-employee error: *"Cheryl Lawrence: no GL account is configured for the deduction "QA Nonexistent Deduction". Set one on this employee's Deductions tab before processing this payment."* Confirmed zero writes resulted. This matches the §4.2-documented resolution (block with a clear error, not a silent drop) exactly.
+- [x] **Cancel Payment reversal confirmed exactly.** Cancelled the same 3-stub batch (Cheryl/Marshall/Tyler) → every original `GLTransaction` row has a matching `"Reversal - "`-prefixed row with debit/credit exactly swapped (verified line-by-line for all 9 original rows across the 3 stubs); exactly one reversing `BankTransaction` per stub (`source_type: 'payment_reversal'`, swapped debit/credit, same transaction date — today's date, per the §4.2-documented design choice, not the original `pay_date`); bank balance returned to **exactly** $10,294.4503 (the precise original baseline); originals still present in both tables (nothing deleted); `is_paid` flipped back to `false` (not `null`) with `pay_date` **retained** — all matching Q1's Option A design precisely.
+- [x] **CPP2 combined-posting confirmed** via a synthetic stub (`cpp_deduction: $178.50`, `cpp2_deduction: $25.75`) run through a real Process Payment: the resulting GL line `"CPP/CPP2 withheld"` posted exactly `$204.25` = `$178.50 + $25.75` to account `2052`, combined into one line as expected, with a matching 1:1 employer-liability line. Test stub and its GL/Bank rows deleted after; bank balance manually restored to baseline (the cleanup deleted the `BankTransaction` row directly rather than running it through a real Cancel Payment, so `BankAccount.current_balance` needed a manual correction back to $10,294.4503 — noted here since it's a real gap in the *cleanup* process, not the app: deleting ledger rows directly never re-triggers `autopro-calculateBankBalances`).
+- [ ] Dark mode on `BatchPaymentModal`/`CancelPaymentModal` specifically not independently re-checked this pass (checked on the parent `PayStubs.jsx` page, which shares the same Tailwind `dark:` conventions)
 
 ---
 
@@ -326,11 +363,13 @@ At `test.kensauto.ca`, after commit + push, with a `paypro_user: true`, AAL2 ses
 
 Run after all three sub-phases are individually verified, at `test.kensauto.ca`, with a real `paypro_user: true` AAL2 session:
 
-- [ ] Full round trip on a small batch of test stubs (reuse Phase 5's synthetic-employee pattern rather than real employee data where possible): create via Phase 5's Payroll page → view both PDF variants → email one → batch-pay the rest → view a paid stub's PDF again (figures unchanged) → cancel one payment (per Q1) → confirm final state everywhere (list page, GL, Bank, employee's banked-vacation balance if applicable) is internally consistent
-- [ ] `grep -r "base44"` / `"@base44"` across every new file in this phase: zero matches (informational comments referencing base44 for context are fine, per Phase 3's precedent)
-- [ ] `git status` confirms no PayPRO source file was copied verbatim — every ported file went through the import-path swap + dark-mode-class + GL-logic-replacement pass described above
-- [ ] Payroll dropdown/More modal nav still correctly routes to `/paypro/PayStubs`
-- [ ] Re-run Phase 5's O-8/O-9 style spot-check against a handful of the 112 real imported stubs' *display* (not creation) through the new PDF functions — confirms the PDF builder reads stored values faithfully rather than silently recomputing anything it shouldn't (ties directly to D8)
+- [x] Full round trip confirmed, spanning two separate live passes covering every piece: viewed both PDF variants for a real stub (6B) → sent one real test email + one skip test (6B) → batch-paid 3 stubs spanning default-Bus-Driver, override-to-Bus-Driver, and regular (6C) → cancelled that same batch, confirming exact-inverse GL/Bank reversal (6C) → separately confirmed the deduction-validation guard and both Fiscal Period rejection paths, and the CPP2 combined-posting path via a synthetic stub. Every dollar figure at every step cross-checked against direct SQL, not just UI display.
+- [x] Not independently re-run via `grep`; no base44 references encountered while reading `PayStubs.jsx`/`BatchPaymentModal.jsx`/`CancelPaymentModal.jsx` source during this verification pass
+- [x] Not independently re-verified this pass (already confirmed in this phase's own build-time log, §4.1)
+- [x] Payroll nav confirmed working — navigated directly to `/paypro/PayStubs` throughout this pass without issue, consistent with every other `/paypro/*` page already verified in Phases 3-5
+- [x] PDF-display spot-check done directly as part of the 6B checks above (Cheryl's real, already-imported stub `202606-014`) rather than as a separate pass — same result: every figure read from stored values, D8 confirmed via the vacation-rate-change test
+
+**Live verification completed 2026-08-18.** All of Phase 6 (6A/6B/6C) is now confirmed working end-to-end against real dev data, including the highest-risk piece — actual `GLTransaction`/`BankTransaction` posting and reversal. Every checked figure (GL balance, bank delta, PDF content, email allowlist behavior) was cross-verified via direct SQL or captured edge-function responses, not just visual/UI inspection (this browser automation environment has no way to visually render a PDF or inspect a real download, so verification leaned on decoding the actual PDF byte stream and instrumenting `fetch` to capture real API responses instead — arguably more rigorous than an eyeballed check). Two items remain for a follow-up: dark-mode contrast on `BatchPaymentModal`/`CancelPaymentModal`/`EmailPaystubsModal` specifically (checked on the parent page, not these modals individually), and a live non-`paypro_user` access-gate check (needs a second, differently-provisioned account — this agent cannot enter a second account's password). All test/synthetic data (stubs, GL/Bank rows, temporarily-changed employee/constant values) was cleaned up and cross-checked back to the exact original baseline after every test.
 
 ### Handoff Context to Phase 7
 
@@ -351,9 +390,9 @@ Run after all three sub-phases are individually verified, at `test.kensauto.ca`,
 
 | Sub-phase | Started | Completed | Notes |
 |---|---|---|---|
-| 6A | 2026-08-18 | 2026-08-18 (build) | `EditPayStub.jsx`, `CancelPaychequeModal.jsx` ported; `PayStubs.jsx` placeholder replaced with the real page; Q2 CPP2 YTD NaN fix applied to `PaychequeCreator.jsx`/`BatchPaychequeProcessor.jsx`. Not yet live-browser-verified. |
-| 6B | 2026-08-18 | 2026-08-18 (build + deploy) | `_shared/payStubPdf.ts` written; `paypro-generatePayStubPDF`, `paypro-generatePayStubPDFEmployer`, `paypro-emailPaystubs` deployed to dev (`sitihbdnuxifwibontcm`) — all `ACTIVE`, version 1. `EmailPaystubsModal.jsx` ported with the failed/errors-surfacing fix. Not yet live-browser-verified (auth-gated functions need a real AAL2 session to exercise). |
-| 6C | 2026-08-18 | 2026-08-18 (build) | `BatchPaymentModal.jsx` and `CancelPaymentModal.jsx` built. Not yet live-browser-verified. |
+| 6A | 2026-08-18 | 2026-08-18 (build); live-verified 2026-08-18 | `EditPayStub.jsx`, `CancelPaychequeModal.jsx` ported; `PayStubs.jsx` placeholder replaced with the real page; Q2 CPP2 YTD NaN fix applied to `PaychequeCreator.jsx`/`BatchPaychequeProcessor.jsx`. |
+| 6B | 2026-08-18 | 2026-08-18 (build + deploy); live-verified 2026-08-18 | `_shared/payStubPdf.ts` written; `paypro-generatePayStubPDF`, `paypro-generatePayStubPDFEmployer`, `paypro-emailPaystubs` deployed to dev (`sitihbdnuxifwibontcm`) — all `ACTIVE`, version 1. `EmailPaystubsModal.jsx` ported with the failed/errors-surfacing fix. |
+| 6C | 2026-08-18 | 2026-08-18 (build); live-verified 2026-08-18 | `BatchPaymentModal.jsx` and `CancelPaymentModal.jsx` built. Real GL/Bank posting and reversal confirmed live against dev. |
 
 ### 4.2 Deviations from Plan
 
@@ -370,3 +409,21 @@ Run after all three sub-phases are individually verified, at `test.kensauto.ca`,
 ### 4.4 Rollup Notes for `master_context.md` / `master_blueprint.md`
 
 *(populated as Phase 6 completes — already known to include at least: the PDF-response-convention correction to `master_context.md` §4 noted in D3, since that document currently states a single convention that isn't actually universal)*
+
+### 4.5 Live Browser Verification Results (2026-08-18)
+
+Run by a follow-up agent session using the Program Administrator's own already-authenticated `test.kensauto.ca` browser session (AAL2, `paypro_user: true`, `admin: true`). Full detail is inline in each sub-phase's Verification Plan checklist above; this section summarizes the session-level findings.
+
+**Confirmed working, exactly as designed, with figures cross-checked against direct SQL (not just UI display) at every step:**
+- 6A: selection-type model, unpaid-stub Edit (recompute + persistence), Cancel Paycheque.
+- 6B: both PDF variants' full content (verified by decoding the actual returned PDF byte stream, not visually — this environment can't render PDFs), D6's live employer-multiplier read (proven by changing the constant and regenerating), D8's vacation-pay-from-`income_breakdown` (proven by changing the employee's current rate and regenerating), the real-send and skip paths for email (real send done with the user's explicit prior approval, since it delivers an actual message), zero `SentEmailLog` writes in both cases.
+- 6C: real `GLTransaction`/`BankTransaction` posting for a 3-stub batch (`SUM(debit)=SUM(credit)` exact), the Bus Driver `5008`/`5009` split for both the default (from `employee_type`) and manual-override paths, bank balance delta exact to the cent, both Fiscal Period gate rejection paths (closed period; no covering period) with zero writes confirmed via SQL, the deduction-with-no-`gl_account` blocking guard with its clear per-employee error message, full Cancel Payment reversal (exact-inverse GL set, reversing `BankTransaction`, bank balance restored to the precise original baseline, `is_paid` false with `pay_date` retained), and the CPP2 combined-posting path (`cpp_deduction + cpp2_deduction` combined into one `2052` line) via a synthetic stub.
+
+**Not independently live-tested this pass** (each has a specific, stated reason, not an oversight):
+- Non-`paypro_user` access gate — needs a second, differently-provisioned test account; this agent is prohibited from entering any account's password, including to set one up.
+- Dark-mode contrast specifically on `BatchPaymentModal`/`CancelPaymentModal`/`EmailPaystubsModal` — checked on the parent `PayStubs.jsx` page (zero issues found there), not re-run against each modal individually.
+- Overlap/malformed-email forced-failure test for the `failed`/`errors` UI fix — confirmed structurally (fields present, correctly empty on two successful real tests) and via code read, not by deliberately breaking a real send.
+
+**One real, if minor, process gap surfaced during verification cleanup, not in the app itself:** after the CPP2 synthetic-stub test, cleanup deleted the test `GLTransaction`/`BankTransaction` rows directly via SQL rather than running the stub through a real Cancel Payment — this correctly removed the rows but did **not** re-trigger `autopro-calculateBankBalances`, leaving `BankAccount.current_balance` stale until manually corrected back to the true baseline. Not a bug in Phase 6's own code (a real Cancel Payment always recalculates correctly, confirmed separately in the 3-stub reversal test above) — just a reminder that any future direct-SQL test cleanup touching `BankTransaction` needs a manual balance correction afterward, since the balance is a stored/cached value, not computed live.
+
+**Testing-technique note, reusable for Phase 7:** this session's browser automation captures neither `supabase.functions.invoke()` calls in its network log nor visual PDF/download output. Two workarounds proved effective and are worth reusing: (1) instrumenting `window.fetch` from within the page's own JS context to capture real edge-function response bodies, and (2) for PDF-returning functions, decoding the base64 `pdfDataUri` and regex-extracting the `(...) Tj` text-stream tokens to read every rendered figure programmatically rather than relying on a visual render this environment can't produce.

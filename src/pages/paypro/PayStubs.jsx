@@ -66,7 +66,9 @@ export default function PayStubs() {
     ]);
     setPayStubs(stubs);
     setEmployees(emps);
-    setRemittedStubIds(remittances.flatMap((r) => r.pay_stub_ids || []));
+    // Phase 7 D2: a cancelled remittance must un-lock its stubs - only non-cancelled
+    // remittances count toward the "already remitted" lock.
+    setRemittedStubIds(remittances.filter((r) => r.status !== 'cancelled').flatMap((r) => r.pay_stub_ids || []));
     setLoading(false);
   };
 
