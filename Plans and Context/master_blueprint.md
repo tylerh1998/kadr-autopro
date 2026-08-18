@@ -606,7 +606,7 @@ Two notes from §3's record of how this gate has failed before: it depends entir
 
 ---
 
-### Phase 7 — Remittances & Cancel Payment  `[Verified 2026-08-18 — live browser pass, real GL/Bank posting confirmed; one real bug found (duplicate-submission risk on popup-blocked report), see phase_7_implementation_plan.md §5.5]`
+### Phase 7 — Remittances & Cancel Payment  `[Verified 2026-08-18 — live browser pass, real GL/Bank posting confirmed; one real bug found and fixed same day (duplicate-submission risk on popup-blocked report, not yet deployed/re-verified live), see phase_7_implementation_plan.md §5.5]`
 
 **TL;DR** — Port remittance generation and history, with Mark Paid and Cancel Payment posting to GL and Bank.
 

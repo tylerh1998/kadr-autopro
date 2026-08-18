@@ -280,13 +280,25 @@ Total Amount to Remit: $${totals.totalRemittance.toFixed(2)}
 
       alert(`Remittance processed successfully for ${selectedStubs.length} paycheques!`);
 
-      // Report still opens automatically post-submit, unchanged from source (D3).
-      const multiplier = getEmployerMultiplier(selectedStubs[0]?.year || new Date(remittanceDate).getFullYear());
-      const pdfHTML = RemittanceReportPDF(newRemittance, selectedStubs, employees, multiplier);
-      const pdfWindow = window.open("", "_blank");
-      pdfWindow.document.write(pdfHTML);
-      pdfWindow.document.close();
-      pdfWindow.focus();
+      // Report still opens automatically post-submit, unchanged from source (D3). Isolated in
+      // its own try/catch: the remittance is already fully posted by this point, so a blocked
+      // popup (window.open() returns null) must not surface as - or be mistaken for - a failed
+      // submission, and must not block onComplete() from running (which would leave the submit
+      // button re-enabled against an already-processed remittance, risking a duplicate on retry).
+      try {
+        const multiplier = getEmployerMultiplier(selectedStubs[0]?.year || new Date(remittanceDate).getFullYear());
+        const pdfHTML = RemittanceReportPDF(newRemittance, selectedStubs, employees, multiplier);
+        const pdfWindow = window.open("", "_blank");
+        if (!pdfWindow) {
+          throw new Error("Report window was blocked by the browser's popup blocker.");
+        }
+        pdfWindow.document.write(pdfHTML);
+        pdfWindow.document.close();
+        pdfWindow.focus();
+      } catch (reportError) {
+        console.error("Error opening remittance report:", reportError);
+        alert("Remittance was processed successfully, but the report window could not be opened (likely blocked by a popup blocker). You can view it later from Remittance History.");
+      }
 
       onComplete();
     } catch (error) {
