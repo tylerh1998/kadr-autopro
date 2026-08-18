@@ -34,25 +34,32 @@ export default function EmployeeFileModal({ employeeId, isOpen, onClose, onUploa
             const reader = new FileReader();
             reader.readAsDataURL(file);
             reader.onload = async () => {
-                const base64Content = reader.result; // format: "data:type/ext;base64,..."
+                try {
+                    const base64Content = reader.result; // format: "data:type/ext;base64,..."
 
-                const payload = {
-                    employee_id: employeeId,
-                    file_content: base64Content,
-                    file_name: fileName,
-                    document_date: documentDate,
-                    notes: notes
-                };
+                    const payload = {
+                        employee_id: employeeId,
+                        file_content: base64Content,
+                        file_name: fileName,
+                        document_date: documentDate,
+                        notes: notes
+                    };
 
-                const { data, error } = await supabase.functions.invoke('paypro-uploadEmployeeFile', { body: payload });
-                if (error) throw error;
-                if (data?.error) throw new Error(data.error);
+                    const { data, error } = await supabase.functions.invoke('paypro-uploadEmployeeFile', { body: payload });
+                    if (error) throw error;
+                    if (data?.error) throw new Error(data.error);
 
-                setFile(null);
-                setFileName("");
-                setNotes("");
-                onUploadSuccess();
-                onClose();
+                    setFile(null);
+                    setFileName("");
+                    setNotes("");
+                    onUploadSuccess();
+                    onClose();
+                } catch (error) {
+                    console.error("Error uploading file:", error);
+                    alert(`Failed to upload file: ${error.message || 'Please try again.'}`);
+                } finally {
+                    setUploading(false);
+                }
             };
             reader.onerror = (error) => {
                 console.error("Error reading file:", error);

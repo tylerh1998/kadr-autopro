@@ -78,7 +78,7 @@ serve(async (req) => {
       return res({ error: 'You do not have access to the payroll module.' });
     }
 
-    const { body } = await req.json().catch(() => ({ body: {} }));
+    const body = await req.json().catch(() => ({}));
     const { employee_id, file_content, file_name, document_date, notes } = body || {};
 
     if (!employee_id || !file_content || !file_name || !document_date) {
