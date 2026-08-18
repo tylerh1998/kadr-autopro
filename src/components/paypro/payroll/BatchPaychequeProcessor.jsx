@@ -63,6 +63,7 @@ export default function BatchPaychequeProcessor({ employeeIds, employees, payPer
               const latestStub = employeeStubs.sort((a, b) => new Date(b.pay_date) - new Date(a.pay_date))[0];
               ytdCache[employee.id] = {
                 cpp: latestStub.ytd_cpp || 0,
+                cpp2: latestStub.ytd_cpp2 || 0,
                 ei: latestStub.ytd_ei || 0,
                 gross: latestStub.ytd_gross || 0,
                 federal_tax: latestStub.ytd_federal_tax || 0,
@@ -70,7 +71,7 @@ export default function BatchPaychequeProcessor({ employeeIds, employees, payPer
                 net: latestStub.ytd_net || 0
               };
             } else {
-              ytdCache[employee.id] = { cpp: 0, ei: 0, gross: 0, federal_tax: 0, provincial_tax: 0, net: 0 };
+              ytdCache[employee.id] = { cpp: 0, cpp2: 0, ei: 0, gross: 0, federal_tax: 0, provincial_tax: 0, net: 0 };
             }
           }
           setYtdDataCache(ytdCache);
@@ -107,7 +108,7 @@ export default function BatchPaychequeProcessor({ employeeIds, employees, payPer
           setError("Failed to load year-to-date data. Please try again.");
           const defaultYtdCache = {};
           for (const employee of selectedEmployees) {
-            defaultYtdCache[employee.id] = { cpp: 0, ei: 0, gross: 0, federal_tax: 0, provincial_tax: 0, net: 0 };
+            defaultYtdCache[employee.id] = { cpp: 0, cpp2: 0, ei: 0, gross: 0, federal_tax: 0, provincial_tax: 0, net: 0 };
           }
           setYtdDataCache(defaultYtdCache);
         } finally {

@@ -5,7 +5,7 @@ import { Calendar, AlertCircle, Loader2 } from "lucide-react";
 import PaychequeForm from "./PaychequeForm";
 
 export default function PaychequeCreator({ employee, payPeriod, importedTimeData, onComplete }) {
-  const [ytdData, setYtdData] = useState({ cpp: 0, ei: 0, gross: 0, federal_tax: 0, provincial_tax: 0, net: 0 });
+  const [ytdData, setYtdData] = useState({ cpp: 0, cpp2: 0, ei: 0, gross: 0, federal_tax: 0, provincial_tax: 0, net: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -14,7 +14,7 @@ export default function PaychequeCreator({ employee, payPeriod, importedTimeData
     if (!employee) {
         setLoading(false);
         setError(null); // Clear any previous errors if employee becomes null
-        setYtdData({ cpp: 0, ei: 0, gross: 0, federal_tax: 0, provincial_tax: 0, net: 0 }); // Reset YTD data
+        setYtdData({ cpp: 0, cpp2: 0, ei: 0, gross: 0, federal_tax: 0, provincial_tax: 0, net: 0 }); // Reset YTD data
         return;
     }
 
@@ -37,6 +37,7 @@ export default function PaychequeCreator({ employee, payPeriod, importedTimeData
                     const latestStub = stubs.sort((a, b) => new Date(b.pay_date).getTime() - new Date(a.pay_date).getTime())[0];
                     setYtdData({
                         cpp: latestStub.ytd_cpp || 0,
+                        cpp2: latestStub.ytd_cpp2 || 0,
                         ei: latestStub.ytd_ei || 0,
                         gross: latestStub.ytd_gross || 0,
                         federal_tax: latestStub.ytd_federal_tax || 0,
@@ -44,12 +45,12 @@ export default function PaychequeCreator({ employee, payPeriod, importedTimeData
                         net: latestStub.ytd_net || 0
                     });
                 } else {
-                    setYtdData({ cpp: 0, ei: 0, gross: 0, federal_tax: 0, provincial_tax: 0, net: 0 });
+                    setYtdData({ cpp: 0, cpp2: 0, ei: 0, gross: 0, federal_tax: 0, provincial_tax: 0, net: 0 });
                 }
             } catch (err) {
                 console.error("Error loading YTD data:", err);
                 setError("Failed to load year-to-date data. Using default values.");
-                setYtdData({ cpp: 0, ei: 0, gross: 0, federal_tax: 0, provincial_tax: 0, net: 0 });
+                setYtdData({ cpp: 0, cpp2: 0, ei: 0, gross: 0, federal_tax: 0, provincial_tax: 0, net: 0 });
             } finally {
                 setLoading(false);
             }

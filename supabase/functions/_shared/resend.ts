@@ -4,12 +4,18 @@
 // "Plans and Context/implementation_plan.md" for the full audit. sendViaResend below is a verbatim
 // lift of what those functions already ran in production; behavior is unchanged.
 
+export interface ResendAttachment {
+  filename: string;
+  content: string; // base64, no data: URI prefix
+}
+
 export async function sendViaResend(
   resendApiKey: string,
   fromAddress: string,
   recipients: string[],
   subject: string,
   htmlBody: string,
+  attachments?: ResendAttachment[],
 ) {
   const response = await fetch('https://api.resend.com/emails', {
     method: 'POST',
@@ -22,6 +28,7 @@ export async function sendViaResend(
       to: recipients,
       subject: subject,
       html: htmlBody,
+      ...(attachments && attachments.length > 0 ? { attachments } : {}),
     }),
   });
   const result = await response.json();

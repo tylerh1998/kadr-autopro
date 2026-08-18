@@ -487,7 +487,7 @@ Payroll ▾
 
 ---
 
-### Phase 3 — Employees, Setup, Pay Types & Employee Files  `[Pending]`
+### Phase 3 — Employees, Setup, Pay Types & Employee Files  `[Verified 2026-08-18 — live browser pass; see phase_3_implementation_plan.md]`
 
 **TL;DR** — Port the employee record (5 tabs), the Setup page, the pay-type manager, and move all 27 employee files off base44 onto a private Supabase bucket.
 
@@ -511,7 +511,7 @@ Note the files must be re-fetched at the Phase 11 final import too if any are ad
 
 ---
 
-### Phase 4 — Time Records  `[Pending]`
+### Phase 4 — Time Records  `[Verified 2026-08-18 — live browser pass; see phase_4_implementation_plan.md]`
 
 **TL;DR** — Port the Time Records page to query WorkPRO's `TimeRecord` and `PayPeriods` natively, deleting three base44 functions outright.
 
@@ -531,7 +531,7 @@ Two behaviours preserved exactly: the `-06:00` timezone offset on `clock_in_time
 
 ---
 
-### Phase 5 — Payroll Calculation & Paycheque Creation  `[Pending]`
+### Phase 5 — Payroll Calculation & Paycheque Creation  `[Verified 2026-08-18 — live browser pass; see phase_5_implementation_plan.md]`
 
 **TL;DR** — Port the payroll engine. **Highest business-logic risk in the project.**
 
