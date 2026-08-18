@@ -1,6 +1,6 @@
 # Phase 2 Implementation Plan — Module Scaffolding, Auth Swap, Layout Disposition & Navigation
 
-**Parent:** `master_blueprint.md` Phase 2 · **Created 2026-08-18** · **Status: Code-complete, uncommitted — pending user push + live verification at `test.kensauto.ca`**
+**Parent:** `master_blueprint.md` Phase 2 · **Created 2026-08-18** · **Status: Verified — manually confirmed by user at `test.kensauto.ca`, 2026-08-18**
 
 **Format: single-phase** (no sub-phases — see rationale below).
 
@@ -191,17 +191,19 @@ Built directly on `ReportModal.jsx`'s confirmed pattern (`src/components/reports
 
 Live-verify at `test.kensauto.ca` only, after commit + push (master_context.md's live-verification protocol). No edge function changes this phase, so no `deploy_edge_function` step.
 
-- [ ] All 10 `/paypro/*` routes resolve (no 404) for a `paypro_user: true`, AAL2 session
-- [ ] Each stub page renders its "ships in Phase N" placeholder correctly, in **both light and dark mode**
-- [ ] Payroll nav renders as a dropdown with exactly 4 direct links + "More…", only for `paypro_user: true` sessions
-- [ ] A session with `paypro_user` false/null: **no** Payroll dropdown appears; the existing WorkPRO-redirect behavior on a stray click is unchanged (confirm `handlePayrollClick`'s logic wasn't altered for this case)
-- [ ] `PayrollMoreModal` opens with exactly 5 options (Remittances/T4s/Reports/Trends/Setup); each navigates to the correct `/paypro/*` route and closes the modal
-- [ ] `activePaths` correctly highlights the Payroll nav item while on any `/paypro/*` page
-- [ ] **No PayPRO `<style>` block anywhere** — spot-check a checkbox in Work Orders, Inventory, and Accounting in both light and dark mode; all visually unchanged from before this phase
-- [ ] AutoPRO's existing stopgap `/Payroll` page (key `"Payroll"`) still loads and works exactly as before — no key collision with `paypro/Payroll`
-- [ ] `grep -r "base44" src/` and `grep -r "@base44" src/` both return **zero** new matches introduced by this phase (AutoPRO's own prior base44 deprecation already returns zero; this phase must not regress that)
-- [ ] `payrollEntities.js` smoke-tested against at least one real read (`PayPro_Employee.list()`-equivalent) from a `paypro_user:true` AAL2 session — confirms the shim's query construction doesn't break Phase 1's already-proven RLS gate (expect 11 rows); and from a non-gated session (expect 0 rows, no error)
-- [ ] `git status` confirms none of the 9 Step-6 files were copied into `kadr-autopro/src`
+**Confirmed manually by user, 2026-08-18** (live click-through at `test.kensauto.ca`; not independently re-verified by the agent — see §5.1):
+
+- [x] All 10 `/paypro/*` routes resolve (no 404) for a `paypro_user: true`, AAL2 session
+- [x] Each stub page renders its "ships in Phase N" placeholder correctly, in **both light and dark mode**
+- [x] Payroll nav renders as a dropdown with exactly 4 direct links + "More…", only for `paypro_user: true` sessions
+- [x] A session with `paypro_user` false/null: **no** Payroll dropdown appears; the existing WorkPRO-redirect behavior on a stray click is unchanged (confirm `handlePayrollClick`'s logic wasn't altered for this case)
+- [x] `PayrollMoreModal` opens with exactly 5 options (Remittances/T4s/Reports/Trends/Setup); each navigates to the correct `/paypro/*` route and closes the modal
+- [x] `activePaths` correctly highlights the Payroll nav item while on any `/paypro/*` page
+- [x] **No PayPRO `<style>` block anywhere** — spot-check a checkbox in Work Orders, Inventory, and Accounting in both light and dark mode; all visually unchanged from before this phase
+- [x] AutoPRO's existing stopgap `/Payroll` page (key `"Payroll"`) still loads and works exactly as before — no key collision with `paypro/Payroll`
+- [x] `grep -r "base44" src/` and `grep -r "@base44" src/` both return **zero** new matches introduced by this phase (AutoPRO's own prior base44 deprecation already returns zero; this phase must not regress that) — *also independently confirmed by the agent pre-push, §5.3*
+- [x] `payrollEntities.js` smoke-tested against at least one real read (`PayPro_Employee.list()`-equivalent) from a `paypro_user:true` AAL2 session — confirms the shim's query construction doesn't break Phase 1's already-proven RLS gate (expect 11 rows); and from a non-gated session (expect 0 rows, no error)
+- [x] `git status` confirms none of the 9 Step-6 files were copied into `kadr-autopro/src` — *also independently confirmed by the agent pre-push, §5.3*
 
 ---
 
@@ -230,7 +232,7 @@ Live-verify at `test.kensauto.ca` only, after commit + push (master_context.md's
 
 1. **Two of the Step-6 "never ported" filenames already exist in `kadr-autopro`, pre-dating this phase — false alarm, not a violation.** `src/components/UserNotRegisteredError.jsx` and `src/lib/app-params.js` both exist in this repo already (git history back to at least 2026-08-05). These are **not** copies of PayPRO's files — AutoPRO had its own, separate base44-era scaffolding that happened to use the same filenames (both apps were originally generated from the same base44 project template). `UserNotRegisteredError.jsx` is confirmed dead code (zero importers). `app-params.js` is still imported by `DocumentEditor.jsx` and is unrelated to this phase. `git status` after this phase's work shows only `src/components/paypro/`, `src/pages/paypro/`, and edits to `Layout.jsx`/`pages.config.js` — confirmed none of the real 9 Step-6 files were added.
 2. **`grep -r "base44" src/` has 6 pre-existing hits, all unrelated to the actual `@base44/sdk` package** (`@no-reply.base44.com` email-domain string checks in 4 files, one `base44.app` external link in `Layout.jsx`, and `app-params.js`'s own internal `base44_`-prefixed localStorage key naming) — confirmed identical before and after this phase's changes via `git stash`. One comment in the new shim originally used the word "base44" descriptively; reworded to keep this phase's own diff at zero new matches, even though it wasn't a real risk.
-3. **Live UI verification could not be completed this session.** master_context.md's live-verification protocol requires commit + push to `development` before testing at `test.kensauto.ca` (localhost can't complete the TLS + same-origin auth flow — confirmed directly: the dev server runs HTTPS-only via `basicSsl()`, and the in-session browser tool rejects the self-signed cert). Per standing instruction, this session does not commit or push — the user does that via GitHub Desktop. **Verification checklist below is therefore unchecked**, pending the user's push and a manual (or follow-up-session) pass at `test.kensauto.ca` with a real `paypro_user: true`, AAL2 session. Everything checkable without a live authenticated session was checked: `eslint` and `tsc` on every touched/new file show zero new issues versus the pre-existing baseline (confirmed via `git stash`); the dropdown nav pattern is a direct reuse of already-shipped, working code (`Accounting`'s nav entry), not new render logic; the shim's table/column assumptions were verified directly against the live dev Supabase schema.
+3. **Live UI verification was completed by the user directly, not by the agent.** The full §4 checklist was confirmed manually by the user at `test.kensauto.ca` on 2026-08-18, after their own commit + push via GitHub Desktop. The paragraph below describes why the agent itself couldn't complete this step — kept for context on that limitation, not because verification is still outstanding. master_context.md's live-verification protocol requires commit + push to `development` before testing at `test.kensauto.ca` (localhost can't complete the TLS + same-origin auth flow — confirmed directly: the dev server runs HTTPS-only via `basicSsl()`, and the in-session browser tool rejects the self-signed cert). Per standing instruction, this session does not commit or push — the user does that via GitHub Desktop. **Verification checklist below is therefore unchecked**, pending the user's push and a manual (or follow-up-session) pass at `test.kensauto.ca` with a real `paypro_user: true`, AAL2 session. Everything checkable without a live authenticated session was checked: `eslint` and `tsc` on every touched/new file show zero new issues versus the pre-existing baseline (confirmed via `git stash`); the dropdown nav pattern is a direct reuse of already-shipped, working code (`Accounting`'s nav entry), not new render logic; the shim's table/column assumptions were verified directly against the live dev Supabase schema.
 
 ### 5.4 Handoff Context to Phase 3
 

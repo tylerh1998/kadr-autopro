@@ -409,7 +409,7 @@ Every migration is idempotent (`ADD COLUMN IF NOT EXISTS`, `DROP POLICY IF EXIST
 
 ---
 
-### Phase 2 — Module Scaffolding, Auth Swap, Layout Disposition & Navigation  `[Code-complete on development, uncommitted — pending push + live verification]`
+### Phase 2 — Module Scaffolding, Auth Swap, Layout Disposition & Navigation  `[Tested]` — complete 2026-08-18
 
 Full execution detail, deviations, and learnings: `phase_2_implementation_plan.md`.
 

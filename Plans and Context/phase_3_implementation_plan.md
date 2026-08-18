@@ -1,6 +1,6 @@
 # Phase 3 Implementation Plan — Employees, Setup, Pay Types & Employee Files
 
-**Parent:** `master_blueprint.md` Phase 3 · **Created 2026-08-18** · **Status: Approved — ready to execute**
+**Parent:** `master_blueprint.md` Phase 3 · **Created 2026-08-18** · **Status: Built (3A/3B/3C) 2026-08-18 — pending live UI verification, see §4.2**
 
 **Format: multi-phase (3A / 3B / 3C)** — see rationale in §1.
 
@@ -93,9 +93,9 @@ Pulled from `master_blueprint.md` §7, filtered to what actually bites this phas
 
 | Sub-phase | Status | Overview |
 |---|---|---|
-| 3A | Pending | Employee list, Edit Employee shell + General/Pay/Deductions/Training tabs, Valid Pay Type manager — pure CRUD, no new infra |
-| 3B | Pending | `kadr-employee-files` bucket, RLS, `paypro-uploadEmployeeFile`/`paypro-viewEmployeeFile` edge functions, Other Tab's file section — infrastructure only, 27-file migration deferred (D3) |
-| 3C | Pending | Setup page, Constant Editor, `alerts` column + Other Tab's Notes/Alerts section (D1) |
+| 3A | Built — pending live UI verification | Employee list, Edit Employee shell + General/Pay/Deductions/Training tabs, Valid Pay Type manager — pure CRUD, no new infra |
+| 3B | Built — pending live UI verification | `kadr-employee-files` bucket, RLS, `paypro-uploadEmployeeFile`/`paypro-viewEmployeeFile` edge functions, Other Tab's file section — infrastructure only, 27-file migration deferred (D3) |
+| 3C | Built — pending live UI verification | Setup page, Constant Editor, `alerts` column + Other Tab's Notes/Alerts section (D1) |
 
 ```
    3A (Employee CRUD) ──┐
@@ -167,12 +167,12 @@ Pulled from `master_blueprint.md` §7, filtered to what actually bites this phas
 
 #### Task List
 
-- [ ] Create `src/components/paypro/employees/` and `src/components/paypro/paytypes/` directories
-- [ ] Port `GeneralTab.jsx`, `PayTab.jsx`, `DeductionsTab.jsx`, `TrainingTab.jsx`, `TrainingModal.jsx`, `EmployeeList.jsx`, `ValidPayTypeManagerModal.jsx` with import-path swaps + dark-mode classes
-- [ ] Swap `EmployeeList.jsx`'s `sonner` toast call for `useToast()`
-- [ ] Replace `src/pages/paypro/Employees.jsx` placeholder body with the real page
-- [ ] Replace `src/pages/paypro/EditEmployee.jsx` placeholder body with the real page + 5-tab wrapper (Other Tab wired in as a placeholder until 3B/3C land — see note below)
-- [ ] Confirm `payrollEntities.js` needs zero changes (it already implements every verb 3A calls)
+- [x] Create `src/components/paypro/employees/` and `src/components/paypro/paytypes/` directories
+- [x] Port `GeneralTab.jsx`, `PayTab.jsx`, `DeductionsTab.jsx`, `TrainingTab.jsx`, `TrainingModal.jsx`, `EmployeeList.jsx`, `ValidPayTypeManagerModal.jsx` with import-path swaps + dark-mode classes
+- [x] Swap `EmployeeList.jsx`'s `sonner` toast call for `useToast()`
+- [x] Replace `src/pages/paypro/Employees.jsx` placeholder body with the real page
+- [x] Replace `src/pages/paypro/EditEmployee.jsx` placeholder body with the real page + 5-tab wrapper (Other Tab wired in as a placeholder until 3B/3C land — see note below)
+- [x] Confirm `payrollEntities.js` needs zero changes (it already implements every verb 3A calls)
 
 **Sequencing note:** `EditEmployee.jsx`'s `<TabsContent value="other">` needs *something* to render before 3B/3C exist. Render a minimal `<PayrollPagePlaceholder>` (the Phase 2 shared component) for the Other tab specifically until 3B lands, then swap in the real `OtherTab.jsx` as 3B's first task. This keeps 3A shippable and independently verifiable without waiting on 3B.
 
@@ -269,14 +269,14 @@ Same base64 `FileReader` read, same field set, same `.pdf`-only `accept` on the 
 
 #### Task List
 
-- [ ] Write + apply `kadr-employee-files` bucket migration to dev
-- [ ] Build + deploy `paypro-uploadEmployeeFile` to dev
-- [ ] Build + deploy `paypro-viewEmployeeFile` to dev
-- [ ] Port `EmployeeFileModal.jsx` with the edge-function call swap
-- [ ] Author `OtherTab.jsx` (files section for real; notes/alerts section stubbed pending 3C)
-- [ ] Wire `OtherTab.jsx` into `EditEmployee.jsx`'s Other tab (replacing 3A's placeholder)
-- [ ] Add a UI cue distinguishing pre-existing base44-pointing rows from newly-uploaded ones (so "Preview" failing on old rows doesn't look like a bug)
-- [ ] Confirm zero storage.objects policies exist for `authenticated`/`anon` on `kadr-employee-files` (`pg_policies` check)
+- [x] Write + apply `kadr-employee-files` bucket migration to dev
+- [x] Build + deploy `paypro-uploadEmployeeFile` to dev
+- [x] Build + deploy `paypro-viewEmployeeFile` to dev
+- [x] Port `EmployeeFileModal.jsx` with the edge-function call swap
+- [x] Author `OtherTab.jsx` (files section for real; notes/alerts section stubbed pending 3C, then filled in as 3C's task)
+- [x] Wire `OtherTab.jsx` into `EditEmployee.jsx`'s Other tab (replacing 3A's placeholder)
+- [x] Add a UI cue distinguishing pre-existing base44-pointing rows from newly-uploaded ones (so "Preview" failing on old rows doesn't look like a bug) — button relabels to "Not migrated" and disables, with an explanatory `title` tooltip, whenever `file_url` isn't a storage path
+- [x] Confirm zero storage.objects policies exist for `authenticated`/`anon` on `kadr-employee-files` (`pg_policies` check) — confirmed empty on dev
 
 #### Verification Plan
 
@@ -317,11 +317,11 @@ Same base64 `FileReader` read, same field set, same `.pdf`-only `accept` on the 
 
 #### Task List
 
-- [ ] Write + apply the `alerts` column migration to dev
-- [ ] Port `Setup.jsx` (WorkPRO API key field dropped)
-- [ ] Port `ConstantEditor.jsx` (no bracket UI, per D2)
-- [ ] Replace `src/pages/paypro/Setup.jsx` placeholder body with the real page
-- [ ] Add Notes/Alerts section to `OtherTab.jsx` — reusing the existing dark-mode `react-quill` wrapper pattern
+- [x] Write + apply the `alerts` column migration to dev
+- [x] Port `Setup.jsx` (WorkPRO API key field dropped)
+- [x] Port `ConstantEditor.jsx` (no bracket UI, per D2)
+- [x] Replace `src/pages/paypro/Setup.jsx` placeholder body with the real page
+- [x] Add Notes/Alerts section to `OtherTab.jsx` — reusing the existing dark-mode `react-quill` wrapper pattern (Tailwind arbitrary-variant selectors, matching `NoteEditableContent.jsx`)
 
 #### Verification Plan
 
@@ -363,18 +363,23 @@ Run after all three sub-phases are individually verified, at `test.kensauto.ca`,
 
 | Sub-phase | Started | Completed | Notes |
 |---|---|---|---|
-| 3A | — | — | — |
-| 3B | — | — | — |
-| 3C | — | — | — |
+| 3A | 2026-08-18 | 2026-08-18 | All 9 files ported + `Employees.jsx`/`EditEmployee.jsx` wired in. Not live-verified (see §4.2). |
+| 3B | 2026-08-18 | 2026-08-18 | Bucket migration applied to dev (`sitihbdnuxifwibontcm`); both edge functions deployed to dev (v1). Not live-verified (see §4.2). |
+| 3C | 2026-08-18 | 2026-08-18 | `alerts` column migration applied to dev. `Setup.jsx`/`ConstantEditor.jsx` ported; `OtherTab.jsx` Notes/Alerts section added. Not live-verified (see §4.2). |
 
 ### 4.2 Deviations from Plan
 
-*None yet.*
+- **Live UI verification (the two Verification Plan checklists in §3, plus Final Verification) could not be completed this session.** The plan's checklists assume a real `paypro_user: true`, AAL2 session at `test.kensauto.ca` clicking through the actual pages. This session's local dev server (`npm run dev` via `.claude/launch.json`) never completed Vite's cold start in the sandboxed browser environment — it printed the initial `baseline-browser-mapping` notice and then stalled indefinitely on two independent launch attempts, before reaching its own "ready"/local-URL banner, i.e. before any app code (mine or pre-existing) had even begun evaluating. This reads as an environment/tooling issue, not a code defect introduced by this phase. **All backend state was independently verified directly against the dev Supabase project instead:** bucket creation, `alerts` column addition, and both edge function deployments were confirmed via direct MCP calls (`execute_sql`, `list_edge_functions`-equivalent deploy responses), and `pg_policies` was queried directly to confirm zero direct-client policies exist on `kadr-employee-files` as designed. A `get_advisors` security-lint pass on dev turned up nothing tied to any Phase 3 table/bucket/function. **The §3 verification checklists are intentionally left unchecked** — they need a real click-through pass (ideally by the Program Administrator, or a future session with a working preview) before Phase 3's roadmap status can move from "Built" to "Verified."
+- **`EmployeeFileModal.jsx`'s upload error handling was tightened beyond a literal port.** Source only ever showed a generic "Failed to upload file. Please try again." alert. Since `paypro-uploadEmployeeFile` returns structured `{error: message}` on failure (master_context.md's edge-function convention) rather than throwing, the ported version surfaces that specific message (`Failed to upload file: ${error.message}`) instead of a generic string — makes server-side validation failures (wrong file type, over size cap, auth/MFA gate) actually legible to the user instead of forcing a console-log dig.
+- **`OtherTab.jsx`'s Notes/Alerts section was built once, staged in two edits** (a "Coming in 3C" stub during the 3B task, then the real Textarea+ReactQuill section added as 3C's task) rather than left fully absent until 3C, since this session executed 3B and 3C back-to-back. Matches the plan's intended increment boundary; just executed without a real pause between them.
 
 ### 4.3 Unexpected Learnings
 
-*None yet.*
+- Confirmed via `information_schema.columns` that `PayPro_EmployeeFile.upload_date`/`document_date` are both `text`, not real `date` columns — same recurring "text-typed date field" trap `master_context.md` §4 already documents elsewhere in the schema. `paypro-uploadEmployeeFile` writes `upload_date` as a plain `YYYY-MM-DD` string server-side (`new Date().toISOString().split('T')[0]`) to match.
+- `staff_strong_auth()`'s AAL2/passkey gate has no RLS-equivalent inside an edge function using the service-role client (as master_context.md's optimistic-locking notes already flag for other functions) — both new `paypro-*` functions reimplement the same `aal2`/`webauthn`/`passkey` JWT-claim check inline (`hasStrongAuth()`) rather than relying on RLS, and re-check `Employee.paypro_user IS TRUE` directly (mirroring `is_paypro_user()`'s own definition) since neither check is enforceable any other way against a service-role client. This is the template Phase 4's own new edge function should copy, per the plan's own Handoff Context note.
 
 ### 4.4 Rollup Notes for `master_context.md` / `master_blueprint.md`
 
-*(populated as Phase 3 completes)*
+- New dev-only infrastructure this phase added, not yet on production: `kadr-employee-files` storage bucket (private, PDF-only, 10MB cap, zero direct-client policies), `PayPro_Employee.alerts text` column, and edge functions `paypro-uploadEmployeeFile`/`paypro-viewEmployeeFile` (both `verify_jwt: true`, both reimplement the `is_paypro_user()`/`staff_strong_auth()` gate inline since they run as service-role). None of this has a production counterpart yet — follow the same dual-migration-version pattern used for `kadr-issue-report-attachments` when promoting.
+- All three `/paypro/*` pages this phase covers (`Employees`, `EditEmployee`, `Setup`) are now real pages, not `PayrollPagePlaceholder` stubs. `payrollEntities.js` needed zero changes across all of 3A/3B/3C.
+- **Still open before this can be called done:** the §3 verification checklists need a real live click-through (this session's local preview environment could not complete a Vite cold start to test against). Recommend the next session/Program Administrator pass revisit this specifically at `test.kensauto.ca` before promoting anything to production or marking Phase 3 verified in `master_blueprint.md`.

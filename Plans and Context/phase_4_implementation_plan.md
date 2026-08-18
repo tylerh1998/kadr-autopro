@@ -1,6 +1,6 @@
 # Phase 4 Implementation Plan — Time Records
 
-**Parent:** `master_blueprint.md` Phase 4 · **Created 2026-08-18** · **Status: DRAFT — awaiting approval to execute**
+**Parent:** `master_blueprint.md` Phase 4 · **Created 2026-08-18** · **Status: Execution complete 2026-08-18, pending live verification.** All four open questions in §0.1 approved as their **Recommended** option (Program Administrator, 2026-08-18). Code/migration/edge-function work in §3 is done and build-verified (§5.1); the AAL2 live-session checklist in §4 is still outstanding — see the note at the top of §4. Ran in parallel with Phase 3 (Employees) and Phase 5 (Payroll Calculation) agents — per §0.2, this phase is self-contained and didn't depend on either.
 
 **Format: single-phase** — see rationale in §1.
 
@@ -10,23 +10,29 @@
 
 ## 0) Notes, Open Questions & Clarifications
 
-### 0.1 Open questions — need your decision before execution starts
+### 0.1 Open questions — resolved 2026-08-18
+
+**All four approved as their Recommended option** (Program Administrator, 2026-08-18). Original options preserved below for context/rationale — not to be re-litigated during execution.
 
 **Q1 — `TimeRecord`/`PayPeriods` have no `is_paypro_user()` RLS gate, unlike the ten `PayPro_*` tables.** Verified directly against dev (`sitihbdnuxifwibontcm`): both tables carry only the standard 2026-08-16 pair — `PERMISSIVE FOR ALL TO authenticated USING(true)` + `RESTRICTIVE ... staff_strong_auth()`. Phase 1's RLS workstream never touched them (they're WorkPRO tables, not one of the ten imported entities), and they **can't safely get the `PayPro_*` treatment** — `TimeRecord` is written directly by ordinary technicians clocking in/out (`Layout.jsx`, `GlobalClockInModal.jsx`, `TechProjectClockInModal.jsx`) and read shop-wide by `TechClockStatusModal.jsx`'s "who's clocked in" board, none of whom are `paypro_user`. Adding a `paypro_user`-restrictive policy would break live clock-in for every non-payroll tech. Net effect: **the "non-payroll user hand-types the URL and sees an empty page" guarantee `master_blueprint.md`'s Phase 2 verification table states for the rest of the module does not hold for this page** — RLS will happily return real data to any AAL2 staff member.
 - **Recommended: leave `TimeRecord`/`PayPeriods` RLS untouched** (correct — don't regress a live feature) **and add a client-side gate inside `TimeRecords.jsx` itself**: render an "Access restricted" message instead of the page body when `employee?.paypro_user !== true`, so a hand-typed URL is at least blocked at the UI layer even though the data itself was never actually sensitive dollar information (hours/clock times only — already visible to any AAL2 staff via `TechClockStatusModal` and the Technician Performance Report today).
 - Alternative: skip the extra guard — rely on the nav dropdown alone (already gated) and accept that a hand-typed URL shows real data to any logged-in staff member, consistent with the fact that this data was never RLS-isolated even before this phase.
+- **Decision: Approved — Recommended.** Client-side `paypro_user` gate added to `TimeRecords.jsx` (O-9). RLS left untouched.
 
 **Q2 — `TimeRecord.pto_hours`/`stat_hours` are `bigint`, but the ported Add/Edit modals allow fractional entry.** Verified live schema: both columns are `bigint`. Both `AddTimeRecordModal.jsx` and `EditTimeRecordModal.jsx` use `<Input type="number" step="0.25">` for these fields — the UI actively invites a value like `4.5`. Per `master_context.md` §3's documented bug class, a `bigint` column rejects any fractional write with Postgres `22P02`, often with no visible error surfaced. This table falls outside Phase 1's audit (it's a WorkPRO table, not one of the ten `PayPro_*` entities), so nobody has fixed it yet. **Confirmed 21 existing `PayPeriods` rows and 1,609 `TimeRecord` rows today, all currently whole-number/null `pto_hours`/`stat_hours`** — no data-loss risk in widening.
 - **Recommended: widen both columns to `double precision` in a new migration, applied to dev now** (mirrors Phase 1's S4 treatment of `PayPeriods.total_pto_hours`/`total_stat_hours`, which fixed the identical bug one level up in the same feature's own summary table but left the per-record columns behind). Per `master_context.md` §3, PostgREST serializes `numeric`/`double precision` as a real JSON number — zero frontend regression risk, confirmed pattern reused three times already this project.
 - Alternative: leave as `bigint` and silently truncate/round the UI's `step="0.25"` inputs to whole hours (a real behavior change from the source app, and a silent one) — not recommended.
+- **Decision: Approved — Recommended.** Migration widening both columns to `double precision`, applied to dev only (§3.1, O-8).
 
 **Q3 — `TimeRecord.employee_name` (free text, WorkPRO's `Employee.full_name`) doesn't always match `PayPro_Employee.first_name + ' ' + last_name`.** Verified directly: WorkPRO's clock-in data has an employee recorded as `"Sam Eyben"`; `PayPro_Employee` (EMP007) has `first_name: "Samantha"`. Under the ported string-match logic (`fetchRecords`' `employees.find(e => \`${e.first_name} ${e.last_name}\` === record.employee_name ...)`), this employee's own clock records never resolve to their payroll row — in the admin list they'd show under the raw WorkPRO name with no payroll linkage; if EMP007 ever logs in as a non-admin payroll user, the "only show my own records" filter (exact-name match) would show **zero** records. Separately, `"Ken Haney"` has real `TimeRecord` rows but no `PayPro_Employee` row at all — expected, he's WorkPRO-only, not a payroll employee, and the ported code already degrades gracefully for this case (falls back to displaying the raw `employee_name`).
 - **Recommended: port the matching logic as-is** (identical behavior/risk to the source app) **and treat this as a known, pre-existing gap**, not something Phase 4 should invent new fuzzy-matching logic to solve (scope creep past this phase's boundary, R16) — EMP007/Cheryl-class employees are already flagged in Phase 1/3 as needing a roster decision (they're 3 of the 4 employees with no `employee_db_id` link either). Worth fixing at the source (correcting `PayPro_Employee.first_name` to `"Sam"`, or `TimeRecord.employee_name` historically to `"Samantha Eyben"`) whenever that broader roster cleanup happens, not as part of this phase.
 - Alternative: fix the specific `"Sam"/"Samantha"` mismatch now via a one-row data correction (your call which system's spelling is authoritative) — cheap, but only patches this one instance of a class of gap that could recur for any future name change.
+- **Decision: Approved — Recommended.** Matching logic ported as-is; gap tracked as a known pre-existing issue, not fixed in this phase.
 
 **Q4 — `LockPeriodModal`'s preview can include an in-progress (`clocked_in`) shift, not just completed ones.** Verified from source: the preview filter is `r.date >= start && r.date <= end && r.status !== 'locked'` — it does **not** exclude `clocked_in`/`active` records. Locking a still-open shift would flip its status to `locked`; the clock-out toggle (`Layout.jsx`'s `handleClockToggle`) looks up the active record by `.eq('status','clocked_in')`, wouldn't find the now-`locked` row, and would silently create a **second, brand-new** clock-in record instead of closing the original — a real duplicate-record risk. This exists in the current live base44 PayPRO app too (same logic), but there it only ever wrote through a service-role function against a table nothing else touched live; here it's a direct write to the same `TimeRecord` table WorkPRO's real-time clock board reads from.
 - **Recommended: small, low-risk deviation from byte-identical — exclude `status IN ('clocked_in','active')` from the lock-eligible set**, surfaced in the preview as "N records skipped (still clocked in)" rather than silently omitted. Given this phase is the first time this logic runs against a live, shared WorkPRO table (previously isolated), the extra guard is cheap and directly prevents a confirmed failure mode.
 - Alternative: port unchanged (matches source exactly) and rely on the admin operator to only lock periods that are safely in the past.
+- **Decision: Approved — Recommended.** `LockPeriodModal` excludes `status IN ('clocked_in','active')` from the lock-eligible set and surfaces a "N records skipped (still clocked in)" note in the preview (§3.6).
 
 ### 0.2 Clarifications (not questions — stating so nothing here reads as an oversight)
 
@@ -305,7 +311,9 @@ No changes needed — `Layout.jsx`'s Payroll dropdown already links to `paypro/T
 
 At `test.kensauto.ca`, after commit + push + `deploy_edge_function paypro-generateTimeReport`, with a `paypro_user: true`, AAL2 session:
 
-- [ ] `information_schema.columns` on dev confirms `TimeRecord.pto_hours`/`stat_hours` are now `double precision` (if Q2 approved)
+> **Agent-session note:** items below marked ✅ were verified directly against dev/the built bundle during execution (2026-08-18). Everything else needs a real `test.kensauto.ca` AAL2 session with `paypro_user: true` — this agent session has no browser credentials and per standing workflow constraints (§2) never commits/pushes, so `development` was never actually deployed to Vercel from this session. The Program Administrator (or whoever pushes this branch) should run through the unchecked items before calling Phase 4 done.
+
+- [x] ✅ `information_schema.columns` on dev confirms `TimeRecord.pto_hours`/`stat_hours` are now `double precision` (if Q2 approved)
 - [ ] `/paypro/TimeRecords` loads; default date range is "This Pay Period"; quick-date buttons (This/Last Pay Period, This/Last Month) all populate correct ranges
 - [ ] Records for the selected range load, matching real `TimeRecord` data — spot-check against a direct SQL query for the same range
 - [ ] Employee filter (admin only) correctly narrows the list; a non-admin `paypro_user` session only ever sees its own records (or zero, for the known EMP007-class name-mismatch gap — expected per Q3)
@@ -322,8 +330,8 @@ At `test.kensauto.ca`, after commit + push + `deploy_edge_function paypro-genera
 - [ ] Non-`paypro_user` session (any AAL2 staff) can still clock in/out normally via the existing WorkPRO UI (`Layout.jsx` toggle, `GlobalClockInModal`) — proves this phase didn't regress the live feature
 - [ ] `TechClockStatusModal`'s shop-wide clock board still shows all technicians' live status correctly — same regression check as above, different entry point
 - [ ] Both light and dark mode: no unstyled/white-on-white elements anywhere across the page, both modals, and the two admin dialogs
-- [ ] `grep -r "base44"` / `"@base44"` in every new file this phase touches: zero matches
-- [ ] `paypro-generateTimeReport`, called directly (e.g. via `curl`/Postman) with no `Authorization` header or a non-`paypro_user` session's token, returns `{error}` at `200`, not the PDF
+- [x] ✅ `grep -r "base44"` / `"@base44"` in every new file this phase touches: zero matches (also confirmed clean in the built `dist/` bundle)
+- [x] ✅ (partial) `paypro-generateTimeReport` called directly via `curl` with no `Authorization` header → rejected before function code runs (`401 UNAUTHORIZED_NO_AUTH_HEADER`, the platform-level `verify_jwt: true` gate — same behavior as `autopro-getSalesAnalysisReport`, which uses the identical setting). The function's own `{error}` @ `200` path (missing-header branch in the code, and the non-`paypro_user`-token branch) is written per convention but couldn't be exercised without a real session token — needs a live check.
 
 ---
 
@@ -335,21 +343,28 @@ At `test.kensauto.ca`, after commit + push + `deploy_edge_function paypro-genera
 
 | Step | Started | Completed | Notes |
 |---|---|---|---|
-| 3.1 Migration | — | — | — |
-| 3.2–3.9 Frontend port | — | — | — |
-| 3.8 Edge function + deploy | — | — | — |
+| 0.1 Q1–Q4 decisions recorded | 2026-08-18 | 2026-08-18 | All four approved as Recommended; see §0.1 decision lines |
+| 3.1 Migration | 2026-08-18 | 2026-08-18 | Applied to dev (`sitihbdnuxifwibontcm`) via `apply_migration`; confirmed live via `information_schema.columns` |
+| 3.2–3.7, 3.9 Frontend port | 2026-08-18 | 2026-08-18 | `TimeRecords.jsx` + 7 components in `src/components/paypro/timerecords/` |
+| 3.8 Edge function + deploy | 2026-08-18 | 2026-08-18 | Deployed to dev as version 1, `verify_jwt: true`; confirmed `ACTIVE` and confirmed it rejects an unauthenticated `curl` call |
+| Build verification | 2026-08-18 | 2026-08-18 | `npx eslint` on all new files: zero errors. `npm run build`: clean, `dist/` bundle confirmed to include the new code with zero `base44` references |
 
 ### 5.2 Deviations from Plan
 
-*None yet.*
+- Dropped the source's unused `source: 'supabase'` field from `fetchRecords`' transformed record shape (§3.2) — grepped the entire source component tree first and confirmed nothing reads `record.source` anywhere; it was a dead base44-era artifact distinguishing two data origins that no longer exist post-port. Not a behavior change.
+- `PrevPayPeriodsModal.jsx`'s empty-state copy changed from "No locked pay periods found in the last 6 months." to "No locked pay periods found." — the source's own `getSupabasePayPeriods` function had no 6-month filter (it selected the whole table), so the original copy was already inaccurate before this port; corrected rather than carried forward.
+- Everything else in §3 shipped exactly as specified, including the Q1/Q2/Q3/Q4 recommended-option treatments.
 
 ### 5.3 Unexpected Learnings
 
-*None yet.*
+- `autopro-getSalesAnalysisReport` (and now `paypro-generateTimeReport`, deployed with the same `verify_jwt: true`) gets its "no Authorization header" case intercepted by the Supabase platform gateway itself (`401 UNAUTHORIZED_NO_AUTH_HEADER`) before the function's own code — including its own `{error}` @ `200` missing-header branch — ever runs. Not a bug, just worth recording: the function-level `{error}`-at-`200` convention (master_context.md §4) only ever fires for a header that's *present but invalid/expired*, or for the function's own authorization-logic branches (e.g. the non-`paypro_user` check here) — never for a wholly absent header on a `verify_jwt: true` function. Confirmed by direct `curl` test against dev.
+- `TimeRecord.clock_out_time` is `text`, not `timestamptz` like `clock_in_time` (confirmed via `information_schema.columns`) — asymmetric typing not called out anywhere in `master_context.md`. Doesn't affect this phase (every write path already sends a full ISO string either way, and every read path already goes through `new Date(...)`), but worth flagging for whoever next touches this table directly with raw SQL.
 
 ### 5.4 Rollup Notes for `master_context.md` / `master_blueprint.md`
 
-*(populated as Phase 4 completes)*
+- Phase 4 (Time Records) executed 2026-08-18: migration widening `TimeRecord.pto_hours`/`stat_hours` to `double precision` live on dev; 7-file frontend port under `src/components/paypro/timerecords/` plus `src/pages/paypro/TimeRecords.jsx`; `paypro-generateTimeReport` edge function deployed to dev (v1, `verify_jwt: true`).
+- Add `TimeRecord.clock_out_time` is `text` (not `timestamptz`) to master_context.md's "Data Types — recurring traps" section next time that section is revised — asymmetric with `clock_in_time`, harmless today but a landmine for a future raw-SQL query against this table.
+- Full live-session verification (the AAL2/`paypro_user` checklist items in §4) is still outstanding — this execution pass had no push/deploy/browser-session access. Flag for whoever runs the live check.
 
 ### 5.5 Handoff Context to Phase 5
 

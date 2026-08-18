@@ -96,7 +96,15 @@ function makeEntity(tableName) {
       return fetchAllRows(() => {
         let query = supabase.from(tableName).select('*');
         for (const [column, value] of Object.entries(queryObject)) {
-          query = query.eq(column, value);
+          // Mongo-style { '$in': [...] } (BatchPaychequeProcessor's multi-employee
+          // YTD lookup) needs .in(), not .eq() against a JSON object - the latter
+          // matches zero rows silently instead of throwing. Every other call site
+          // passes a plain value and is unaffected.
+          if (value && typeof value === 'object' && '$in' in value) {
+            query = query.in(column, value['$in']);
+          } else {
+            query = query.eq(column, value);
+          }
         }
         return applySort(query, null);
       });
