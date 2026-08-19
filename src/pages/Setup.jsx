@@ -44,14 +44,39 @@ export default function SetupPage() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className={`grid w-full ${isLvl3User ? 'grid-cols-5' : 'grid-cols-4'}`}>
+          <TabsList className={`grid w-full ${isLvl3User ? 'grid-cols-5' : 'grid-cols-4'} bg-white border border-slate-200 dark:bg-slate-900 dark:border-slate-800`}>
             {isLvl3User && (
-              <TabsTrigger value="tech">Tech Setup</TabsTrigger>
+              <TabsTrigger
+                value="tech"
+                className="text-slate-700 dark:text-slate-300 data-[state=inactive]:hover:bg-slate-50 dark:data-[state=inactive]:hover:bg-slate-800 data-[state=active]:bg-blue-800 data-[state=active]:text-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-blue-700"
+              >
+                Tech Setup
+              </TabsTrigger>
             )}
-            <TabsTrigger value="sales">Sales Classes</TabsTrigger>
-            <TabsTrigger value="tagalongs">Tagalongs</TabsTrigger>
-            <TabsTrigger value="other_charges">Other Charges</TabsTrigger>
-            <TabsTrigger value="wip">WIP</TabsTrigger>
+            <TabsTrigger
+              value="sales"
+              className="text-slate-700 dark:text-slate-300 data-[state=inactive]:hover:bg-slate-50 dark:data-[state=inactive]:hover:bg-slate-800 data-[state=active]:bg-blue-800 data-[state=active]:text-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-blue-700"
+            >
+              Sales Classes
+            </TabsTrigger>
+            <TabsTrigger
+              value="tagalongs"
+              className="text-slate-700 dark:text-slate-300 data-[state=inactive]:hover:bg-slate-50 dark:data-[state=inactive]:hover:bg-slate-800 data-[state=active]:bg-blue-800 data-[state=active]:text-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-blue-700"
+            >
+              Tagalongs
+            </TabsTrigger>
+            <TabsTrigger
+              value="other_charges"
+              className="text-slate-700 dark:text-slate-300 data-[state=inactive]:hover:bg-slate-50 dark:data-[state=inactive]:hover:bg-slate-800 data-[state=active]:bg-blue-800 data-[state=active]:text-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-blue-700"
+            >
+              Other Charges
+            </TabsTrigger>
+            <TabsTrigger
+              value="general"
+              className="text-slate-700 dark:text-slate-300 data-[state=inactive]:hover:bg-slate-50 dark:data-[state=inactive]:hover:bg-slate-800 data-[state=active]:bg-blue-800 data-[state=active]:text-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-blue-700"
+            >
+              General
+            </TabsTrigger>
           </TabsList>
 
           {isLvl3User && (
@@ -72,7 +97,7 @@ export default function SetupPage() {
             <OtherChargesManager />
           </TabsContent>
 
-          <TabsContent value="wip">
+          <TabsContent value="general">
             <WIPSettings currentUser={currentUser} />
           </TabsContent>
         </Tabs>

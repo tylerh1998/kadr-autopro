@@ -1,6 +1,5 @@
+import { CRA_EMPLOYER } from './companyInfo';
 
-// Q2: real company identity + CRA Business/Payroll (RP) account number, replacing source's
-// fake "YOUR COMPANY INC." placeholder - same hardcode convention used throughout this codebase.
 const T4A_PDF = (t4SummaryData, year) => {
     // Calculate totals across all employees
     const grandTotals = t4SummaryData.reduce((acc, item) => {
@@ -52,15 +51,15 @@ const T4A_PDF = (t4SummaryData, year) => {
                 <div class="t4a-box">
                     <span class="t4a-label">Payer's name and address</span>
                     <div class="text-sm mt-1">
-                        <p class="font-bold">KEN'S AUTO & DIESEL REPAIR</p>
-                        <p>5002 49 AVE - PO BOX 160</p>
-                        <p>DEWBERRY, AB T0B 1G0</p>
-                        <p>780-847-3002</p>
+                        <p class="font-bold">${CRA_EMPLOYER.legalName.toUpperCase()}</p>
+                        <p>${CRA_EMPLOYER.addressLine1.toUpperCase()}</p>
+                        <p>${CRA_EMPLOYER.city.toUpperCase()}, ${CRA_EMPLOYER.province} ${CRA_EMPLOYER.postalCode}</p>
+                        <p>${CRA_EMPLOYER.phone}</p>
                     </div>
                 </div>
                 <div class="t4a-box mt-1">
                     <span class="t4a-label">Business/Payroll (RP) Account Number</span>
-                    <span class="t4a-value">893497602RP0001</span>
+                    <span class="t4a-value">${CRA_EMPLOYER.payrollAccountNumber}</span>
                 </div>
             </div>
 

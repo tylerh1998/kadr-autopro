@@ -1,6 +1,5 @@
+import { CRA_EMPLOYER } from './companyInfo';
 
-// Q2: real company identity + CRA Business/Payroll (RP) account number, replacing source's
-// fake placeholder - same hardcode convention as every other PDF in this codebase.
 // D5: SIN is normalized to CRA's standard "XXX XXX XXX" grouping at render time regardless
 // of how it happens to be stored (dev's bare digits vs. production's space-separated string).
 const formatSin = (sin) => {
@@ -47,14 +46,14 @@ const T4_PDF = (employee, year, t4Data) => {
                     <div class="t4-box">
                         <span class="t4-label">Employer's name</span>
                         <div class="text-sm mt-1 text-left">
-                            <p class="font-bold">Ken's Auto & Diesel Repair</p>
-                            <p>5002 49 Ave - PO Box 160, Dewberry, AB T0B 1G0</p>
-                            <p>780-847-3002</p>
+                            <p class="font-bold">${CRA_EMPLOYER.legalName}</p>
+                            <p>${CRA_EMPLOYER.addressLine1}, ${CRA_EMPLOYER.city}, ${CRA_EMPLOYER.province} ${CRA_EMPLOYER.postalCode}</p>
+                            <p>${CRA_EMPLOYER.phone}</p>
                         </div>
                     </div>
                     <div class="t4-box">
                         <span class="t4-label">Business/Payroll (RP) Account Number</span>
-                        <span class="t4-value text-center">893497602RP0001</span>
+                        <span class="t4-value text-center">${CRA_EMPLOYER.payrollAccountNumber}</span>
                     </div>
                     <div class="grid grid-cols-2 gap-1">
                         <div class="t4-box">

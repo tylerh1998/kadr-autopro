@@ -5,9 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Calendar, FileText, Users } from "lucide-react";
+import { Loader2, Calendar, FileText, Users, Download } from "lucide-react";
 import T4_PDF from "@/components/paypro/t4/T4_PDF";
 import T4A_PDF from "@/components/paypro/t4/T4A_PDF";
+import { calculateT4Totals } from "@/components/paypro/t4/calculateT4Totals";
+import { downloadT4Xml } from "@/components/paypro/t4/craT4Xml";
+import CraXmlExportModal from "@/components/paypro/t4/CraXmlExportModal";
 
 export default function T4s() {
   const [employees, setEmployees] = useState([]);
@@ -16,6 +19,8 @@ export default function T4s() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [exportingXml, setExportingXml] = useState(false);
+  const [showXmlContactModal, setShowXmlContactModal] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -29,7 +34,8 @@ export default function T4s() {
         const constantsMap = constantsList.reduce((acc, item) => {
             acc[item.year] = {
                 EI_MAX_INSURABLE_EARNINGS: item.ei_max_insurable_earnings,
-                CPP_MAX_PENSIONABLE_EARNINGS: item.cpp_max_pensionable_earnings
+                CPP_MAX_PENSIONABLE_EARNINGS: item.cpp_max_pensionable_earnings,
+                EI_RATE_EMPLOYER_MULTIPLIER: item.ei_rate_employer_multiplier
             };
             return acc;
         }, {});
@@ -56,6 +62,23 @@ export default function T4s() {
     setSelectedEmployeeIds(checked ? employees.map(emp => emp.id) : []);
   };
 
+  // Shared by the PDF and XML flows so both are built from identical totals.
+  const collectT4SummaryData = async (constants) => {
+    const t4SummaryData = [];
+    for (const employeeId of selectedEmployeeIds) {
+      const employee = employees.find(e => e.id === employeeId);
+      const stubs = await PayStub.filter({ employee_id: employee.employee_id, year: parseInt(selectedYear) });
+
+      if (stubs.length === 0) {
+        console.warn(`No pay stubs found for ${employee.first_name} ${employee.last_name} in ${selectedYear}`);
+        continue;
+      }
+
+      t4SummaryData.push({ employee, t4Data: calculateT4Totals(stubs, constants) });
+    }
+    return t4SummaryData;
+  };
+
   const handleGenerateT4s = async () => {
     if (selectedEmployeeIds.length === 0 || !selectedYear) {
       alert("Please select at least one employee and a tax year.");
@@ -71,40 +94,10 @@ export default function T4s() {
         return;
       }
 
-      // Collect all T4 data for T4A summary
-      const t4SummaryData = [];
+      const t4SummaryData = await collectT4SummaryData(constants);
 
-      // Generate T4s for each selected employee
-      for (const employeeId of selectedEmployeeIds) {
-        const employee = employees.find(e => e.id === employeeId);
-        const stubs = await PayStub.filter({ employee_id: employee.employee_id, year: parseInt(selectedYear) });
-
-        if (stubs.length === 0) {
-          console.warn(`No pay stubs found for ${employee.first_name} ${employee.last_name} in ${selectedYear}`);
-          continue;
-        }
-
-        const totals = stubs.reduce((acc, stub) => {
-          acc.gross += stub.gross_pay || 0;
-          acc.cpp += stub.cpp_deduction || 0;
-          acc.ei += stub.ei_deduction || 0;
-          acc.tax += (stub.federal_tax || 0) + (stub.provincial_tax || 0);
-          return acc;
-        }, { gross: 0, cpp: 0, ei: 0, tax: 0 });
-
-        const t4Data = {
-          box14: totals.gross,
-          box16: totals.cpp,
-          box18: totals.ei,
-          box22: totals.tax,
-          box24: Math.min(totals.gross, constants.EI_MAX_INSURABLE_EARNINGS),
-          box26: Math.min(totals.gross, constants.CPP_MAX_PENSIONABLE_EARNINGS),
-          box52: 0, // Assuming no pension adjustment
-        };
-
-        t4SummaryData.push({ employee, t4Data });
-
-        // Generate individual T4
+      // Generate individual T4s
+      for (const { employee, t4Data } of t4SummaryData) {
         const pdfHTML = T4_PDF(employee, selectedYear, t4Data);
         const pdfWindow = window.open("", "_blank");
         pdfWindow.document.write(pdfHTML);
@@ -131,6 +124,39 @@ export default function T4s() {
       alert("An error occurred while generating T4s. Please check the console.");
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleOpenXmlExport = () => {
+    if (selectedEmployeeIds.length === 0 || !selectedYear) {
+      alert("Please select at least one employee and a tax year.");
+      return;
+    }
+    if (!taxConstants[selectedYear]) {
+      alert(`Tax constants for the year ${selectedYear} are not configured. Please add them in the Setup page.`);
+      return;
+    }
+    setShowXmlContactModal(true);
+  };
+
+  const handleExportXml = async (transmitterContact) => {
+    setExportingXml(true);
+
+    try {
+      const constants = taxConstants[selectedYear];
+      const t4SummaryData = await collectT4SummaryData(constants);
+      if (t4SummaryData.length === 0) {
+        alert(`No pay stubs found for the selected employees in ${selectedYear}.`);
+        return;
+      }
+
+      downloadT4Xml(t4SummaryData, selectedYear, transmitterContact);
+      setShowXmlContactModal(false);
+    } catch (error) {
+      console.error("Error exporting CRA XML:", error);
+      alert(error.message || "An error occurred while exporting the CRA XML file. Please check the console.");
+    } finally {
+      setExportingXml(false);
     }
   };
 
@@ -209,6 +235,15 @@ export default function T4s() {
                   </>
                   )}
               </Button>
+              <Button
+                  onClick={handleOpenXmlExport}
+                  disabled={exportingXml || selectedEmployeeIds.length === 0 || !selectedYear}
+                  variant="outline"
+                  className="w-full md:w-auto md:ml-3 mt-3 md:mt-0 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export CRA XML
+              </Button>
               </div>
           </>
           )}
@@ -217,8 +252,17 @@ export default function T4s() {
 
       <div className="mt-8 text-center text-sm text-slate-500 dark:text-slate-400">
         <p>This tool generates T4 slips for each selected employee and a T4A summary based on pay stubs recorded for the selected year.</p>
+        <p>Export CRA XML produces an Internet File Transfer submission file for the selected employees and year - review it before uploading to My Business Account.</p>
         <p>Please verify all amounts before distributing to employees and submitting to CRA.</p>
       </div>
+
+      {showXmlContactModal && (
+        <CraXmlExportModal
+          exporting={exportingXml}
+          onExport={handleExportXml}
+          onCancel={() => setShowXmlContactModal(false)}
+        />
+      )}
     </div>
   );
 }
