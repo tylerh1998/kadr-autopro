@@ -638,41 +638,75 @@ export default function PaychequesReport() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Paycheque Report</h2>
-        </div>
-        <div className="flex gap-3">
-          <Button
-            onClick={handlePrint}
-            disabled={filteredAndSortedStubs.length === 0}
-            variant="outline"
-            className="border-slate-600 text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
-          >
-            <Printer className="w-4 h-4 mr-2" />
-            Print
-          </Button>
-          <Button onClick={handleExportCSV} disabled={filteredAndSortedStubs.length === 0} className="bg-emerald-600 hover:bg-emerald-700">
-            <Download className="w-4 h-4 mr-2" />
-            Export to CSV
-          </Button>
-        </div>
-      </div>
-
-      {/* Filters */}
+      {/* Integrated toolbar — filters (expandable), column customization, print & export all in one bar */}
       <Card className="border-0 shadow-sm mb-6 dark:bg-slate-900 dark:border-slate-800">
         <CardHeader className="cursor-pointer" onClick={() => setFiltersOpen(!filtersOpen)}>
-          <div className="flex justify-between items-center">
-            <CardTitle className="flex items-center gap-2 dark:text-slate-100">
-              <Filter className="w-5 h-5" />
-              Filters
-            </CardTitle>
+          <div className="flex flex-wrap justify-between items-center gap-3">
             <div className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 dark:text-slate-100">
+                <Filter className="w-5 h-5" />
+                Filters
+              </CardTitle>
               {!filtersOpen && (dateFrom || dateTo || selectedEmployee !== 'all' || selectedStatus !== 'all' || searchQuery) && (
                 <Badge variant="secondary" className="bg-blue-100 text-blue-800">Active</Badge>
               )}
               <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setFiltersOpen(!filtersOpen); }} className="dark:text-slate-300 dark:hover:bg-slate-800">
                 {filtersOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </Button>
+            </div>
+            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="border-blue-600 text-blue-600 hover:bg-blue-50 dark:border-blue-500 dark:text-blue-400 dark:hover:bg-blue-950/30">
+                    <Columns3 className="w-4 h-4 mr-2" />
+                    Customize Columns
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 dark:bg-slate-900 dark:border-slate-700">
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-semibold mb-3 dark:text-slate-100">Select Columns to Display</h4>
+                      <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {columnsConfig
+                          .filter(col => !col.hideFromSelector)
+                          .map(col => (
+                            <div key={col.id} className="flex items-center space-x-2 column-checkbox">
+                              <Checkbox
+                                id={col.id}
+                                checked={visibleColumnIds.includes(col.id)}
+                                onCheckedChange={(checked) => handleColumnToggle(col.id, checked)}
+                              />
+                              <Label htmlFor={col.id} className="cursor-pointer dark:text-slate-300">
+                                {col.label}
+                              </Label>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                      onClick={() => setVisibleColumnIds(baseColumnsConfig.filter(col => col.defaultVisible).map(col => col.id))}
+                    >
+                      Reset to Default
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              <Button
+                onClick={handlePrint}
+                disabled={filteredAndSortedStubs.length === 0}
+                variant="outline"
+                size="sm"
+                className="border-slate-600 text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                <Printer className="w-4 h-4 mr-2" />
+                Print
+              </Button>
+              <Button onClick={handleExportCSV} disabled={filteredAndSortedStubs.length === 0} size="sm" className="bg-emerald-600 hover:bg-emerald-700">
+                <Download className="w-4 h-4 mr-2" />
+                Export to CSV
               </Button>
             </div>
           </div>
@@ -751,51 +785,7 @@ export default function PaychequesReport() {
 
       {/* Data Table */}
       <Card className="border-0 shadow-sm dark:bg-slate-900 dark:border-slate-800">
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle className="dark:text-slate-100">Paycheque Data</CardTitle>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className="border-blue-600 text-blue-600 hover:bg-blue-50 dark:border-blue-500 dark:text-blue-400 dark:hover:bg-blue-950/30">
-                  <Columns3 className="w-4 h-4 mr-2" />
-                  Customize Columns
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 dark:bg-slate-900 dark:border-slate-700">
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="font-semibold mb-3 dark:text-slate-100">Select Columns to Display</h4>
-                    <div className="space-y-2 max-h-96 overflow-y-auto">
-                      {columnsConfig
-                        .filter(col => !col.hideFromSelector)
-                        .map(col => (
-                          <div key={col.id} className="flex items-center space-x-2 column-checkbox">
-                            <Checkbox
-                              id={col.id}
-                              checked={visibleColumnIds.includes(col.id)}
-                              onCheckedChange={(checked) => handleColumnToggle(col.id, checked)}
-                            />
-                            <Label htmlFor={col.id} className="cursor-pointer dark:text-slate-300">
-                              {col.label}
-                            </Label>
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                    onClick={() => setVisibleColumnIds(baseColumnsConfig.filter(col => col.defaultVisible).map(col => col.id))}
-                  >
-                    Reset to Default
-                  </Button>
-                </div>
-              </PopoverContent>
-            </Popover>
-          </div>
-        </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           {loading ? (
             <div className="flex justify-center items-center h-40">
               <Loader2 className="h-8 w-8 animate-spin text-blue-800 dark:text-blue-400"/>

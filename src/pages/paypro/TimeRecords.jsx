@@ -335,8 +335,7 @@ export default function TimeRecords() {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">Time Records</h1>
-          <p className="text-slate-600 dark:text-slate-400">View time records from WorkPRO.</p>
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Time Records</h1>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button onClick={fetchRecords} disabled={isFetching || !dateRange.start || !dateRange.end} variant="outline">

@@ -137,8 +137,7 @@ export default function T4s() {
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">Generate T4 & T4A Slips</h1>
-        <p className="text-slate-600 dark:text-slate-400">Create official T4 Statement of Remuneration Paid slips and T4A summary for your employees.</p>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Generate T4 & T4A Slips</h1>
       </div>
 
       <Card className="border-0 shadow-sm dark:bg-slate-900 dark:border-slate-800">

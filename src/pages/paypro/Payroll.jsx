@@ -146,8 +146,7 @@ export default function Payroll() {
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-2">Run Payroll</h1>
-        <p className="text-slate-600 dark:text-slate-400 mb-8">Calculate and process payroll for your employees.</p>
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-8">Run Payroll</h1>
 
         <Card className="border-0 shadow-sm dark:bg-slate-900">
           <CardHeader>
