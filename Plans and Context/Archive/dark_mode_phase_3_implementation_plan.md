@@ -2,14 +2,14 @@
 
 **Status:** All 5 sub-phases (3A–3E) edited 2026-08-03. Phase-wide UI dark-mode verification and light-mode regression pass still pending before this phase can be marked `[Tested]`.
 **Type:** Multi-phase plan (28 files, ~6,800 lines total, several large/complex files — split into 5 sequential sub-phases: 3A–3E).
-**Parent:** `Antigravity-context-plans/master_blueprint.md`, Phase 3 (previously `[Skipped — Conflict Avoidance]`, now unblocked)
+**Parent:** `Plans and Context/Archive/Dark_Mode_Blueprint.md`, Phase 3 (previously `[Skipped — Conflict Avoidance]`, now unblocked)
 
 ---
 
 ## 0. Open Questions / Notes (all resolved — informational only, nothing blocking)
 
 - **Conflict re-check (2026-08-03):** Phase 3 was originally skipped because it directly overlapped the concurrently-running Base44-deprecation blueprint's Phase 13 "Work Orders Core" (`Plans and Context/phase_13_implementation_plan.md`). That phase's own status line now shows sub-phases **13D and 13E both marked `[Tested]`** (2026-08-03), with a full WO-lifecycle regression passed live. The one remaining blocking item for Phase 13's own close-out — a redeploy/retest of a "Counter Sale" fix — lives entirely in `src/pages/WorkOrders.jsx`, which is **not** in this phase's 28-file scope. `git log`/`git status` confirm the working tree is clean for `src/components/work-orders/**` (no in-flight uncommitted changes). **Verdict: clean to proceed.**
-- **Documentation lag noted, not a conflict:** `Plans and Context/master_blueprint.md`'s Phase 13 summary row still says "13D... and 13E... not started," which contradicts `phase_13_implementation_plan.md`'s own status line. This is a stale table cell on their side, not a signal of unfinished work — doesn't affect this phase.
+- **Documentation lag noted, not a conflict:** `Plans and Context/Dark_Mode_Blueprint.md`'s Phase 13 summary row still says "13D... and 13E... not started," which contradicts `phase_13_implementation_plan.md`'s own status line. This is a stale table cell on their side, not a signal of unfinished work — doesn't affect this phase.
 - **Pre-existing bug flagged for awareness, not ours to fix:** `GetPartModal.jsx` has a documented, unrelated live bug (search box not responding to Enter/typing) noted in the Base44 blueprint as "flagged for whoever next touches this file." Our `dark:`-only styling pass won't interact with it, but don't get blamed for it during dark-mode QA — it predates this phase.
 - **`NewWorkOrderModal.jsx` and `GetPartModal.jsx` carry known, unrelated data-layer TODOs** (a deferred `SystemSettings`/`WorkOrderStatus` swap, and a blocked `TagAlong`/`OtherChargeList` table-existence decision, respectively). Both are logic/data concerns — irrelevant to and untouched by this purely additive CSS phase.
 - **No Recharts/chart library usage anywhere in this file set** (including `WorkOrderProfitability.jsx` and `WorkOrderReport.jsx`) — the Section 7 Recharts theming technique from Phase 6 doesn't apply here.
