@@ -32,7 +32,7 @@ const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAp
     try {
       const [allAppointmentsRes, employeesDataRes, custRes, vehRes] = await Promise.all([
         supabase.from('Appointment').select('*'),
-        supabase.from('Employee').select('*').in('position', ['technician', 'apprentice']),
+        supabase.from('Employee').select('*').eq('employee_type', 'tech').eq('status', 'active'),
         supabase.from('Customer').select('*'),
         supabase.from('Vehicle').select('*'),
       ]);

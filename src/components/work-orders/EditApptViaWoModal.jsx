@@ -22,7 +22,7 @@ export default function EditApptViaWoModal({ open, onClose, appointment, workOrd
         supabase.from('Vehicle').select('*').order('year', { ascending: false }),
       ]);
       const employeesData = empRes.data || [];
-      setEmployees(employeesData.filter(e => e.position === 'technician' || e.position === 'apprentice'));
+      setEmployees(employeesData.filter(e => e.employee_type === 'tech' && e.status === 'active'));
 
       const fetchedCustomers = [...(custRes.data || [])];
       if (customer && !fetchedCustomers.some(c => c.id === customer.id)) {

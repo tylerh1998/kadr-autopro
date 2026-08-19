@@ -250,14 +250,69 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
         return paid < tx.charge_amount;
       });
 
+      // 5. Cross-check remaining unmatched statement rows against OTHER Lines of Credit.
+      // A statement transaction that lands on a different account's ledger usually means
+      // it was entered against the wrong LOC - surface that instead of leaving it "unmatched".
+      const otherLocMatches = [];
+      let stillUnmatchedCsv = unmatchedCsv;
+
+      if (unmatchedCsv.length > 0) {
+        const { data: otherLocTxs, error: otherLocTxsError } = await supabase
+          .from('LinesOfCreditTransaction')
+          .select('*')
+          .neq('line_of_credit_id', lineOfCreditId);
+        if (otherLocTxsError) throw otherLocTxsError;
+
+        const { data: allLocs, error: allLocsError } = await supabase
+          .from('LinesOfCredit')
+          .select('id, name');
+        if (allLocsError) throw allLocsError;
+        const locNameById = Object.fromEntries((allLocs || []).map(l => [l.id, l.name]));
+
+        let unmatchedOtherLoc = (otherLocTxs || []).filter(tx =>
+            tx.transaction_date >= queryMin &&
+            tx.transaction_date <= queryMax &&
+            tx.source_type !== 'payment_made'
+        );
+
+        const remainingCsv = [];
+        for (const csvRow of unmatchedCsv) {
+            let candidates = unmatchedOtherLoc.filter(sysTx => {
+                const sysAmount = sysTx.charge_amount > 0 ? sysTx.charge_amount : sysTx.credit_amount;
+                return Math.abs(sysAmount - csvRow.amount) < 0.01;
+            });
+
+            if (candidates.length > 0) {
+                candidates.sort((a, b) => {
+                    const diffA = Math.abs(differenceInDays(new Date(a.transaction_date), csvRow.originalDate));
+                    const diffB = Math.abs(differenceInDays(new Date(b.transaction_date), csvRow.originalDate));
+                    return diffA - diffB;
+                });
+
+                const bestMatch = candidates[0];
+                otherLocMatches.push({
+                    csv: csvRow,
+                    system: bestMatch,
+                    accountName: locNameById[bestMatch.line_of_credit_id] || 'Unknown Account'
+                });
+                unmatchedOtherLoc = unmatchedOtherLoc.filter(tx => tx.id !== bestMatch.id);
+            } else {
+                remainingCsv.push(csvRow);
+            }
+        }
+        stillUnmatchedCsv = remainingCsv;
+      }
+
       setResults({
           matches: matched,
-          unmatchedCsv,
+          unmatchedCsv: stillUnmatchedCsv,
           unmatchedSystem,
+          otherLocMatches,
           stats: {
               matched: matched.length,
-              unmatchedCsv: unmatchedCsv.length,
-              unmatchedSystem: unmatchedSystem.length
+              unmatchedCsv: stillUnmatchedCsv.length,
+              unmatchedSystem: unmatchedSystem.length,
+              otherLoc: otherLocMatches.length
           },
           dateRange: {
             start: minDate,
@@ -292,6 +347,7 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
             .summary-box.green { background-color: #f0fdf4; border-color: #bbf7d0; color: #166534; }
             .summary-box.orange { background-color: #fff7ed; border-color: #fed7aa; color: #9a3412; }
             .summary-box.blue { background-color: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+            .summary-box.purple { background-color: #faf5ff; border-color: #e9d5ff; color: #6b21a8; }
             .value { font-size: 24px; font-weight: bold; }
             .label { font-size: 12px; opacity: 0.8; }
             table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 12px; }
@@ -328,7 +384,40 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
               <div class="value">${results.stats.unmatchedSystem}</div>
               <div class="label">Unmatched System</div>
             </div>
+            <div class="summary-box purple">
+              <div class="value">${results.stats.otherLoc}</div>
+              <div class="label">Other Lines of Credit</div>
+            </div>
           </div>
+
+          <div class="section-title">Other Lines of Credit (Likely Entered to Wrong Account)</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Statement Date/Desc</th>
+                <th class="text-right">Amount</th>
+                <th>Found On Account</th>
+                <th>System Date/Desc</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${(results.otherLocMatches || []).map(m => `
+                <tr>
+                  <td>
+                    <div>${m.csv.date}</div>
+                    <div style="color:#666">${m.csv.description}</div>
+                  </td>
+                  <td class="text-right">$${m.csv.amount.toFixed(2)}</td>
+                  <td>${m.accountName}</td>
+                  <td>
+                    <div>${m.system.transaction_date}</div>
+                    <div style="color:#666">${m.system.description}</div>
+                  </td>
+                </tr>
+              `).join('')}
+              ${(results.otherLocMatches || []).length === 0 ? '<tr><td colspan="4" class="text-center">No cross-account matches found</td></tr>' : ''}
+            </tbody>
+          </table>
 
           <div class="section-title">Unmatched Statement Transactions</div>
           <table>
@@ -448,7 +537,7 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
             </div>
           ) : step === 'report' && results ? (
             <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-4 gap-4 mb-4">
                  <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-100 dark:border-green-800 text-center">
                     <div className="text-2xl font-bold text-green-700 dark:text-green-400">{results.stats.matched}</div>
                     <div className="text-sm text-green-600 dark:text-green-500">Matches Found</div>
@@ -461,6 +550,10 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
                     <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">{results.stats.unmatchedSystem}</div>
                     <div className="text-sm text-blue-600 dark:text-blue-500">Unmatched System</div>
                  </div>
+                 <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-100 dark:border-purple-800 text-center">
+                    <div className="text-2xl font-bold text-purple-700 dark:text-purple-400">{results.stats.otherLoc}</div>
+                    <div className="text-sm text-purple-600 dark:text-purple-500">Other Lines of Credit</div>
+                 </div>
               </div>
 
               <Tabs defaultValue="matched" className="w-full">
@@ -468,6 +561,7 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
                   <TabsTrigger value="matched">Matched ({results.stats.matched})</TabsTrigger>
                   <TabsTrigger value="unmatched-csv">Unmatched Statement ({results.stats.unmatchedCsv})</TabsTrigger>
                   <TabsTrigger value="unmatched-system">Unmatched System ({results.stats.unmatchedSystem})</TabsTrigger>
+                  <TabsTrigger value="other-loc">Other Lines of Credit ({results.stats.otherLoc})</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="matched" className="mt-4">
@@ -553,6 +647,47 @@ export default function LOCReconciliationModal({ open, onClose, lineOfCreditId }
                       </table>
                    </div>
                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">Showing system transactions within 30 days of the CSV date range.</p>
+                </TabsContent>
+
+                <TabsContent value="other-loc" className="mt-4">
+                   <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+                     These statement transactions didn't match anything on this account, but matched a transaction entered on a different Line of Credit - likely entered to the wrong account.
+                   </p>
+                   <div className="border rounded-md overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-slate-100 dark:bg-slate-800">
+                          <tr>
+                            <th className="p-2 text-left">Statement Date/Desc</th>
+                            <th className="p-2 text-right">Amount</th>
+                            <th className="p-2 text-left">Found On Account</th>
+                            <th className="p-2 text-left">System Date/Desc</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(results.otherLocMatches || []).map((m, i) => (
+                            <tr key={i} className="border-t dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40">
+                               <td className="p-2">
+                                  <div className="font-medium dark:text-slate-200">{m.csv.date}</div>
+                                  <div className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[200px]" title={m.csv.description}>{m.csv.description}</div>
+                               </td>
+                               <td className="p-2 text-right font-medium dark:text-slate-200">
+                                 ${m.csv.amount.toFixed(2)}
+                               </td>
+                               <td className="p-2">
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+                                    {m.accountName}
+                                  </span>
+                               </td>
+                               <td className="p-2">
+                                  <div className="font-medium dark:text-slate-200">{m.system.transaction_date}</div>
+                                  <div className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[200px]" title={m.system.description}>{m.system.description}</div>
+                               </td>
+                            </tr>
+                          ))}
+                          {(results.otherLocMatches || []).length === 0 && <tr><td colSpan={4} className="p-4 text-center text-slate-500 dark:text-slate-400">No cross-account matches found.</td></tr>}
+                        </tbody>
+                      </table>
+                   </div>
                 </TabsContent>
               </Tabs>
             </div>
