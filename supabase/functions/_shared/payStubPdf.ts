@@ -96,6 +96,9 @@ export function buildPayStubPdf(
   doc.rect(rightColX - 4, y, colWidth + 4, 6, 'F');
   doc.setTextColor(...white);
   doc.text("Statement of Earnings", rightColX, y + 4);
+  if (stub.paycheque_number) {
+    doc.text(stub.paycheque_number, rightColX + colWidth - 2, y + 4, { align: 'right' });
+  }
   y += 8;
 
   // Employee Info Content
