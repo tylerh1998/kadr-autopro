@@ -211,11 +211,17 @@ export default function BatchPaymentModal({ stubs, onComplete, onCancel }) {
         });
 
         const mountainTimestamp = getMountainTimestamp();
+        // Flags manual cheques right in the bank register description - handy during bank
+        // rec, since a cheque can sit uncleared for a while and this makes the "why" obvious
+        // at a glance instead of having to cross-reference the pay stub.
+        const bankTxDescription = chequeNumber
+          ? `Paycheque ${stub.paycheque_number || ''} Cheque # ${chequeNumber}`
+          : `Paycheque ${stub.paycheque_number || ''}`;
         const { error: bankTxError } = await supabase.from('BankTransaction').insert({
           id: generateId(),
           bank_account_id: selectedAccount.id,
           transaction_date: payDate,
-          description: `Paycheque ${stub.paycheque_number || ''}`,
+          description: bankTxDescription,
           reference,
           debit_amount: netPay,
           credit_amount: 0,
@@ -631,7 +637,7 @@ export default function BatchPaymentModal({ stubs, onComplete, onCancel }) {
                   />
                   <Label htmlFor="print-cheque" className="cursor-pointer text-sm text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                     <Printer className="h-4 w-4" />
-                    Print Cheque <span className="text-slate-400 dark:text-slate-500">(manual backup - default is Direct Deposit)</span>
+                    Print Cheque
                   </Label>
                 </div>
                 <div className="flex gap-3">
