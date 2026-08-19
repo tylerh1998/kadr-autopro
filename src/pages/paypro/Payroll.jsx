@@ -149,10 +149,8 @@ export default function Payroll() {
         <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-8">Run Payroll</h1>
 
         <Card className="border-0 shadow-sm dark:bg-slate-900">
-          <CardHeader>
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <CardTitle className="dark:text-slate-100">Payroll Setup</CardTitle>
-              <div className="flex flex-wrap gap-2">
+          <CardContent className="pt-6 space-y-6">
+            <div className="flex flex-wrap gap-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -251,133 +249,52 @@ export default function Payroll() {
                 >
                   Last Month
                 </Button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-2">
+                <Label className="dark:text-slate-300">Pay Period Start *</Label>
+                <Input
+                  type="date"
+                  value={payPeriod.start}
+                  onChange={e => handleDateChange('start', e.target.value)}
+                  className="border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 focus:border-blue-500"
+                />
               </div>
-            </div>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-2">
-              <Label className="dark:text-slate-300">Pay Period Start *</Label>
-              <Input
-                type="date"
-                value={payPeriod.start}
-                onChange={e => handleDateChange('start', e.target.value)}
-                className="border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 focus:border-blue-500"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="dark:text-slate-300">Pay Period End *</Label>
-              <Input
-                type="date"
-                value={payPeriod.end}
-                onChange={e => handleDateChange('end', e.target.value)}
-                className="border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 focus:border-blue-500"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="dark:text-slate-300">Pay Date *</Label>
-              <Input
-                type="date"
-                value={payPeriod.payDate}
-                onChange={e => handleDateChange('payDate', e.target.value)}
-                className="border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 focus:border-blue-500"
-              />
-            </div>
-            {dateValidationError && (
-                <div className="md:col-span-3">
-                    <Alert variant="destructive">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription>
-                            {dateValidationError}
-                        </AlertDescription>
-                    </Alert>
-                </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="mt-6 border-0 shadow-sm bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 dark:text-slate-100">
-              <Download className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              Import Time Entries
-            </CardTitle>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
-              Please verify time sheet records before importing. When all payroll is completed for this pay period, remember to lock the period.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-
-              {importedTimeData && Object.keys(importedTimeData).length > 0 && (
-                <div className="bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-900/40 rounded-lg p-4">
-                  <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100 mb-2">✓ Time Data Imported</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    {Object.keys(importedTimeData).slice(0, 4).map(empId => {
-                      const data = importedTimeData[empId];
-                      const totalHours = Object.values(data.payTypes).reduce((sum, hrs) => sum + hrs, 0);
-                      return (
-                        <div key={empId} className="text-center">
-                          <p className="font-semibold text-lg text-blue-600 dark:text-blue-400">{totalHours.toFixed(1)}h</p>
-                          <p className="text-xs text-slate-600 dark:text-slate-400">{data.employee.first_name}</p>
-                        </div>
-                      );
-                    })}
-                    {Object.keys(importedTimeData).length > 4 && (
-                      <div className="text-center">
-                        <p className="font-semibold text-lg text-slate-600 dark:text-slate-400">+{Object.keys(importedTimeData).length - 4}</p>
-                        <p className="text-xs text-slate-600 dark:text-slate-400">more</p>
-                      </div>
-                    )}
+              <div className="space-y-2">
+                <Label className="dark:text-slate-300">Pay Period End *</Label>
+                <Input
+                  type="date"
+                  value={payPeriod.end}
+                  onChange={e => handleDateChange('end', e.target.value)}
+                  className="border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 focus:border-blue-500"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="dark:text-slate-300">Pay Date *</Label>
+                <Input
+                  type="date"
+                  value={payPeriod.payDate}
+                  onChange={e => handleDateChange('payDate', e.target.value)}
+                  className="border-slate-200 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100 focus:border-blue-500"
+                />
+              </div>
+              {dateValidationError && (
+                  <div className="md:col-span-3">
+                      <Alert variant="destructive">
+                          <AlertCircle className="h-4 w-4" />
+                          <AlertDescription>
+                              {dateValidationError}
+                          </AlertDescription>
+                      </Alert>
                   </div>
-                </div>
               )}
-
-              {/* D3: visible warning when a selected employee produced zero matched
-                  time records - e.g. the known "Sam"/"Samantha" EMP007 WorkPRO/PayPRO
-                  name gap (phase_5_implementation_plan.md D3) - so it isn't missed at
-                  the point it would actually cost someone a paycheque. */}
-              {unmatchedEmployees.length > 0 && (
-                <Alert className="bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-900/40">
-                  <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                  <AlertDescription className="text-amber-800 dark:text-amber-300">
-                    <span className="font-semibold">No time records matched for:</span>{' '}
-                    {unmatchedEmployees.map(e => `${e.first_name} ${e.last_name}`).join(', ')}.
-                    {' '}They will show $0 hours from WorkPRO unless entered manually - check for a name mismatch between WorkPRO and PayPRO.
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              <div className="flex items-center gap-4">
-                <Button
-                  onClick={handleImportTimeEntries}
-                  disabled={isImportingTime || !payPeriod.start || !payPeriod.end || !!dateValidationError}
-                  className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white"
-                >
-                  {isImportingTime ? (
-                    <>
-                      <Download className="w-4 h-4 mr-2 animate-pulse" />
-                      Importing Time Entries...
-                    </>
-                  ) : (
-                    <>
-                      <Download className="w-4 h-4 mr-2" />
-                      {importedTimeData ? 'Re-import Time Entries' : 'Import Time Entries'}
-                    </>
-                  )}
-                </Button>
-                {(!payPeriod.start || !payPeriod.end) && (
-                  <span className="text-sm text-amber-600 dark:text-amber-400">
-                    ⚠ Set pay period dates first
-                  </span>
-                )}
-              </div>
             </div>
           </CardContent>
         </Card>
 
         <Card className="mt-6 border-0 shadow-sm dark:bg-slate-900">
           <CardHeader>
-            <div className="flex justify-between items-center">
+            <div className="flex flex-wrap justify-between items-center gap-3">
               <div>
                 <CardTitle className="dark:text-slate-100">Select Employees ({filteredEmployees.length} available)</CardTitle>
                 <div className="flex items-center gap-2 mt-2">
@@ -394,28 +311,92 @@ export default function Payroll() {
                   </div>
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap items-center gap-3">
                 <Button
-                  variant={processingMode === 'single' ? 'default' : 'outline'}
+                  onClick={handleImportTimeEntries}
+                  disabled={isImportingTime || !payPeriod.start || !payPeriod.end || !!dateValidationError}
                   size="sm"
-                  onClick={() => {
-                    setProcessingMode('single');
-                    if (selectedEmployeeIds.length > 1) setSelectedEmployeeIds([selectedEmployeeIds[0]]);
-                  }}
+                  className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600 text-white"
                 >
-                  Single
+                  {isImportingTime ? (
+                    <>
+                      <Download className="w-4 h-4 mr-2 animate-pulse" />
+                      Importing...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 mr-2" />
+                      {importedTimeData ? 'Re-import Time Entries' : 'Import Time Entries'}
+                    </>
+                  )}
                 </Button>
-                <Button
-                  variant={processingMode === 'batch' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setProcessingMode('batch')}
-                >
-                  Batch
-                </Button>
+                {(!payPeriod.start || !payPeriod.end) && (
+                  <span className="text-sm text-amber-600 dark:text-amber-400">
+                    ⚠ Set pay period dates first
+                  </span>
+                )}
+                <div className="flex gap-2">
+                  <Button
+                    variant={processingMode === 'single' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => {
+                      setProcessingMode('single');
+                      if (selectedEmployeeIds.length > 1) setSelectedEmployeeIds([selectedEmployeeIds[0]]);
+                    }}
+                  >
+                    Single
+                  </Button>
+                  <Button
+                    variant={processingMode === 'batch' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setProcessingMode('batch')}
+                  >
+                    Batch
+                  </Button>
+                </div>
               </div>
             </div>
           </CardHeader>
           <CardContent>
+            {importedTimeData && Object.keys(importedTimeData).length > 0 && (
+              <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40 rounded-lg p-4 mb-4">
+                <h4 className="font-semibold text-sm text-slate-900 dark:text-slate-100 mb-2">✓ Time Data Imported</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  {Object.keys(importedTimeData).slice(0, 4).map(empId => {
+                    const data = importedTimeData[empId];
+                    const totalHours = Object.values(data.payTypes).reduce((sum, hrs) => sum + hrs, 0);
+                    return (
+                      <div key={empId} className="text-center">
+                        <p className="font-semibold text-lg text-blue-600 dark:text-blue-400">{totalHours.toFixed(1)}h</p>
+                        <p className="text-xs text-slate-600 dark:text-slate-400">{data.employee.first_name}</p>
+                      </div>
+                    );
+                  })}
+                  {Object.keys(importedTimeData).length > 4 && (
+                    <div className="text-center">
+                      <p className="font-semibold text-lg text-slate-600 dark:text-slate-400">+{Object.keys(importedTimeData).length - 4}</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-400">more</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* D3: visible warning when a selected employee produced zero matched
+                time records - e.g. the known "Sam"/"Samantha" EMP007 WorkPRO/PayPRO
+                name gap (phase_5_implementation_plan.md D3) - so it isn't missed at
+                the point it would actually cost someone a paycheque. */}
+            {unmatchedEmployees.length > 0 && (
+              <Alert className="bg-amber-50 border-amber-200 dark:bg-amber-900/20 dark:border-amber-900/40 mb-4">
+                <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                <AlertDescription className="text-amber-800 dark:text-amber-300">
+                  <span className="font-semibold">No time records matched for:</span>{' '}
+                  {unmatchedEmployees.map(e => `${e.first_name} ${e.last_name}`).join(', ')}.
+                  {' '}They will show $0 hours from WorkPRO unless entered manually - check for a name mismatch between WorkPRO and PayPRO.
+                </AlertDescription>
+              </Alert>
+            )}
+
             {/* No raw hex <style> checkbox override here (source lines 403-411) -
                 AutoPRO's Checkbox component already renders correctly with dark:
                 support out of the box (phase_5_implementation_plan.md §3, 5A note). */}
