@@ -3,13 +3,15 @@ import moment from "moment-timezone";
 import { PayStub, Employee, EmployeeDeduction, TaxYearConstant } from "@/components/paypro/lib/payrollEntities";
 import { supabase } from "@/lib/supabase";
 import { checkFiscalPeriodStatus } from "@/components/utils/fiscalPeriodUtils";
+import { createPageUrl } from "@/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Send, X, Banknote, CalendarDays, ArrowLeft } from "lucide-react";
+import { Loader2, Send, X, Banknote, CalendarDays, ArrowLeft, Printer } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const getMountainTimestamp = () => moment.tz('America/Edmonton').format();
@@ -30,6 +32,13 @@ export default function BatchPaymentModal({ stubs, onComplete, onCancel }) {
   const [bankAccounts, setBankAccounts] = useState([]);
   const [selectedBankAccountId, setSelectedBankAccountId] = useState("");
   const [busDriverFlags, setBusDriverFlags] = useState({});
+
+  // Manual-cheque backup path (default off - payments post as Direct Deposit unless this
+  // is explicitly checked). Mirrors SupplierPaymentModal's cheque-number confirm dialog.
+  const [printCheque, setPrintCheque] = useState(false);
+  const [showChequeNumberPrompt, setShowChequeNumberPrompt] = useState(false);
+  const [chequeNumberInput, setChequeNumberInput] = useState('');
+  const [addChequeToCashFlow, setAddChequeToCashFlow] = useState(true);
 
   useEffect(() => {
     const loadData = async () => {
@@ -105,7 +114,7 @@ export default function BatchPaymentModal({ stubs, onComplete, onCancel }) {
     setShowPreview(true);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (chequeNumber = null) => {
     setError('');
 
     const hasUnselectedBusDriverFlags = stubs.some((stub) => busDriverFlags[stub.id] === undefined);
@@ -191,8 +200,15 @@ export default function BatchPaymentModal({ stubs, onComplete, onCancel }) {
         const reference = stub.paycheque_number || stub.id;
         const netPay = stub.net_pay || 0;
 
-        // lesson 6: PayStub writes go through the shim, not a raw .update().
-        await PayStub.update(stub.id, { is_paid: true, pay_date: payDate, paid_via: 'Direct Deposit' });
+        // lesson 6: PayStub writes go through the shim, not a raw .update(). chequeNumber
+        // is only ever non-null when stubs.length === 1 (enforced by the checkbox gate),
+        // so this branch applies to exactly the one stub in the loop.
+        await PayStub.update(stub.id, {
+          is_paid: true,
+          pay_date: payDate,
+          paid_via: chequeNumber ? 'Cheque' : 'Direct Deposit',
+          ...(chequeNumber ? { cheque_number: chequeNumber } : {}),
+        });
 
         const mountainTimestamp = getMountainTimestamp();
         const { error: bankTxError } = await supabase.from('BankTransaction').insert({
@@ -356,19 +372,89 @@ export default function BatchPaymentModal({ stubs, onComplete, onCancel }) {
       if (balanceError) throw balanceError;
       if (balanceData?.error) throw new Error(balanceData.error);
 
+      if (chequeNumber) {
+        // Same convention as autopro-executeSupplierPayment: advance the counter to
+        // whatever the user actually confirmed, not a server-generated sequence.
+        const parsedNext = parseInt(chequeNumber, 10);
+        if (!Number.isNaN(parsedNext)) {
+          await supabase.from('BankAccount').update({ next_cheque_number: parsedNext + 1 }).eq('id', selectedAccount.id);
+        }
+
+        if (addChequeToCashFlow) {
+          const stub = stubs[0];
+          const { data: existingRows } = await supabase.from('CashFlowEntry').select('*').order('sort_order', { ascending: false }).limit(1);
+          const nextSortOrder = (existingRows?.[0]?.sort_order || 0) + 1;
+          const nowIso = new Date().toISOString();
+          // D-note: "supplier" is deliberately the paycheque number, not the employee
+          // name - cash flow sheet access isn't restricted to paypro_user, so this keeps
+          // which employee got a manual cheque anonymous to anyone who only has cash
+          // flow access.
+          await supabase.from('CashFlowEntry').insert([{
+            id: generateId(),
+            supplier_id: null,
+            supplier: stub.paycheque_number || stub.id,
+            amount: stub.net_pay || 0,
+            amount_paid: stub.net_pay || 0,
+            date_paid: payDate,
+            chq_number: chequeNumber,
+            method: 'Cheque',
+            sort_order: nextSortOrder,
+            created_date: nowIso,
+            updated_date: nowIso,
+          }]);
+        }
+
+        window.location.href = `${createPageUrl('paypro/PayrollChequeWriter')}?chequeReference=${encodeURIComponent(chequeNumber)}`;
+        return;
+      }
+
       onComplete();
     } catch (err) {
       console.error('Error processing batch payment:', err);
       setError(err.message || 'An error occurred while processing the batch payment. Please try again.');
-    } finally {
       setProcessing(false);
     }
   };
 
   const totalPay = stubs.reduce((acc, stub) => acc + (stub.net_pay || 0), 0);
 
+  const handlePrintChequeToggle = (checked) => {
+    const isChecked = checked === true;
+    if (isChecked && stubs.length > 1) {
+      setError('Only one paycheque at a time can be paid by manual cheque - unselect the others first.');
+      return;
+    }
+    setError('');
+    setPrintCheque(isChecked);
+  };
+
+  const handleConfirmClick = () => {
+    if (printCheque) {
+      const selectedAccount = bankAccounts.find((a) => a.id === selectedBankAccountId);
+      setChequeNumberInput(String(selectedAccount?.next_cheque_number || 1));
+      setError('');
+      setShowChequeNumberPrompt(true);
+      return;
+    }
+    handleSubmit(null);
+  };
+
+  const handleChequeNumberConfirm = () => {
+    if (!chequeNumberInput || chequeNumberInput.trim() === '') {
+      setError('Please enter a cheque number.');
+      return;
+    }
+    setShowChequeNumberPrompt(false);
+    handleSubmit(chequeNumberInput.trim());
+  };
+
+  const handleChequeNumberCancel = () => {
+    setShowChequeNumberPrompt(false);
+  };
+
   return (
-    <Dialog open={true} onOpenChange={onCancel}>
+    <>
+    <Dialog open={!showChequeNumberPrompt} onOpenChange={onCancel}>
       <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 dark:text-slate-100">
@@ -535,38 +621,107 @@ export default function BatchPaymentModal({ stubs, onComplete, onCancel }) {
                 </Alert>
               )}
 
-              <div className="flex justify-end gap-3 pt-4 border-t dark:border-slate-700">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowPreview(false)}
-                  disabled={processing}
-                  className="dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                >
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back
-                </Button>
-                <Button
-                  onClick={handleSubmit}
-                  disabled={processing}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                >
-                  {processing ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="mr-2 h-4 w-4" />
-                      Confirm &amp; Mark as Paid
-                    </>
-                  )}
-                </Button>
+              <div className="flex justify-between items-center gap-3 pt-4 border-t dark:border-slate-700">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="print-cheque"
+                    checked={printCheque}
+                    onCheckedChange={handlePrintChequeToggle}
+                    disabled={processing}
+                  />
+                  <Label htmlFor="print-cheque" className="cursor-pointer text-sm text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <Printer className="h-4 w-4" />
+                    Print Cheque <span className="text-slate-400 dark:text-slate-500">(manual backup - default is Direct Deposit)</span>
+                  </Label>
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowPreview(false)}
+                    disabled={processing}
+                    className="dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                  >
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back
+                  </Button>
+                  <Button
+                    onClick={handleConfirmClick}
+                    disabled={processing}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                  >
+                    {processing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="mr-2 h-4 w-4" />
+                        Confirm &amp; Mark as Paid
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             </>
           )}
         </div>
       </DialogContent>
     </Dialog>
+
+    <Dialog open={showChequeNumberPrompt} onOpenChange={setShowChequeNumberPrompt}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="dark:text-slate-100">Enter Cheque Number</DialogTitle>
+          <DialogDescription className="dark:text-slate-400">
+            Confirm the cheque number for this paycheque before printing.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label className="dark:text-slate-300">Cheque Number</Label>
+            <Input
+              type="text"
+              value={chequeNumberInput}
+              onChange={(e) => setChequeNumberInput(e.target.value)}
+              placeholder="Enter cheque number"
+              autoFocus
+              disabled={processing}
+              className="dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
+            />
+          </div>
+          <div className="flex items-center space-x-2 rounded-md border dark:border-slate-700 p-3">
+            <Checkbox
+              id="add-paycheque-to-cashflow"
+              checked={addChequeToCashFlow}
+              onCheckedChange={(checked) => setAddChequeToCashFlow(checked === true)}
+              disabled={processing}
+            />
+            <Label htmlFor="add-paycheque-to-cashflow" className="cursor-pointer dark:text-slate-300">Add to Cash Flow Sheet</Label>
+          </div>
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={handleChequeNumberCancel} disabled={processing} className="dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+              Cancel
+            </Button>
+            <Button onClick={handleChequeNumberConfirm} disabled={processing} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+              {processing ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                'Confirm'
+              )}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }

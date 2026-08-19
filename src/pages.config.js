@@ -90,6 +90,7 @@ import PayproEditEmployee from './pages/paypro/EditEmployee';
 import PayproTimeRecords from './pages/paypro/TimeRecords';
 import PayproPayroll from './pages/paypro/Payroll';
 import PayproPayStubs from './pages/paypro/PayStubs';
+import PayproPayrollChequeWriter from './pages/paypro/PayrollChequeWriter';
 import PayproRemittances from './pages/paypro/Remittances';
 import PayproT4s from './pages/paypro/T4s';
 import PayproReports from './pages/paypro/Reports';
@@ -151,6 +152,7 @@ export const PAGES = {
     "paypro/TimeRecords": PayproTimeRecords,
     "paypro/Payroll": PayproPayroll,
     "paypro/PayStubs": PayproPayStubs,
+    "paypro/PayrollChequeWriter": PayproPayrollChequeWriter,
     "paypro/Remittances": PayproRemittances,
     "paypro/T4s": PayproT4s,
     "paypro/Reports": PayproReports,
