@@ -1,6 +1,6 @@
 # Phase 1 Implementation Plan — Schema Corrections, RLS & Dev Replication
 
-**Parent:** `master_blueprint.md` Phase 1 · **Created 2026-08-17** · **Status: 1A–1D all executed and verified 2026-08-18 — see §4 for the one open item (live `/dev-login` browser test, needs a UI-capable session)**
+**Parent:** `paypro_blueprint.md` Phase 1 · **Created 2026-08-17** · **Status: 1A–1D all executed and verified 2026-08-18 — see §4 for the one open item (live `/dev-login` browser test, needs a UI-capable session)**
 
 **Format: multi-sub-phase** (1A → 1D). Four workstreams with hard ordering dependencies, two different Supabase projects, and a data copy between them — too much for a single linear plan.
 
@@ -89,7 +89,7 @@ Take the ten `PayPro_*` tables from "imported but unusable" to "correctly typed,
 
 ## 2) Lessons Learned & Context
 
-Pulled from `master_blueprint.md` §7 and `master_context.md` §3/§4, filtered to what actually bites this phase.
+Pulled from `paypro_blueprint.md` §7 and `master_context.md` §3/§4, filtered to what actually bites this phase.
 
 | # | Constraint | How it applies here |
 |---|---|---|
@@ -212,7 +212,7 @@ Every statement is guarded per **L1**. `ALTER COLUMN … TYPE` is *not* naturall
 -- type, so no data is lost or rounded.
 --
 -- Idempotent: each ALTER runs only if the column is still its original type.
--- Safe to re-run. See master_blueprint.md §7 lesson 22.
+-- Safe to re-run. See paypro_blueprint.md §7 lesson 22.
 -- ===========================================================================
 
 -- ---------------------------------------------------------------------------
@@ -739,7 +739,7 @@ Deterministic (same id → same fake value, so re-running is stable), structural
 
 **Step 6 — `master_context.md` §4 carve-out (blueprint S1).** Add to the Supabase Edge Functions bullet:
 
-> **Exception — the PayPRO module uses `paypro-[functionname]`.** Deliberate, not drift: payroll functions are security-sensitive and the distinct prefix keeps them identifiable in a shared Supabase project. See `master_blueprint.md` §0.1 Q7/S1. Do not "correct" these to `autopro-*`.
+> **Exception — the PayPRO module uses `paypro-[functionname]`.** Deliberate, not drift: payroll functions are security-sensitive and the distinct prefix keeps them identifiable in a shared Supabase project. See `paypro_blueprint.md` §0.1 Q7/S1. Do not "correct" these to `autopro-*`.
 
 #### Task List — 1D
 
@@ -843,12 +843,12 @@ Run after 1D completes. Proves Phase 1 as a whole and gates entry to Phase 2.
 
 Two corrections already identified while planning, to roll up at phase end:
 
-1. **The mis-typed column count is 15, not 11.** `master_blueprint.md` §Phase 1 workstream A says 11; the real figure is 13 on `PayPro_*` tables (its table grouped four `PayPro_TaxYearConstant` columns onto one row) plus 2 on `PayPeriods`. Correct the blueprint at rollup.
+1. **The mis-typed column count is 15, not 11.** `paypro_blueprint.md` §Phase 1 workstream A says 11; the real figure is 13 on `PayPro_*` tables (its table grouped four `PayPro_TaxYearConstant` columns onto one row) plus 2 on `PayPeriods`. Correct the blueprint at rollup.
 2. **CORRECTION to L4, found during 1D execution: the `ensure_rls` event trigger exists and is enabled on *both* projects, not just prod.** Verified directly via `pg_event_trigger` on both `hbcrwkmgsazqrvsrmxyr` and `sitihbdnuxifwibontcm` (`evtenabled = 'O'` on both) and confirmed by reading `rls_auto_enable()`'s body (auto-enables RLS on any `CREATE TABLE` in `public` on either project). L4 as originally written in this plan was **wrong** — and `master_context.md` §4 already independently documents this same trigger without claiming it's prod-only (the `FiscalPeriod` incident write-up), so the false claim was never propagated there and needs no correction in that file. The explicit `ALTER TABLE … ENABLE ROW LEVEL SECURITY` statements in the 1D migration were kept anyway as harmless, idempotent defense-in-depth — they just weren't the load-bearing safeguard the plan assumed.
 
 ### 4.4 Rollup Checklist
 
-- [x] Correct the "11 mis-inferred types" figure to 15 in `master_blueprint.md` — done via `/nextphase`, corrected in §0.2, §2.1, workstream A table (+2 `PayPeriods` rows added), §6 verification row, and §7 lessons 4/19
+- [x] Correct the "11 mis-inferred types" figure to 15 in `paypro_blueprint.md` — done via `/nextphase`, corrected in §0.2, §2.1, workstream A table (+2 `PayPeriods` rows added), §6 verification row, and §7 lessons 4/19
 - [x] ~~Add the `ensure_rls` dev/prod drift finding to `master_context.md` §3 **and** blueprint §7~~ — **not needed**: the finding was false (see §4.3 correction #2). Both projects have the trigger.
 - [x] Record `is_paypro_user()` in `master_context.md` §4.11 alongside `staff_strong_auth()` — done
 - [x] Confirm the blueprint's Phase 1 verification criteria all passed — done, §6 row updated with ✅ and actual results

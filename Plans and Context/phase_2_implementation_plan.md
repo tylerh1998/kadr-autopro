@@ -1,6 +1,6 @@
 # Phase 2 Implementation Plan — Module Scaffolding, Auth Swap, Layout Disposition & Navigation
 
-**Parent:** `master_blueprint.md` Phase 2 · **Created 2026-08-18** · **Status: Verified — manually confirmed by user at `test.kensauto.ca`, 2026-08-18**
+**Parent:** `paypro_blueprint.md` Phase 2 · **Created 2026-08-18** · **Status: Verified — manually confirmed by user at `test.kensauto.ca`, 2026-08-18**
 
 **Format: single-phase** (no sub-phases — see rationale below).
 
@@ -54,7 +54,7 @@ Confirmed via direct research: Phase 2 touches roughly 6 files plus 10 new stub-
 
 ## 2) Lessons Learned & Context
 
-Pulled from `master_blueprint.md` §7 and `master_context.md`, filtered to what actually bites this phase.
+Pulled from `paypro_blueprint.md` §7 and `master_context.md`, filtered to what actually bites this phase.
 
 | # | Constraint | How it applies here |
 |---|---|---|

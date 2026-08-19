@@ -39,7 +39,7 @@ The purpose of this document is to act as a living reference document, attached 
 
 *   **Supabase Edge Functions:**
     * Must always use the `autopro-[functionname]` naming format.
-    * **Exception — the PayPRO module uses `paypro-[functionname]`.** Deliberate, not drift: payroll functions are security-sensitive and the distinct prefix keeps them identifiable in a shared Supabase project. See `master_blueprint.md` §0.1 Q7/S1. Do not "correct" these to `autopro-*`.
+    * **Exception — the PayPRO module uses `paypro-[functionname]`.** Deliberate, not drift: payroll functions are security-sensitive and the distinct prefix keeps them identifiable in a shared Supabase project. See `paypro_blueprint.md` §0.1 Q7/S1. Do not "correct" these to `autopro-*`.
     * **Error Handling:** Edge Functions must return a `200 OK` status with an `{ error: "message" }` JSON payload instead of throwing raw 4xx/5xx HTTP errors. The Supabase JS client (`FunctionsHttpError`) intercepts non-2xx codes and swallows the JSON response body, hiding the actual error message from the frontend. (PDF-generating functions are a deliberate exception on their success path — they return raw PDF bytes with `Content-Type: application/pdf`; only their failure path uses the `{error}` convention.)
     * **Payloads:** Deno edge functions typically require payloads to be wrapped as `{ body: { ... } }` when invoking from the frontend via the Supabase client.
     * Constructing a third-party SDK client (e.g. Twilio) at module top-level is dangerous — a bad credential throws at construction time and crashes the *entire function*, including its CORS `OPTIONS` preflight handler. Build credential-dependent clients inside the request handler, after the `OPTIONS` short-circuit.

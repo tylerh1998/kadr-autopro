@@ -1,6 +1,6 @@
 # Phase 7 Implementation Plan — Remittances & Cancel Payment
 
-**Parent:** `master_blueprint.md` Phase 7 · **Created 2026-08-18** · **Status: Verified 2026-08-18 (live browser pass, real GL/Bank posting confirmed)** — both open questions resolved 2026-08-18 (see §0.1); live verification results in §4's checklist and §5.5. One real bug found and fixed same day (double-submission risk when the report auto-open fails) — see §5.5.
+**Parent:** `paypro_blueprint.md` Phase 7 · **Created 2026-08-18** · **Status: Verified 2026-08-18 (live browser pass, real GL/Bank posting confirmed)** — both open questions resolved 2026-08-18 (see §0.1); live verification results in §4's checklist and §5.5. One real bug found and fixed same day (double-submission risk when the report auto-open fails) — see §5.5.
 
 **Format: single-phase** — see rationale in §1.
 
@@ -12,7 +12,7 @@
 
 ### 0.1 Decisions taken on the two open questions (resolved 2026-08-18, before execution)
 
-**Q1 — RESOLVED: Option A, client-side posting.** No `paypro-postRemittanceGL` edge function. `RemittanceDialog.jsx`/`CancelRemittanceModal.jsx` post `GLTransaction`/`BankTransaction` directly from the browser, exactly like Phase 6's `BatchPaymentModal.jsx`/`CancelPaymentModal.jsx`. §3's Detailed Execution Plan below is written against this answer — no changes needed. `master_blueprint.md`'s Phase 7 "Impacted" list naming this function is now stale and will be corrected at rollup (§5.4).
+**Q1 — RESOLVED: Option A, client-side posting.** No `paypro-postRemittanceGL` edge function. `RemittanceDialog.jsx`/`CancelRemittanceModal.jsx` post `GLTransaction`/`BankTransaction` directly from the browser, exactly like Phase 6's `BatchPaymentModal.jsx`/`CancelPaymentModal.jsx`. §3's Detailed Execution Plan below is written against this answer — no changes needed. `paypro_blueprint.md`'s Phase 7 "Impacted" list naming this function is now stale and will be corrected at rollup (§5.4).
 
 **Q2 — RESOLVED: Option A, skip `ClosePeriodModal.jsx`.** Not ported. `Remittances.jsx` gets a "Manage Period Close Date" pointer to `paypro/Setup` instead of a second editor for the same `PayPro_PayrollSetting` row. §3.1 is written against this answer.
 
@@ -20,9 +20,9 @@
 
 #### Q1 reasoning (resolved above as client-side posting)
 
-`master_blueprint.md`'s Phase 7 "Impacted" list names a new edge function, `paypro-postRemittanceGL`, and Phase 6's own handoff note (written before Phase 6's code was actually built) assumed Phase 7 would need one. Having now built and live-verified Phase 6's `BatchPaymentModal.jsx`/`CancelPaymentModal.jsx`, that assumption doesn't hold up: **every GL/Bank-posting write in this codebase — AP, LOC, Banking, GST, and now Payroll (Phase 6) — posts directly from the authenticated client**, gated by RLS's own AAL2 requirement on `GLTransaction`/`BankTransaction`, never through a service-role edge function. Confirmed empirically against dev: the 6 real historical remittance GL postings (from AutoPRO's stopgap `MarkPaidModal.jsx`, pre-Phase-7) were themselves posted this same client-side way.
+`paypro_blueprint.md`'s Phase 7 "Impacted" list names a new edge function, `paypro-postRemittanceGL`, and Phase 6's own handoff note (written before Phase 6's code was actually built) assumed Phase 7 would need one. Having now built and live-verified Phase 6's `BatchPaymentModal.jsx`/`CancelPaymentModal.jsx`, that assumption doesn't hold up: **every GL/Bank-posting write in this codebase — AP, LOC, Banking, GST, and now Payroll (Phase 6) — posts directly from the authenticated client**, gated by RLS's own AAL2 requirement on `GLTransaction`/`BankTransaction`, never through a service-role edge function. Confirmed empirically against dev: the 6 real historical remittance GL postings (from AutoPRO's stopgap `MarkPaidModal.jsx`, pre-Phase-7) were themselves posted this same client-side way.
 
-**Update, post-approval:** Phase 6's `BatchPaymentModal.jsx`/`CancelPaymentModal.jsx` have since been fully live-verified end-to-end against real dev data by a separate testing pass (`phase_6_implementation_plan.md` §4.5, `master_blueprint.md`'s Phase 6 entry now marked `[Verified 2026-08-18]`) — `SUM(debit)=SUM(credit)` exact, bank balance deltas exact to the cent, both Fiscal Period rejection paths confirmed with zero writes, and full Cancel Payment reversal confirmed to restore the exact original balance. This isn't just a design precedent anymore; it's a proven-live pattern, which is the strongest form of confirmation this resolution could have.
+**Update, post-approval:** Phase 6's `BatchPaymentModal.jsx`/`CancelPaymentModal.jsx` have since been fully live-verified end-to-end against real dev data by a separate testing pass (`phase_6_implementation_plan.md` §4.5, `paypro_blueprint.md`'s Phase 6 entry now marked `[Verified 2026-08-18]`) — `SUM(debit)=SUM(credit)` exact, bank balance deltas exact to the cent, both Fiscal Period rejection paths confirmed with zero writes, and full Cancel Payment reversal confirmed to restore the exact original balance. This isn't just a design precedent anymore; it's a proven-live pattern, which is the strongest form of confirmation this resolution could have.
 
 | Option | What it means | Recommendation |
 |---|---|---|
@@ -42,7 +42,7 @@ Resolved above as skip — §3.1 is written against a one-line pointer button as
 
 ### 0.2 Decisions taken (self-resolved — stated so nothing below reads as an oversight)
 
-**D1 — `PayPro_Remittance` has no `is_paid` column; the equivalent state is `status` (text).** `master_blueprint.md`'s Phase 7 text says Cancel Payment "flips `is_paid` back to false" — that phrasing is carried over from Phase 6's paystub-level Q1 write-up and doesn't apply literally here; `PayPro_Remittance` (confirmed live schema) has `status`, currently only ever written as `'completed'` (6 rows, all imported/historical, zero exceptions). **Cancel Payment sets `status: 'cancelled'`** — a new value, no live precedent to conflict with. Nothing is deleted; `pay_stub_ids` stays on the row for audit, matching the "corrections stand alongside originals" convention Phase 6's O2/Option A already established. Will flag this phrasing correction for `master_blueprint.md` at rollup.
+**D1 — `PayPro_Remittance` has no `is_paid` column; the equivalent state is `status` (text).** `paypro_blueprint.md`'s Phase 7 text says Cancel Payment "flips `is_paid` back to false" — that phrasing is carried over from Phase 6's paystub-level Q1 write-up and doesn't apply literally here; `PayPro_Remittance` (confirmed live schema) has `status`, currently only ever written as `'completed'` (6 rows, all imported/historical, zero exceptions). **Cancel Payment sets `status: 'cancelled'`** — a new value, no live precedent to conflict with. Nothing is deleted; `pay_stub_ids` stays on the row for audit, matching the "corrections stand alongside originals" convention Phase 6's O2/Option A already established. Will flag this phrasing correction for `paypro_blueprint.md` at rollup.
 
 **D2 — Cancelling a remittance must un-lock its paystubs, which means touching Phase 6's already-shipped `PayStubs.jsx`.** `PayStubs.jsx` (Phase 6) computes `remittedStubIds = remittances.flatMap(r => r.pay_stub_ids || [])` across *every* `PayPro_Remittance` row, with no status filter — a cancelled remittance's stubs would stay locked forever otherwise, with no way to include them in a corrected remittance. Both `PayStubs.jsx` and the new `Remittances.jsx`'s own "available paid paycheques" query must filter to `r.status !== 'cancelled'` before flat-mapping `pay_stub_ids`. This is a small, mechanical change but it's a real cross-phase file touch, called out explicitly in §3 so it isn't missed.
 
@@ -92,7 +92,7 @@ Unlike Phase 6 (three genuinely independent workstreams — CRUD, PDF/email infr
 
 ## 2) Lessons Learned & Context
 
-Pulled from `master_blueprint.md` §7, Phase 6's own handoff notes, and this plan's own research pass — filtered to what actually bites this phase.
+Pulled from `paypro_blueprint.md` §7, Phase 6's own handoff notes, and this plan's own research pass — filtered to what actually bites this phase.
 
 | # | Lesson | How it applies here |
 |---|---|---|
@@ -403,9 +403,9 @@ At `test.kensauto.ca`, after commit + push, with a `paypro_user: true`, AAL2 ses
 - Confirmed live (not just inferred from source code) that the real historical remittance GL/Bank postings on dev use `BankTransaction.gl_account: '2050'` as a literal placeholder tag and `reference: 'Remittance-${remittance_date}'` — both conventions carried forward unchanged into the new native flow for consistency with existing Bank register rows.
 - Unlike Phase 6 (where no unpaid stub existed at build time, forcing the tester to create one first), **6 real paid-unremitted stubs already exist on dev** and are immediately usable for live verification — no synthetic test data setup needed before testing Process Remittance/Cancel Payment (see §4's dev-state notes).
 
-### 5.4 Rollup Notes for `master_context.md` / `master_blueprint.md`
+### 5.4 Rollup Notes for `master_context.md` / `paypro_blueprint.md`
 
-*(populated as Phase 7 completes — already known to include at least: the `is_paid`→`status` phrasing correction to `master_blueprint.md`'s Phase 7 text (D1); removing `paypro-postRemittanceGL` from the Phase 7 "Impacted" list (Q1, resolved as client-side posting, no new edge function); and removing `ClosePeriodModal` from the Phase 7 "Impacted" list (Q2, resolved as skip))*
+*(populated as Phase 7 completes — already known to include at least: the `is_paid`→`status` phrasing correction to `paypro_blueprint.md`'s Phase 7 text (D1); removing `paypro-postRemittanceGL` from the Phase 7 "Impacted" list (Q1, resolved as client-side posting, no new edge function); and removing `ClosePeriodModal` from the Phase 7 "Impacted" list (Q2, resolved as skip))*
 
 ### 5.5 Live Browser Verification Results (2026-08-18)
 

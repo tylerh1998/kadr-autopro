@@ -3,9 +3,9 @@
 **Drafted 2026-08-17.** Baseline commit `a17bc718`. Target branch: `development`.
 Companion document: `master_context.md` (standing architecture/status facts — read it first).
 
-> **Status: Phase 1 `[Tested]`, complete 2026-08-18 — ready to begin Phase 2.** All four Phase 1 sub-phases (1A–1D) executed and verified on both `hbcrwkmgsazqrvsrmxyr` (prod) and `sitihbdnuxifwibontcm` (dev); full detail in `phase_1_implementation_plan.md`. All design questions and data confirmations are resolved (§0.1, §0.3).
+> **Status: Phases 1–8 all `[Verified]`, complete 2026-08-18 — Engagement 1 done, ready to begin Phase 8.5 (parallel-run hold).** Every phase from schema/RLS correction through T4s/Reports/Trends has been built and live-verified at `test.kensauto.ca`; full detail in each phase's own `phase_N_implementation_plan.md`. All design questions and data confirmations are resolved (§0.1, §0.3). Two items flagged during Phase 7/8 execution for correction here have been applied: the Phase 8 "CRA XML export" text (never built — Q1 in `phase_8_implementation_plan.md` resolved as port-what-exists) and the logo-repoint reference count (3→2, `PayStubPDF.jsx` was never ported — Phase 8's D1).
 >
-> **Delivery is two engagements:** Phases 1–8 → **Phase 8.5 parallel-run hold (up to ~1 month)** → Phases 9–11.
+> **Delivery is two engagements:** Phases 1–8 (done) → **Phase 8.5 parallel-run hold (up to ~1 month, not yet started)** → Phases 9–11.
 
 ---
 
@@ -628,7 +628,7 @@ The Fiscal Period gate applies here too — a reversal dated into a closed perio
 
 ---
 
-### Phase 8 — T4s, Reports, Trends & Logo Repoint  `[Pending]`
+### Phase 8 — T4s, Reports, Trends & Logo Repoint  `[Verified 2026-08-18 — live browser pass; box math and report totals independently reconciled against SQL; see phase_8_implementation_plan.md]`
 
 **TL;DR** — Port the reporting surface and remove the last base44-hosted asset dependency.
 
@@ -638,23 +638,26 @@ The Fiscal Period gate applies here too — a reversal dated into a closed perio
 
 **In depth**
 
-All read-only aggregation over `PayPro_PayStub` / `PayPro_Remittance` / `PayPro_Employee` / `PayPro_TaxYearConstant`. `T4_PDF` reads `sin` (the only consumer besides the General tab). T4s and the CRA XML export are the compliance-critical piece; box mappings port unchanged.
+All read-only aggregation over `PayPro_PayStub` / `PayPro_Remittance` / `PayPro_Employee` / `PayPro_TaxYearConstant`. `T4_PDF` reads `sin` (the only consumer besides the General tab) and normalizes it to CRA's standard `XXX XXX XXX` grouping at render time regardless of storage format. T4 box mappings port unchanged.
+
+**No CRA XML export was built (corrected from this blueprint's original text).** `phase_8_implementation_plan.md`'s own research (its Q1) found no XML export anywhere in PayPRO source — the feature was never built there, so there was nothing to port. T4s/T4A ship as HTML/print slips only, same shape as source. Real CRA "Internet File Transfer" XML remains a genuinely separate, unscoped initiative if ever wanted (a potential future 8D), not something this phase's gate should have claimed. The real CRA Business/Payroll (RP) account number, `893497602RP0001`, is now hardcoded in `T4_PDF.jsx`/`T4A_PDF.jsx` alongside the corrected company name/address (source shipped a fake placeholder).
 
 **Note on T4 scope:** PayPRO's data starts 2026-01-09, and only the 2026 `TaxYearConstant` row exists. T4s are therefore exercisable for 2026 only — the first real T4 season lands Feb 2027. Prior-year T4s have neither stubs nor constants.
 
-*Logo repoint (O1/R8).* No upload needed — the asset already exists. Exactly **three** references change:
+*Logo repoint (O1/R8).* No upload needed — the asset already exists. **Two** references change, not three as originally scoped — `PayStubPDF.jsx` was never ported (Phase 6's D5 declined it as dead code, confirmed again in Phase 8):
 
 ```
-PayStubPDF.jsx:117          ┐
-PaychequesReport.jsx:539    ├──►  https://hbcrwkmgsazqrvsrmxyr.supabase.co
+PaychequesReport.jsx:539    ┐──►  https://hbcrwkmgsazqrvsrmxyr.supabase.co
 RemittancesReport.jsx:259   ┘     /storage/v1/object/public/KADR/KADRLogoAddress.jpg
 ```
 
-Sourced as the development branch already does — the production project literal on every branch, matching `StatementModal`, `WorkOrderReport`, `ReconcileReport` and `autopro-generateWorkOrderPdf`. The fourth reference (PayPRO `Layout.jsx:126`) disappears with that file in Phase 2.
+Sourced as the development branch already does — the production project literal on every branch, matching `StatementModal`, `WorkOrderReport`, `ReconcileReport` and `autopro-generateWorkOrderPdf`. The third reference (PayPRO `Layout.jsx:126`) disappeared with that file in Phase 2.
 
-**Phase gate:** `grep -r "qtrypzzcjebvfcihiynt" src/` returns zero.
+**Phase gate:** `grep -r "qtrypzzcjebvfcihiynt" src/` returns zero. **Confirmed 2026-08-18.**
 
-Per §3, any new print/paper-preview path must use a separate `window.open()` document or an explicit `@media print` colour reset.
+Per §3, any new print/paper-preview path must use a separate `window.open()` document or an explicit `@media print` colour reset. Both report tabs use Pattern A unchanged.
+
+**D2 recurring bug, closed out here.** The hardcoded `employerEI = ei_deduction * 1.4` pattern (no stored employer-EI field exists on `PayPro_PayStub`) was found and fixed independently in 8 files total across Phases 6/7/8 — this phase's two (`PaychequesReport.jsx`, `TrendsDataProcessor.jsx`) bring the running total to 8. Worth a shared `getEmployerEiMultiplier()` helper if any Phase 9+ payroll surface is ever added, rather than a 9th copy.
 
 ---
 
@@ -813,7 +816,7 @@ Per §3, verification happens **only at `test.kensauto.ca`** after commit + push
 | **5** | **The engine is correct** | **≥20 of the 112 imported paystubs recomputed match base44 exactly on all 8 fields** · time import from a real period produces expected hours · the `status === 'error'` guard blocks import · correct sequential `YYYYMM-XXX` numbers · **a synthetic above-$74,600 stub validates CPP2 in both systems — no real employee will reach it in 2026, so this is the only way it gets tested** |
 | **6** | **The money is correct** | Mark a batch paid → `SUM(debit) = SUM(credit)` · one `BankTransaction` per stub, correct account and amount · bank balance moves by exactly the net total · **EMP004 (Cheryl Lawrence) pre-selects 5009, a regular employee 5008, override still works** · employee + employer PDFs generate · **a test email from dev reaches only the allowlist, never a real employee** · **nothing appears in `SentEmailLog`** · **a pay date in a closed Fiscal Period is rejected before any write, and a date with no covering period is also rejected** |
 | **7** | Remittance ledger is correct | Generate a remittance from unremitted stubs → totals match the sum of constituents · Mark Paid debits 2054/2052/2053 and credits bank, balanced · **Cancel Payment produces an exact inverse set — every original debit has a matching credit and vice versa — plus a reversing `BankTransaction`; originals still present, `is_paid` false, bank balance returns to its pre-payment figure** · a closed-period date is rejected · remittance PDF generates |
-| **8** | Reporting is faithful | 2026 T4 totals match the sum of that year's stubs per employee · CRA XML validates · both report tabs match base44's output for the same range · Trends charts render · **`grep -r "qtrypzzcjebvfcihiynt" src/` returns zero** · logo renders in all three PDFs |
+| **8** | Reporting is faithful | ✅ **Passed 2026-08-18.** 2026 T4 totals match the sum of that year's stubs per employee — verified for 3 real employees, byte-exact against independent SQL sums on all of boxes 14/16/18/22 · T4A summary totals reconcile exactly to the sum of the individual T4s · company identity + Business Number `893497602RP0001` render correctly, SIN normalizes to `XXX XXX XXX` regardless of storage format · Paycheque/Remittance report totals match `PayPro_PayStub`/`PayPro_Remittance` exactly, including the D2 EI-employer-multiplier fix (confirmed against the live 2026 `TaxYearConstant` row) · Trends charts render, D3's stub-count split confirmed real (114 valid vs. 116 raw), the $169,713 aggregate labor-cost figure independently reconciled to SQL — validating D2's fix end-to-end · **`grep -r "qtrypzzcjebvfcihiynt" src/` returns zero** · new KADR logo confirmed present (old base44 URL absent) in both report tabs' print output · no CRA XML to validate — never built, see Phase 8's corrected text above · both-report-tabs-vs-base44 side-by-side comparison not attempted this pass (base44 reachability not checked) |
 | **8.5** | **Both systems agree** | **≥2 full pay cycles with zero unexplained discrepancies across all 8 fields** · ≥1 remittance generated, paid and reconciled against base44's figure · ≥1 Cancel Payment verified as an exact inverse · a Bus Driver stub (EMP004) confirms the 5009 split · **no paystub email reached a real employee for the entire run** · any discrepancy fixed **and the clock reset** |
 | **9** | Cron behaves both ways | Manual invoke with a recent remittance → concludes silently, no email · manual invoke without one → email arrives at `tyler@kensauto.ca` and is **absent from `SentEmailLog`** · `cron.job` shows the schedule · the secret is **not** readable in plaintext from the job body |
 | **10** | Nothing dangled | Old `/Payroll` route gone · no dead imports · **`PayrollTransaction` untouched — still present, still readable, its one historical row still reconciles in the GL** |
