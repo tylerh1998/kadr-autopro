@@ -109,13 +109,19 @@ function buildT4SummaryXml(t4SummaryData, year, reportTypeCode, transmitterConta
 function buildT619Xml(submissionRefId, transmitterContact) {
   const context = 'T619 transmitter record';
   const transmitterAccount = `<TransmitterAccountNumber>${req('bn9', CRA_EMPLOYER.businessNumber9, context)}</TransmitterAccountNumber>`;
+  // Required (and must match the login) when filing via Represent a Client - optional
+  // otherwise. CRA rejects the whole submission with a RepID-mismatch error if this
+  // is missing while the upload session itself was authenticated via RAC.
+  const transmitterRepId = transmitterContact.repId
+    ? `<TransmitterRepID>${req('RepID', transmitterContact.repId, context)}</TransmitterRepID>`
+    : '';
   const transmitterName = `<TransmitterName>${req('l1_nm', CRA_EMPLOYER.legalName.slice(0, 35), context)}</TransmitterName>`;
   const cntc = `<CNTC>${req('cntc_nm', transmitterContact.name, context)}` +
     `${req('cntc_area_cd', transmitterContact.areaCode, context)}` +
     `${req('cntc_phn_nbr', transmitterContact.phoneNumber, context)}` +
     `${req('cntc_email_area', transmitterContact.email, context)}</CNTC>`;
 
-  return `<T619>${transmitterAccount}${opt('sbmt_ref_id', submissionRefId)}` +
+  return `<T619>${transmitterAccount}${transmitterRepId}${opt('sbmt_ref_id', submissionRefId)}` +
     `${req('summ_cnt', '1', context)}${req('lang_cd', transmitterContact.language, context)}` +
     `${transmitterName}${req('TransmitterCountryCode', CRA_EMPLOYER.country, context)}${cntc}</T619>`;
 }

@@ -194,7 +194,7 @@ export default function WIPSettings({ currentUser }) {
                   <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Numbering Settings</h3>
                   <Button
                     onClick={handleSaveNumbering}
-                    disabled={!numberingHasChanges || saving || currentUser?.role !== 'admin'}
+                    disabled={!numberingHasChanges || saving || currentUser?.admin !== true}
                     className="bg-blue-600 hover:bg-blue-700"
                   >
                     {saving ? (
@@ -224,7 +224,7 @@ export default function WIPSettings({ currentUser }) {
                           setNumberingHasChanges(true);
                         }}
                         className="max-w-xs"
-                        disabled={currentUser?.role !== 'admin'}
+                        disabled={currentUser?.admin !== true}
                       />
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                         The next RO number that will be assigned (e.g., 1001 becomes RO1001)
@@ -243,7 +243,7 @@ export default function WIPSettings({ currentUser }) {
                           setNumberingHasChanges(true);
                         }}
                         className="max-w-xs"
-                        disabled={currentUser?.role !== 'admin'}
+                        disabled={currentUser?.admin !== true}
                       />
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                         The next Invoice number that will be assigned (e.g., 1001 becomes INV1001)

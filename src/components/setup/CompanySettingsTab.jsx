@@ -24,7 +24,7 @@ const emptyForm = () => FIELDS.reduce((acc, f) => ({ ...acc, [f.key]: '' }), {})
 
 export default function CompanySettingsTab({ currentUser }) {
   const { user, employee } = useAuth();
-  const isAdmin = currentUser?.role === 'admin';
+  const isAdmin = currentUser?.admin === true;
   const [form, setForm] = useState(emptyForm());
   const [systemSettingsId, setSystemSettingsId] = useState(null);
   const [loading, setLoading] = useState(true);

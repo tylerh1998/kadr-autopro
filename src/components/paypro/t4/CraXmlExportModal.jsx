@@ -26,6 +26,7 @@ export default function CraXmlExportModal({ onExport, onCancel, exporting }) {
   const [name, setName] = useState(saved?.name || DEFAULT_TRANSMITTER_CONTACT.name);
   const [email, setEmail] = useState(saved?.email || DEFAULT_TRANSMITTER_CONTACT.email);
   const [phone, setPhone] = useState(saved?.phone || `${DEFAULT_TRANSMITTER_CONTACT.areaCode}-${DEFAULT_TRANSMITTER_CONTACT.phoneNumber}`);
+  const [repId, setRepId] = useState(saved?.repId || '');
   const [remember, setRemember] = useState(!!saved);
 
   const handleSubmit = () => {
@@ -40,8 +41,10 @@ export default function CraXmlExportModal({ onExport, onCancel, exporting }) {
       return;
     }
 
+    const trimmedRepId = repId.trim();
+
     if (remember) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ name, email, phone }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ name, email, phone, repId: trimmedRepId }));
     } else {
       localStorage.removeItem(STORAGE_KEY);
     }
@@ -52,6 +55,7 @@ export default function CraXmlExportModal({ onExport, onCancel, exporting }) {
       areaCode: digits.slice(0, 3),
       phoneNumber: `${digits.slice(3, 6)}-${digits.slice(6)}`,
       language: DEFAULT_TRANSMITTER_CONTACT.language,
+      repId: trimmedRepId,
     });
   };
 
@@ -94,6 +98,19 @@ export default function CraXmlExportModal({ onExport, onCancel, exporting }) {
               placeholder="780-847-3002"
               className="dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
             />
+          </div>
+          <div className="space-y-2">
+            <Label className="dark:text-slate-300">Representative ID (RepID)</Label>
+            <Input
+              value={repId}
+              onChange={(e) => setRepId(e.target.value)}
+              placeholder="e.g. W3ZG535"
+              className="dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
+            />
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Only if you upload via Represent a Client - leave blank if you sign in to My Business Account directly.
+              CRA rejects the file if this doesn't match your login.
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <Checkbox checked={remember} onCheckedChange={setRemember} id="remember-cra-contact" />
