@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Eye, Loader2, Pencil, CheckCircle, Circle, Lock, Send, XCircle, Ban, ChevronDown } from "lucide-react";
+import { Eye, Loader2, Pencil, CheckCircle, Circle, Lock, Send, XCircle, Ban, ChevronDown, FileText } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,6 +35,7 @@ export default function PayStubs() {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [generatingPDF, setGeneratingPDF] = useState(null);
+  const [generatingBatchPDF, setGeneratingBatchPDF] = useState(null); // 'employee' | 'employer' | null
 
   // Filter states
   const [employeeFilter, setEmployeeFilter] = useState("all");
@@ -76,34 +77,59 @@ export default function PayStubs() {
     return employees.find((e) => e.employee_id === employeeId);
   };
 
+  const downloadPayStubPDF = async (stub, type) => {
+    const employee = getEmployee(stub.employee_id);
+    const functionName = type === 'employer' ? 'paypro-generatePayStubPDFEmployer' : 'paypro-generatePayStubPDF';
+    const { data: result, error: invokeError } = await supabase.functions.invoke(functionName, { body: { stubId: stub.id } });
+    if (invokeError) throw invokeError;
+    if (result?.error) throw new Error(result.error);
+
+    const { pdfDataUri, filename } = result.data;
+    const link = document.createElement('a');
+    link.href = pdfDataUri;
+    link.download = filename || `${stub.paycheque_number || 'paystub'} - ${employee?.first_name} ${employee?.last_name}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleViewPayStubPDF = async (stubId, type = 'employee') => {
     const stub = payStubs.find((s) => s.id === stubId);
-    const employee = getEmployee(stub.employee_id);
+    if (!stub) return;
 
-    if (stub && !stub.is_paid) {
+    if (!stub.is_paid) {
       const proceed = window.confirm('Warning: This paycheque is unpaid. Do you want to continue?');
       if (!proceed) return;
     }
 
     setGeneratingPDF(stubId);
     try {
-      const functionName = type === 'employer' ? 'paypro-generatePayStubPDFEmployer' : 'paypro-generatePayStubPDF';
-      const { data: result, error: invokeError } = await supabase.functions.invoke(functionName, { body: { stubId } });
-      if (invokeError) throw invokeError;
-      if (result?.error) throw new Error(result.error);
-
-      const { pdfDataUri, filename } = result.data;
-      const link = document.createElement('a');
-      link.href = pdfDataUri;
-      link.download = filename || `${stub.paycheque_number || 'paystub'} - ${employee?.first_name} ${employee?.last_name}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      await downloadPayStubPDF(stub, type);
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert(error.message || 'Error generating PDF. Please try again.');
     } finally {
       setGeneratingPDF(null);
+    }
+  };
+
+  // Batch download - one PDF per selected paid stub, staggered so the browser doesn't
+  // throttle/block several near-simultaneous downloads (same stagger pattern T4s.jsx
+  // uses for its per-employee window.open() calls).
+  const handleBatchPayStubPDF = async (type) => {
+    if (stubsForPayment.length === 0) return;
+
+    setGeneratingBatchPDF(type);
+    try {
+      for (const stub of stubsForPayment) {
+        await downloadPayStubPDF(stub, type);
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      }
+    } catch (error) {
+      console.error(`Error generating ${type} PDFs:`, error);
+      alert(error.message || 'Error generating PDFs. Please try again.');
+    } finally {
+      setGeneratingBatchPDF(null);
     }
   };
 
@@ -287,6 +313,38 @@ export default function PayStubs() {
             >
               <XCircle className="mr-2 h-4 w-4" />
               Cancel Payment ({selectedStubs.length})
+            </Button>
+          )}
+
+          {selectionType === 'paid' && selectedStubs.length > 0 && (
+            <Button
+              onClick={() => handleBatchPayStubPDF('employer')}
+              disabled={generatingBatchPDF !== null}
+              variant="outline"
+              className="dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 shadow-sm"
+            >
+              {generatingBatchPDF === 'employer' ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <FileText className="mr-2 h-4 w-4" />
+              )}
+              Employer ({selectedStubs.length})
+            </Button>
+          )}
+
+          {selectionType === 'paid' && selectedStubs.length > 0 && (
+            <Button
+              onClick={() => handleBatchPayStubPDF('employee')}
+              disabled={generatingBatchPDF !== null}
+              variant="outline"
+              className="dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 shadow-sm"
+            >
+              {generatingBatchPDF === 'employee' ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <FileText className="mr-2 h-4 w-4" />
+              )}
+              Employee ({selectedStubs.length})
             </Button>
           )}
 
