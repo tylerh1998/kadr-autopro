@@ -20,6 +20,22 @@ const formatDate = (dateString: string | null | undefined) => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 };
 
+// MonDDYYYY, e.g. "2026-08-18" -> "Aug182026" - for the filename only (formatDate above,
+// with its space/comma, isn't filename-safe). Parses the YYYY-MM-DD text directly rather
+// than through `new Date()`, matching this project's date-handling convention (casting a
+// date-only string through a timezone can shift it back a day).
+const MONTH_ABBREVIATIONS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const formatDateForFilename = (dateString: string | null | undefined) => {
+  if (!dateString) return '';
+  const [year, month, day] = dateString.split('T')[0].split('-');
+  const monthName = MONTH_ABBREVIATIONS[parseInt(month, 10) - 1] || '';
+  return `${monthName}${parseInt(day, 10)}${year}`;
+};
+
+// Strips characters illegal in Windows/Mac filenames - keeps spaces, since the desired
+// format is "202608-007-Tyler Haney-Aug182026.pdf", not underscore-joined.
+const sanitizeForFilename = (str: string) => (str || '').replace(/[\\/:*?"<>|]/g, '');
+
 export function buildPayStubPdf(
   stub: any,
   employee: any,
@@ -470,8 +486,10 @@ export function buildPayStubPdf(
   }
 
   const pdfDataUri = doc.output('datauristring');
-  const employeeName = `${employee.first_name}_${employee.last_name}`.replace(/[^a-zA-Z0-9_]/g, '');
-  const filename = `${employerCopy ? 'Employer' : 'Employee'}_Pay_Stub-${employeeName}.pdf`;
+  const employeeName = sanitizeForFilename(`${employee.first_name} ${employee.last_name}`);
+  const payPeriodEnd = formatDateForFilename(stub.pay_period_end);
+  const paycheckNumber = stub.paycheque_number || 'paystub';
+  const filename = `${paycheckNumber}-${employeeName}-${payPeriodEnd}.pdf`;
 
   return { pdfDataUri, filename };
 }

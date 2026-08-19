@@ -21,6 +21,7 @@ import CancelPaychequeModal from "@/components/paypro/paystubs/CancelPaychequeMo
 import BatchPaymentModal from "@/components/paypro/paystubs/BatchPaymentModal";
 import CancelPaymentModal from "@/components/paypro/paystubs/CancelPaymentModal";
 import EmailPaystubsModal from "@/components/paypro/paystubs/EmailPaystubsModal";
+import PayStubViewerModal from "@/components/paypro/paystubs/PayStubViewerModal";
 
 export default function PayStubs() {
   const [payStubs, setPayStubs] = useState([]);
@@ -36,6 +37,7 @@ export default function PayStubs() {
   const [showEmailModal, setShowEmailModal] = useState(false);
   const [generatingPDF, setGeneratingPDF] = useState(null);
   const [generatingBatchPDF, setGeneratingBatchPDF] = useState(null); // 'employee' | 'employer' | null
+  const [viewerStub, setViewerStub] = useState(null); // { pdfDataUri, filename, title } | null
 
   // Filter states
   const [employeeFilter, setEmployeeFilter] = useState("all");
@@ -77,22 +79,32 @@ export default function PayStubs() {
     return employees.find((e) => e.employee_id === employeeId);
   };
 
-  const downloadPayStubPDF = async (stub, type) => {
-    const employee = getEmployee(stub.employee_id);
+  const generatePayStubPDF = async (stub, type) => {
     const functionName = type === 'employer' ? 'paypro-generatePayStubPDFEmployer' : 'paypro-generatePayStubPDF';
     const { data: result, error: invokeError } = await supabase.functions.invoke(functionName, { body: { stubId: stub.id } });
     if (invokeError) throw invokeError;
     if (result?.error) throw new Error(result.error);
+    return result.data; // { pdfDataUri, filename }
+  };
 
-    const { pdfDataUri, filename } = result.data;
+  const triggerFileDownload = (pdfDataUri, filename) => {
     const link = document.createElement('a');
     link.href = pdfDataUri;
-    link.download = filename || `${stub.paycheque_number || 'paystub'} - ${employee?.first_name} ${employee?.last_name}.pdf`;
+    link.download = filename;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
+  // Bulk (Employee/Employer buttons, multiple stubs at once) - downloads directly, same
+  // as before. A modal-per-stub doesn't make sense for a batch of N stubs.
+  const downloadPayStubPDF = async (stub, type) => {
+    const employee = getEmployee(stub.employee_id);
+    const { pdfDataUri, filename } = await generatePayStubPDF(stub, type);
+    triggerFileDownload(pdfDataUri, filename || `${stub.paycheque_number || 'paystub'} - ${employee?.first_name} ${employee?.last_name}.pdf`);
+  };
+
+  // Per-row "View" - opens a large in-page PDF preview modal instead of downloading.
   const handleViewPayStubPDF = async (stubId, type = 'employee') => {
     const stub = payStubs.find((s) => s.id === stubId);
     if (!stub) return;
@@ -102,9 +114,16 @@ export default function PayStubs() {
       if (!proceed) return;
     }
 
+    const employee = getEmployee(stub.employee_id);
+
     setGeneratingPDF(stubId);
     try {
-      await downloadPayStubPDF(stub, type);
+      const { pdfDataUri, filename } = await generatePayStubPDF(stub, type);
+      setViewerStub({
+        pdfDataUri,
+        filename: filename || `${stub.paycheque_number || 'paystub'} - ${employee?.first_name} ${employee?.last_name}.pdf`,
+        title: `${type === 'employer' ? 'Employer' : 'Employee'} Copy — ${employee ? `${employee.first_name} ${employee.last_name}` : 'Unknown'} — ${stub.paycheque_number || 'Pay Stub'}`,
+      });
     } catch (error) {
       console.error('Error generating PDF:', error);
       alert(error.message || 'Error generating PDF. Please try again.');
@@ -624,6 +643,14 @@ export default function PayStubs() {
           onCancel={() => setShowEmailModal(false)}
         />
       )}
+
+      <PayStubViewerModal
+        open={!!viewerStub}
+        onOpenChange={(open) => { if (!open) setViewerStub(null); }}
+        title={viewerStub?.title}
+        pdfDataUri={viewerStub?.pdfDataUri}
+        onDownload={() => viewerStub && triggerFileDownload(viewerStub.pdfDataUri, viewerStub.filename)}
+      />
 
       {editingStub && !remittedStubIds.includes(editingStub.id) && !editingStub.is_paid && !editingStub.is_cancelled && (
         <EditPayStub
