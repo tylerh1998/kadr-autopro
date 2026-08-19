@@ -136,7 +136,7 @@ export default function PayTab({ employeeId, employee, onFieldChange }) {
   return (
     <div className="space-y-6">
       {/* Vacation Pay Rate Section */}
-      <Card className="border-blue-100 bg-blue-50/30 dark:bg-blue-950/20 dark:border-blue-900">
+      <Card className="bg-white border-blue-100 dark:bg-blue-950/20 dark:border-blue-900">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg dark:text-slate-100">
             <Percent className="w-5 h-5 text-blue-600 dark:text-blue-400" />
