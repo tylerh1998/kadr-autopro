@@ -24,9 +24,20 @@ export const AuthProvider = ({ children }) => {
           .eq('mykadr_user_id', session.user.id)
           .maybeSingle();
         if (employeeError) console.error('AuthContext: Employee lookup failed', employeeError);
-        setEmployee(employeeData || null);
+        // Keep the same object reference when the row hasn't actually changed.
+        // Supabase's autoRefreshToken re-checks the session (and this listener
+        // re-fires) whenever the tab regains visibility, which was creating a
+        // fresh `employee` object on every tab switch and re-triggering every
+        // page's loadData effect that depends on `employee` (worst on SupplierTx).
+        setEmployee(prevEmployee => {
+          const nextEmployee = employeeData || null;
+          if (prevEmployee && nextEmployee && JSON.stringify(prevEmployee) === JSON.stringify(nextEmployee)) {
+            return prevEmployee;
+          }
+          return nextEmployee;
+        });
       } else {
-        setEmployee(null);
+        setEmployee(prevEmployee => (prevEmployee === null ? prevEmployee : null));
       }
 
       if (session) {
