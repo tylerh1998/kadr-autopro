@@ -705,7 +705,16 @@ export default function WorkOrderForm({
                   const updatedLine = { ...line };
                   const newQty = (parseFloat(updatedLine.qty) || 0) - qtyReturned;
                   updatedLine.qty = newQty;
-                  
+
+                  // Units returned to the supplier no longer belong on this line, so drop their
+                  // core charge too - floored at core_ret since that tracks cores the customer has
+                  // already physically handed back, a fact this action can't undo. core_osamt/tot_parts
+                  // are derived from Core_num elsewhere (LineItemsTable's render pass, buildWorkOrderSavePayload
+                  // at save time) and don't need a direct update here.
+                  const coreRet = parseFloat(updatedLine.core_ret) || 0;
+                  const coreNum = parseFloat(updatedLine.Core_num) || 0;
+                  updatedLine.Core_num = Math.max(coreRet, coreNum - qtyReturned);
+
                   if (updatedLine.is_other_charge) {
                       if (line.qty > 0) {
                           const ocTotalPerUnit = (parseFloat(line.oc_total) || 0) / parseFloat(line.qty);

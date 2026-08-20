@@ -108,6 +108,7 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
     try {
       const returnId = crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '').substring(0, 24) : Date.now().toString();
       const costVal = parseFloat(item.cost || 0);
+      const corePerUnit = item.core ? (parseFloat(item.core_cost) || 0) : 0;
       const qtyVal = Number(qtyReturned);
 
       const returnData = {
@@ -117,10 +118,11 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
         description: item.description,
         supplier: item.supplier_id,
         quantity_returned: qtyVal,
-        return_type: 'return',
+        return_type: corePerUnit > 0 ? 'part_core' : 'return',
         return_reason: returnReason,
         cost_per_unit: costVal,
-        total_cost: costVal * qtyVal,
+        core_per_unit: corePerUnit,
+        total_cost: (costVal + corePerUnit) * qtyVal,
         return_date: format(new Date(), 'yyyy-MM-dd'),
         status: 'On-site',
         notes: returnNotes || '',
@@ -131,33 +133,6 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
       };
       const { error: returnError } = await supabase.from('InventoryReturn').insert([returnData]);
       if (returnError) throw new Error('Failed to create InventoryReturn: ' + returnError.message);
-
-      // Handle Core Return if applicable
-      if (item.core) {
-        const coreCostVal = parseFloat(item.core_cost || 0);
-        const coreReturnId = crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '').substring(0, 24) : Date.now().toString();
-        const coreReturnData = {
-          id: coreReturnId,
-          inventory_item_id: item.id,
-          part_number: item.part_number,
-          description: `${item.description} (Core Return)`,
-          supplier: item.supplier_id,
-          quantity_returned: qtyVal,
-          return_type: 'core',
-          return_reason: returnReason,
-          cost_per_unit: coreCostVal,
-          total_cost: coreCostVal * qtyVal,
-          return_date: format(new Date(), 'yyyy-MM-dd'),
-          status: 'On-site',
-          notes: returnNotes || '',
-          created_date: nowStr,
-          updated_date: nowStr,
-          created_by_id: userId,
-          created_by: userDisplay
-        };
-        const { error: coreReturnError } = await supabase.from('InventoryReturn').insert([coreReturnData]);
-        if (coreReturnError) throw new Error('Failed to create core return: ' + coreReturnError.message);
-      }
 
       // Decrement QOH from inventory
       const updatedQOH = Number(item.quantity_on_hand || 0) - qtyVal;
@@ -207,7 +182,7 @@ export default function InventoryPartsReturnModal({ open, onClose, item, onUpdat
 
           {item?.core && (
             <div className="bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-400 p-3 rounded-md text-sm border dark:border-blue-900">
-              This part has a core. A core return will also be processed automatically.
+              This part has a core. The core cost will be included in this return's total.
             </div>
           )}
 

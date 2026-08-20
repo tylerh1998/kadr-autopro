@@ -71,6 +71,7 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
           returnReason,
           returnNotes,
           costEach: lineItem.cost_ea || 0,
+          coreCostEach: parseFloat(lineItem.core_cost) || 0,
         }
       });
 
