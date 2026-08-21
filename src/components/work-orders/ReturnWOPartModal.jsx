@@ -15,6 +15,7 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, o
   const [reasons, setReasons] = useState([]);
   const [loading, setLoading] = useState(false);
   const [returnType, setReturnType] = useState('standard');
+  const [warrantyScope, setWarrantyScope] = useState('Parts Only');
 
   useEffect(() => {
     if (open) {
@@ -44,6 +45,7 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, o
       setReturnType('standard');
       setReturnReason('');
       setReturnNotes('');
+      setWarrantyScope('Parts Only');
     }
   }, [open]);
 
@@ -59,7 +61,7 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, o
 
       setLoading(true);
       try {
-        await onWarrantyReturn(lineItem, returnNotes);
+        await onWarrantyReturn(lineItem, returnNotes, warrantyScope);
         onClose();
       } catch (error) {
         console.error('Failed to process warranty return:', error);
@@ -176,15 +178,29 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, o
           </div>
 
           {returnType === 'warranty' ? (
-            isWarrantyQtyBlocked && (
-              <div className="flex items-start gap-2 p-3 bg-yellow-50 dark:bg-yellow-950/40 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-                <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
-                <div className="text-sm text-yellow-800 dark:text-yellow-300">
-                  <p className="font-medium">Partial warranties are not supported.</p>
-                  <p>Please adjust this line's quantity and add the defective part as a separate single-quantity line item.</p>
-                </div>
+            <>
+              <div>
+                <Label htmlFor="warrantyScope">Warranty Scope</Label>
+                <Select value={warrantyScope} onValueChange={setWarrantyScope} disabled={loading}>
+                  <SelectTrigger id="warrantyScope">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Parts Only">Parts Only</SelectItem>
+                    <SelectItem value="Parts & Labour">Parts & Labour</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            )
+              {isWarrantyQtyBlocked && (
+                <div className="flex items-start gap-2 p-3 bg-yellow-50 dark:bg-yellow-950/40 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                  <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-yellow-800 dark:text-yellow-300">
+                    <p className="font-medium">Partial warranties are not supported.</p>
+                    <p>If you need to return this line with a different quantity than shown above, please delete the line and split it. Marking a line for warranty can only be done for the full line.</p>
+                  </div>
+                </div>
+              )}
+            </>
           ) : (
             <div>
               <Label htmlFor="returnReason">Reason for Return</Label>

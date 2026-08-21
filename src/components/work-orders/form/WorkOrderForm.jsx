@@ -755,7 +755,7 @@ export default function WorkOrderForm({
   // No GL entries here - nothing's been posted yet (that only happens at invoice conversion), so
   // zeroing cost_ea/parts_ea/core_cost locally is enough for autopro-handleInvoiceConversionGL to
   // naturally post $0 for this line later, without needing to touch that protected function.
-  const handleWarrantyReturn = async (targetLineItem, notes) => {
+  const handleWarrantyReturn = async (targetLineItem, notes, scope = 'Parts Only') => {
     if (!targetLineItem || currentLineIndex === null) return;
 
     const qty = parseFloat(targetLineItem.qty) || 0;
@@ -791,14 +791,14 @@ export default function WorkOrderForm({
       supplier: inventoryItem.supplier_id,
       quantity_returned: qty,
       return_type: 'warranty',
-      return_reason: 'In-bay warranty claim',
+      return_reason: scope,
       cost_per_unit: costPerUnit,
       core_per_unit: corePerUnit,
       total_cost: (costPerUnit + corePerUnit) * qty,
       return_date: format(toMountainTime(new Date()), 'yyyy-MM-dd'),
       status: 'On-site',
       work_order_id: woId,
-      notes: notes || `In-bay warranty return from WO ${editedWorkOrder?.wo_number || editedWorkOrder?.ro_number || ''}`,
+      notes: notes || `In-bay warranty return (${scope}) from WO ${editedWorkOrder?.wo_number || editedWorkOrder?.ro_number || ''}`,
       created_date: nowStr,
       updated_date: nowStr,
       created_by_id: userId,
@@ -811,6 +811,12 @@ export default function WorkOrderForm({
     const newDisplayLines = displayLineItems.map((line, idx) => {
       if (idx !== currentLineIndex) return line;
       const updatedLine = { ...line, parts_ea: 0, cost_ea: 0, core_cost: 0, core_osamt: 0, inventoryreturn_id: returnId };
+      if (scope === 'Parts & Labour') {
+        // No InventoryReturn field tracks this - the supplier never reimburses labour, only part
+        // cost/core. If this warranty is later undone, labour is left at 0 (see handleUndoWarrantyReturn)
+        // since there's nowhere to restore it from automatically.
+        updatedLine.labour = 0;
+      }
       updatedLine.tot_parts = 0;
       updatedLine.total = (parseFloat(updatedLine.labour) || 0) + (parseFloat(updatedLine.oc_total) || 0);
       return updatedLine;
@@ -839,7 +845,7 @@ export default function WorkOrderForm({
     const line = displayLineItems[lineIndex];
     if (!line?.inventoryreturn_id) return;
 
-    if (!window.confirm(`Undo warranty return for ${line.part_number || line.description || 'this line'}? This restores the original price/cost and removes the supplier warranty claim record.`)) {
+    if (!window.confirm(`Undo warranty return for ${line.part_number || line.description || 'this line'}? This restores the original price/cost and removes the supplier warranty claim record. If this was a Parts & Labour warranty, labour will need to be re-entered manually - it can't be restored automatically.`)) {
       return;
     }
 
