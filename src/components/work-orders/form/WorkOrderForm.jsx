@@ -749,7 +749,166 @@ export default function WorkOrderForm({
       setHasUnsavedChanges(true);
       closeModal('returnPart');
   };
-  
+
+  // Pre-invoice "in-bay" warranty mark. Unlike handleReturnWorkOrderPart, the line stays on the
+  // WO at $0 (proof to the supplier the customer wasn't charged) rather than being reduced/removed.
+  // No GL entries here - nothing's been posted yet (that only happens at invoice conversion), so
+  // zeroing cost_ea/parts_ea/core_cost locally is enough for autopro-handleInvoiceConversionGL to
+  // naturally post $0 for this line later, without needing to touch that protected function.
+  const handleWarrantyReturn = async (targetLineItem, notes) => {
+    if (!targetLineItem || currentLineIndex === null) return;
+
+    const qty = parseFloat(targetLineItem.qty) || 0;
+    if (qty > 1) return; // Partial warranties aren't supported - the modal already blocks submit for this.
+
+    if (!targetLineItem.inventory_item_id) {
+      throw new Error('This line is not linked to an inventory item, so a warranty claim cannot be recorded.');
+    }
+
+    const { data: inventoryItem, error: invError } = await supabase
+      .from('InventoryItem')
+      .select('*')
+      .eq('id', targetLineItem.inventory_item_id)
+      .maybeSingle();
+    if (invError) throw new Error('Failed to look up inventory item: ' + invError.message);
+    if (!inventoryItem) throw new Error('Inventory item not found for this line.');
+
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const userId = authUser?.id || null;
+    const userDisplay = authUser?.user_metadata?.full_name || authUser?.email || null;
+    const nowStr = new Date().toISOString();
+    const woId = editedWorkOrder?.id || initialWorkOrder?.id;
+
+    const costPerUnit = inventoryItem.cost || 0;
+    const corePerUnit = inventoryItem.core ? (inventoryItem.core_cost || 0) : 0;
+    const returnId = crypto.randomUUID ? crypto.randomUUID().replace(/-/g, '').substring(0, 24) : Date.now().toString();
+
+    const { error: returnError } = await supabase.from('InventoryReturn').insert([{
+      id: returnId,
+      inventory_item_id: inventoryItem.id,
+      part_number: targetLineItem.part_number,
+      description: targetLineItem.description,
+      supplier: inventoryItem.supplier_id,
+      quantity_returned: qty,
+      return_type: 'warranty',
+      return_reason: 'In-bay warranty claim',
+      cost_per_unit: costPerUnit,
+      core_per_unit: corePerUnit,
+      total_cost: (costPerUnit + corePerUnit) * qty,
+      return_date: format(toMountainTime(new Date()), 'yyyy-MM-dd'),
+      status: 'On-site',
+      work_order_id: woId,
+      notes: notes || `In-bay warranty return from WO ${editedWorkOrder?.wo_number || editedWorkOrder?.ro_number || ''}`,
+      created_date: nowStr,
+      updated_date: nowStr,
+      created_by_id: userId,
+      created_by: userDisplay
+    }]);
+    if (returnError) throw new Error('Failed to create InventoryReturn: ' + returnError.message);
+    // No QOH change - the part already left inventory when it was added to this line; a warranty
+    // claim sends it to the supplier, it doesn't restock the shelf.
+
+    const newDisplayLines = displayLineItems.map((line, idx) => {
+      if (idx !== currentLineIndex) return line;
+      const updatedLine = { ...line, parts_ea: 0, cost_ea: 0, core_cost: 0, core_osamt: 0, inventoryreturn_id: returnId };
+      updatedLine.tot_parts = 0;
+      updatedLine.total = (parseFloat(updatedLine.labour) || 0) + (parseFloat(updatedLine.oc_total) || 0);
+      return updatedLine;
+    });
+
+    const actualLines = getNonBlankLines(newDisplayLines);
+    tracedSetLineItems(() => newDisplayLines);
+
+    const { error: woUpdateError } = await supabase
+      .from('WorkOrder')
+      .update({ line_items: actualLines, last_updated: nowStr })
+      .eq('id', woId);
+    if (woUpdateError) {
+      console.error('Failed to immediately persist warranty-zeroed line to WorkOrder:', woUpdateError);
+      alert('Warranty return was recorded, but saving the work order line failed. Please click Save to retry.');
+    }
+
+    setHasUnsavedChanges(true);
+    closeModal('returnPart');
+  };
+
+  // Reverses handleWarrantyReturn. Blocked (via the delete's own filter, not a separate read-then-write)
+  // if the InventoryReturn has already moved past 'On-site' - i.e. already receipted/credited elsewhere.
+  const handleUndoWarrantyReturn = useCallback(async (lineIndex) => {
+    if (lineIndex === null || lineIndex < 0 || lineIndex >= displayLineItems.length) return;
+    const line = displayLineItems[lineIndex];
+    if (!line?.inventoryreturn_id) return;
+
+    if (!window.confirm(`Undo warranty return for ${line.part_number || line.description || 'this line'}? This restores the original price/cost and removes the supplier warranty claim record.`)) {
+      return;
+    }
+
+    try {
+      const { data: deletedRows, error: deleteError } = await supabase
+        .from('InventoryReturn')
+        .delete()
+        .eq('id', line.inventoryreturn_id)
+        .eq('status', 'On-site')
+        .select();
+      if (deleteError) throw new Error(deleteError.message);
+
+      if (!deletedRows || deletedRows.length === 0) {
+        alert('Cannot undo: This return has already been processed or credited.');
+        return;
+      }
+      const deletedReturn = deletedRows[0];
+
+      // parts_ea is restored from the current catalog price, not the exact original line value -
+      // there's no backup field for it (only inventoryreturn_id is new state on the line). If the
+      // price on this line was manually overridden before being warrantied, that override is lost.
+      let restoredPartsEa = 0;
+      if (line.inventory_item_id) {
+        const { data: inventoryItem, error: invLookupError } = await supabase
+          .from('InventoryItem')
+          .select('selling_price')
+          .eq('id', line.inventory_item_id)
+          .maybeSingle();
+        if (invLookupError) console.error('Failed to fetch current price for warranty undo:', invLookupError);
+        restoredPartsEa = parseFloat(inventoryItem?.selling_price) || 0;
+      }
+
+      const newDisplayLines = displayLineItems.map((l, idx) => {
+        if (idx !== lineIndex) return l;
+        const updatedLine = { ...l, inventoryreturn_id: null };
+        updatedLine.parts_ea = restoredPartsEa;
+        updatedLine.cost_ea = deletedReturn.cost_per_unit || 0;
+        updatedLine.core_cost = deletedReturn.core_per_unit || 0;
+
+        const qtyNum = parseFloat(updatedLine.qty) || 0;
+        const coreNum = parseFloat(updatedLine.Core_num) || 0;
+        const coreRet = parseFloat(updatedLine.core_ret) || 0;
+        updatedLine.core_osamt = (coreNum - coreRet) * updatedLine.core_cost;
+        updatedLine.tot_parts = (qtyNum * restoredPartsEa) + updatedLine.core_osamt;
+        updatedLine.total = updatedLine.tot_parts + (parseFloat(updatedLine.labour) || 0) + (parseFloat(updatedLine.oc_total) || 0);
+        return updatedLine;
+      });
+
+      const actualLines = getNonBlankLines(newDisplayLines);
+      tracedSetLineItems(() => newDisplayLines);
+
+      const nowStr = new Date().toISOString();
+      const woId = editedWorkOrder?.id || initialWorkOrder?.id;
+      const { error: woUpdateError } = await supabase
+        .from('WorkOrder')
+        .update({ line_items: actualLines, last_updated: nowStr })
+        .eq('id', woId);
+      if (woUpdateError) {
+        console.error('Failed to immediately persist warranty-undo to WorkOrder:', woUpdateError);
+        alert('Warranty return was undone, but saving the work order line failed. Please click Save to retry.');
+      }
+
+      setHasUnsavedChanges(true);
+    } catch (error) {
+      console.error('Failed to undo warranty return:', error);
+      alert(`Failed to undo warranty return: ${error.message || 'Unknown error'}`);
+    }
+  }, [displayLineItems, tracedSetLineItems, getNonBlankLines, editedWorkOrder?.id, initialWorkOrder?.id]);
+
   const handleWorkOrderPartsReceived = (updatedLineItems) => {
       console.log('=== DEBUG: handleWorkOrderPartsReceived called ===', updatedLineItems);
       // Server already computed the final qty_on_order/qty_quoted/cost_ea per line - apply its truth
@@ -1092,6 +1251,7 @@ export default function WorkOrderForm({
         onReceivePart={handleReceivePart}
         onMarkPartsOrdered={handleMarkPartsOrdered}
         onCores={handleCores}
+        onUndoWarrantyReturn={handleUndoWarrantyReturn}
         onDeleteLine={handleDeleteLine} // Pass handleDeleteLine to LineItemsTable
         onInsertLine={handleInsertLine}
         workOrder={initialWorkOrder}
@@ -1134,6 +1294,7 @@ export default function WorkOrderForm({
           onClose={() => closeModal('returnPart')}
           lineItem={currentLineItem}
           onReturn={handleReturnWorkOrderPart}
+          onWarrantyReturn={handleWarrantyReturn}
           workOrder={initialWorkOrder}
       />
       <ReceivePartModal
