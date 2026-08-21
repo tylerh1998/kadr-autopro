@@ -29,6 +29,7 @@ import {
   Search,
   Printer,
   Package,
+  PackagePlus,
   Shield,
   Truck,
   CreditCard,
@@ -339,9 +340,10 @@ export default function InventoryReturnsPage() {
               display: inline-block;
               text-transform: uppercase;
             }
-            .badge-core { background-color: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+            .badge-core { background-color: #ffedd5; color: #9a3412; border: 1px solid #fed7aa; }
             .badge-warranty { background-color: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
-            .badge-return { background-color: #ffedd5; color: #9a3412; border: 1px solid #fed7aa; }
+            .badge-return { background-color: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+            .badge-part_core { background-color: #f3e8ff; color: #6b21a8; border: 1px solid #e9d5ff; }
             .status-returned { color: #15803d; font-weight: 600; }
             .status-onsite { color: #a16207; font-weight: 600; }
             tr:nth-child(even) { background-color: #f9fafb; }
@@ -410,7 +412,7 @@ export default function InventoryReturnsPage() {
             <tr>
               <td><strong>${item.part_number || ''}</strong></td>
               <td>${item.description || ''}</td>
-              <td><span class="badge ${typeClass}">${(item.return_type || '').toUpperCase()}</span></td>
+              <td><span class="badge ${typeClass}">${item.return_type === 'part_core' ? 'PART/CORE' : (item.return_type || '').toUpperCase()}</span></td>
               <td style="text-align: center">${item.quantity_returned}</td>
               <td>${item.return_reason || ''}${item.notes ? `<div style="font-size:10px; color:#666; font-style:italic; margin-top:2px;">${item.notes}</div>` : ''}</td>
               <td class="text-right">$${(item.total_cost || 0).toFixed(2)}</td>
@@ -447,22 +449,26 @@ export default function InventoryReturnsPage() {
   const getReturnTypeIcon = (type) => {
     switch (type) {
       case 'core': return <Package className="w-4 h-4" />;
+      case 'part_core': return <PackagePlus className="w-4 h-4" />;
       case 'warranty': return <Shield className="w-4 h-4" />;
       default: return <RotateCcw className="w-4 h-4" />;
     }
   };
 
+  const getReturnTypeLabel = (type) => type === 'part_core' ? 'Part/Core' : (type || '').toUpperCase();
+
   const getReturnTypeBadge = (type) => {
     const colors = {
-      core: "bg-blue-100 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-900",
+      core: "bg-orange-100 dark:bg-orange-950/40 text-orange-800 dark:text-orange-300 border-orange-200 dark:border-orange-900",
       warranty: "bg-green-100 dark:bg-green-950/40 text-green-800 dark:text-green-300 border-green-200 dark:border-green-900",
-      return: "bg-orange-100 dark:bg-orange-950/40 text-orange-800 dark:text-orange-300 border-orange-200 dark:border-orange-900"
+      return: "bg-blue-100 dark:bg-blue-950/40 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-900",
+      part_core: "bg-purple-100 dark:bg-purple-950/40 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-900"
     };
 
     return (
       <Badge className={`${colors[type]} border font-medium flex items-center gap-1`}>
         {getReturnTypeIcon(type)}
-        {type.toUpperCase()}
+        {getReturnTypeLabel(type)}
       </Badge>
     );
   };
@@ -498,6 +504,9 @@ export default function InventoryReturnsPage() {
           .bg-orange-100 { background-color: #ffedd5 !important; }
           .text-orange-800 { color: #9a3412 !important; }
           .border-orange-200 { border-color: #fed7aa !important; }
+          .bg-purple-100 { background-color: #f3e8ff !important; }
+          .text-purple-800 { color: #6b21a8 !important; }
+          .border-purple-200 { border-color: #e9d5ff !important; }
           .bg-yellow-100 { background-color: #fef9c3 !important; }
           .text-yellow-800 { color: #854d0e !important; }
           .border-yellow-200 { border-color: #fef08a !important; }
@@ -519,6 +528,7 @@ export default function InventoryReturnsPage() {
                 <SelectContent className="dark:bg-slate-950 dark:border-slate-800">
                   <SelectItem value="all" className="dark:text-slate-300 dark:focus:bg-slate-800">All</SelectItem>
                   <SelectItem value="return" className="dark:text-slate-300 dark:focus:bg-slate-800">Return</SelectItem>
+                  <SelectItem value="part_core" className="dark:text-slate-300 dark:focus:bg-slate-800">Part/Core</SelectItem>
                   <SelectItem value="core" className="dark:text-slate-300 dark:focus:bg-slate-800">Core</SelectItem>
                   <SelectItem value="warranty" className="dark:text-slate-300 dark:focus:bg-slate-800">Warranty</SelectItem>
                 </SelectContent>

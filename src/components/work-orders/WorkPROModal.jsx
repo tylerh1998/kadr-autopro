@@ -527,6 +527,12 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
     }
   };
 
+  // Hide inactive techs from the picker, except ones already assigned to this
+  // project - otherwise an existing assignment silently disappears from view.
+  const visibleEmployees = employees.filter(employee =>
+    employee.status === 'active' || formData.assigned_employees.includes(getEmployeeName(employee))
+  );
+
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
@@ -805,10 +811,10 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
               <div>
                 <Label className="text-sm font-medium">Employees Assigned</Label>
                 <div className="grid grid-cols-2 gap-2 mt-2 p-3 border rounded-lg bg-slate-50 dark:bg-slate-900/50 dark:border-slate-800 max-h-32 overflow-y-auto">
-                  {employees.map((employee) => {
+                  {visibleEmployees.map((employee) => {
                     const employeeName = getEmployeeName(employee);
                     const isChecked = formData.assigned_employees.includes(employeeName);
-                    
+
                     return (
                       <div key={employee.id} className="flex items-center space-x-2">
                         <Checkbox
@@ -821,11 +827,12 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                           className="text-sm leading-none cursor-pointer"
                         >
                           {employeeName}
+                          {employee.status !== 'active' && <span className="text-slate-400 dark:text-slate-500"> (Inactive)</span>}
                         </label>
                       </div>
                     );
                   })}
-                  {employees.length === 0 && (
+                  {visibleEmployees.length === 0 && (
                     <p className="text-slate-500 text-sm col-span-2">No employees found</p>
                   )}
                 </div>

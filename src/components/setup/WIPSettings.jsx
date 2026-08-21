@@ -9,6 +9,7 @@ import { Save, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/AuthContext";
 import WorkOrderStatusManager from "./WorkOrderStatusManager";
+import CompanySettingsTab from "./CompanySettingsTab";
 
 export default function WIPSettings({ currentUser }) {
   const { user, employee } = useAuth();
@@ -152,8 +153,8 @@ export default function WIPSettings({ currentUser }) {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">WIP Settings</h2>
-        <p className="text-slate-600 dark:text-slate-400 mt-1">Configure work-in-progress related settings</p>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">General Settings</h2>
+        <p className="text-slate-600 dark:text-slate-400 mt-1">Configure work-in-progress, filing, and company-wide settings</p>
       </div>
 
       <div className="flex gap-6">
@@ -162,16 +163,19 @@ export default function WIPSettings({ currentUser }) {
           <Tabs value={activeSubTab} onValueChange={setActiveSubTab} orientation="vertical" className="w-full">
             <TabsList className="flex flex-col h-auto w-full">
               <TabsTrigger value="statuses" className="w-full justify-start">
-                Statuses
+                WIP Statuses
               </TabsTrigger>
               <TabsTrigger value="main" className="w-full justify-start">
-                Main
+                WIP Numbering
               </TabsTrigger>
               <TabsTrigger value="legal" className="w-full justify-start">
                 Legal
               </TabsTrigger>
               <TabsTrigger value="default_message" className="w-full justify-start">
                 Default Message
+              </TabsTrigger>
+              <TabsTrigger value="company" className="w-full justify-start">
+                Company Settings
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -190,7 +194,7 @@ export default function WIPSettings({ currentUser }) {
                   <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Numbering Settings</h3>
                   <Button
                     onClick={handleSaveNumbering}
-                    disabled={!numberingHasChanges || saving || currentUser?.role !== 'admin'}
+                    disabled={!numberingHasChanges || saving || currentUser?.admin !== true}
                     className="bg-blue-600 hover:bg-blue-700"
                   >
                     {saving ? (
@@ -220,7 +224,7 @@ export default function WIPSettings({ currentUser }) {
                           setNumberingHasChanges(true);
                         }}
                         className="max-w-xs"
-                        disabled={currentUser?.role !== 'admin'}
+                        disabled={currentUser?.admin !== true}
                       />
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                         The next RO number that will be assigned (e.g., 1001 becomes RO1001)
@@ -239,7 +243,7 @@ export default function WIPSettings({ currentUser }) {
                           setNumberingHasChanges(true);
                         }}
                         className="max-w-xs"
-                        disabled={currentUser?.role !== 'admin'}
+                        disabled={currentUser?.admin !== true}
                       />
                       <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                         The next Invoice number that will be assigned (e.g., 1001 becomes INV1001)
@@ -337,6 +341,10 @@ export default function WIPSettings({ currentUser }) {
                 )}
               </CardContent>
             </Card>
+          )}
+
+          {activeSubTab === "company" && (
+            <CompanySettingsTab currentUser={currentUser} />
           )}
         </div>
       </div>

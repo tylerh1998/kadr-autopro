@@ -22,14 +22,12 @@ export default function WorkPROEditProjectModal({ open, onClose, project, onUpda
   useEffect(() => {
     const loadEmployees = async () => {
       try {
-        const { data: allEmployees, error: employeesError } = await supabase.from('Employee').select('*');
+        const { data: techs, error: employeesError } = await supabase
+          .from('Employee')
+          .select('*')
+          .eq('employee_type', 'tech');
         if (employeesError) throw employeesError;
-        const techs = allEmployees.filter(emp => 
-          emp.position === 'technician' || 
-          emp.position === 'apprentice' ||
-          emp.position === 'service_advisor'
-        );
-        setEmployees(techs);
+        setEmployees(techs || []);
       } catch (error) {
         console.error('Error loading employees:', error);
       }
@@ -114,6 +112,12 @@ export default function WorkPROEditProjectModal({ open, onClose, project, onUpda
     return `${employee.first_name} ${employee.last_name}`;
   };
 
+  // Hide inactive techs from the picker, except ones already assigned to this
+  // project - otherwise an existing assignment silently disappears from view.
+  const visibleEmployees = employees.filter(employee =>
+    employee.status === 'active' || formData.assigned_employees.includes(getEmployeeName(employee))
+  );
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
@@ -164,10 +168,10 @@ export default function WorkPROEditProjectModal({ open, onClose, project, onUpda
           <div className="space-y-3">
             <Label>Assigned Employees</Label>
             <div className="space-y-2 max-h-48 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-lg p-3">
-              {employees.map((employee) => {
+              {visibleEmployees.map((employee) => {
                 const employeeName = getEmployeeName(employee);
                 const isChecked = formData.assigned_employees.includes(employeeName);
-                
+
                 return (
                   <div key={employee.id} className="flex items-center space-x-2">
                     <Checkbox
@@ -180,11 +184,12 @@ export default function WorkPROEditProjectModal({ open, onClose, project, onUpda
                       className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
                     >
                       {employeeName} ({employee.position})
+                      {employee.status !== 'active' && <span className="text-slate-400 dark:text-slate-500"> (Inactive)</span>}
                     </label>
                   </div>
                 );
               })}
-              {employees.length === 0 && (
+              {visibleEmployees.length === 0 && (
                 <p className="text-slate-500 dark:text-slate-400 text-sm">No employees found</p>
               )}
             </div>

@@ -70,6 +70,7 @@ serve(async (req) => {
       returnReason = '',
       returnNotes = '',
       costEach = 0,
+      coreCostEach = 0,
     } = body || {};
 
     if (!inventoryItemId) {
@@ -229,16 +230,20 @@ serve(async (req) => {
       // Generate a uuid for the return
       const returnId = crypto.randomUUID();
 
+      const costPerUnit = parseFloat(costEach) || parseFloat(inventoryItem.cost) || 0;
+      const corePerUnit = parseFloat(coreCostEach) || 0;
+
       const insertPayload = {
         id: returnId,
         part_number: partNumber || inventoryItem.part_number || 'UNKNOWN',
         description: description || inventoryItem.description || '',
         supplier: supplier?.id || inventoryItem.supplier_id || 'UNKNOWN',
         quantity_returned: parsedQtyToReturn,
-        return_type: 'return',
+        return_type: corePerUnit > 0 ? 'part_core' : 'return',
         return_reason: returnReason,
-        cost_per_unit: parseFloat(costEach) || parseFloat(inventoryItem.cost) || 0,
-        total_cost: (parseFloat(costEach) || parseFloat(inventoryItem.cost) || 0) * parsedQtyToReturn,
+        cost_per_unit: costPerUnit,
+        core_per_unit: corePerUnit,
+        total_cost: (costPerUnit + corePerUnit) * parsedQtyToReturn,
         return_date: returnDate,
         status: 'On-site',
         work_order_id: workOrderId || null,

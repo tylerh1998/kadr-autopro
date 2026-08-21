@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { buildBatchId } from "../_shared/glBatch.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -135,7 +136,8 @@ serve(async (req) => {
           debit_amount: multiplier * purchaseAmount > 0 ? multiplier * purchaseAmount : 0,
           credit_amount: multiplier * purchaseAmount < 0 ? Math.abs(multiplier * purchaseAmount) : 0,
           source_type: 'supplier_invoice',
-          source_id: line.id || ''
+          source_id: line.id || '',
+          batch_id: buildBatchId('supplier_invoice', line.conceptual_invoice_id)
         });
       }
 
@@ -148,7 +150,8 @@ serve(async (req) => {
           debit_amount: multiplier * gstAmount > 0 ? multiplier * gstAmount : 0,
           credit_amount: multiplier * gstAmount < 0 ? Math.abs(multiplier * gstAmount) : 0,
           source_type: 'supplier_invoice',
-          source_id: line.id || ''
+          source_id: line.id || '',
+          batch_id: buildBatchId('supplier_invoice', line.conceptual_invoice_id)
         });
       }
 
@@ -161,7 +164,8 @@ serve(async (req) => {
           debit_amount: multiplier * lineTotal < 0 ? Math.abs(multiplier * lineTotal) : 0,
           credit_amount: multiplier * lineTotal > 0 ? multiplier * lineTotal : 0,
           source_type: 'supplier_invoice',
-          source_id: line.id || ''
+          source_id: line.id || '',
+          batch_id: buildBatchId('supplier_invoice', line.conceptual_invoice_id)
         });
       }
     };

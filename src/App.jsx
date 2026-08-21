@@ -33,8 +33,30 @@ const RedirectToSSO = () => {
   );
 };
 
+// A valid session with zero MFA factors enrolled - can't be redirected
+// straight through login (it's already authenticated, so /login could just
+// bounce it right back here, looping), and can't be shown the app shell
+// either (every gated table returns 0 rows silently). Point it at myKADR to
+// enroll a factor, via a manual click rather than an auto-redirect - there is
+// no confirmed dedicated enrollment route (myKADR is a separate app/repo not
+// available to verify here), so this deliberately does not guess one.
+const RedirectToEnrollment = () => (
+  <div className="fixed inset-0 flex flex-col items-center justify-center gap-4 text-center px-6">
+    <p className="text-sm text-slate-600 max-w-sm">
+      Your account needs a second sign-in method (an authenticator app or a passkey) set up before you can
+      continue. Head to your myKADR account settings to add one, then come back and reload this page.
+    </p>
+    <a
+      href="https://my.kensauto.ca"
+      className="text-sm font-medium text-slate-800 underline underline-offset-2"
+    >
+      Go to myKADR account settings
+    </a>
+  </div>
+);
+
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isAuthenticated } = useAuth();
+  const { isLoadingAuth, isAuthenticated, needsEnrollment } = useAuth();
 
   // Show loading spinner while checking auth
   if (isLoadingAuth) {
@@ -45,6 +67,8 @@ const AuthenticatedApp = () => {
     );
   }
 
+  const GateFallback = needsEnrollment ? RedirectToEnrollment : RedirectToSSO;
+
   // Render the app with route protection
   return (
     <Routes>
@@ -54,7 +78,7 @@ const AuthenticatedApp = () => {
             <MainPage />
           </LayoutWrapper>
         ) : (
-          <RedirectToSSO />
+          <GateFallback />
         )
       } />
       {Object.entries(Pages).map(([path, Page]) => (
@@ -67,7 +91,7 @@ const AuthenticatedApp = () => {
                 <Page />
               </LayoutWrapper>
             ) : (
-              <RedirectToSSO />
+              <GateFallback />
             )
           }
         />
@@ -81,7 +105,7 @@ const AuthenticatedApp = () => {
               <LankarWOView />
             </LayoutWrapper>
           ) : (
-            <RedirectToSSO />
+            <GateFallback />
           )
         }
       />

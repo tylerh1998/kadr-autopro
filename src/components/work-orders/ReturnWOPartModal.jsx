@@ -4,15 +4,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { supabase } from '@/lib/supabase';
-import { Package, RotateCcw } from 'lucide-react';
+import { Package, RotateCcw, Shield, AlertTriangle } from 'lucide-react';
 
-export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, workOrder }) {
+export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, onWarrantyReturn, workOrder }) {
   const [returnQuantity, setReturnQuantity] = useState('1');
   const [returnReason, setReturnReason] = useState('');
   const [returnNotes, setReturnNotes] = useState('');
   const [reasons, setReasons] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [returnType, setReturnType] = useState('standard');
+  const [warrantyScope, setWarrantyScope] = useState('Parts Only');
 
   useEffect(() => {
     if (open) {
@@ -37,9 +40,37 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
     }
   }, [lineItem]);
 
+  useEffect(() => {
+    if (open) {
+      setReturnType('standard');
+      setReturnReason('');
+      setReturnNotes('');
+      setWarrantyScope('Parts Only');
+    }
+  }, [open]);
+
+  const lineQty = parseFloat(lineItem?.qty) || 0;
+  const isWarrantyQtyBlocked = returnType === 'warranty' && lineQty > 1;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!lineItem) return;
+
+    if (returnType === 'warranty') {
+      if (isWarrantyQtyBlocked) return;
+
+      setLoading(true);
+      try {
+        await onWarrantyReturn(lineItem, returnNotes, warrantyScope);
+        onClose();
+      } catch (error) {
+        console.error('Failed to process warranty return:', error);
+        alert(`An error occurred while processing the warranty return: ${error.message || 'Unknown error'}`);
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
 
     const qtyOnOrder = parseFloat(lineItem.qty_on_order) || 0;
     const currentQty = parseFloat(lineItem.qty) || 0;
@@ -71,6 +102,7 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
           returnReason,
           returnNotes,
           costEach: lineItem.cost_ea || 0,
+          coreCostEach: parseFloat(lineItem.core_cost) || 0,
         }
       });
 
@@ -98,7 +130,7 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
         <DialogHeader>
           <DialogTitle>Return Part from Work Order</DialogTitle>
           <DialogDescription>
-            Return this part to supplier for credit.
+            Return this part to supplier for credit, or mark it warranty for a claim before this work order is invoiced.
           </DialogDescription>
         </DialogHeader>
 
@@ -109,10 +141,26 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
               <p className="font-semibold dark:text-slate-100">{lineItem.part_number || 'No Part Number'}</p>
               <p className="text-sm text-slate-500 dark:text-slate-400">{lineItem.description || 'No Description'}</p>
               <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                Available to return: {Math.max(0, (parseFloat(lineItem.qty) || 0) - (parseFloat(lineItem.qty_on_order) || 0))} {lineItem.unit || ''} 
+                Available to return: {Math.max(0, (parseFloat(lineItem.qty) || 0) - (parseFloat(lineItem.qty_on_order) || 0))} {lineItem.unit || ''}
                 <span className="ml-1 text-slate-300 dark:text-slate-600">(Qty: {lineItem.qty} - On Order: {lineItem.qty_on_order || 0})</span>
               </p>
             </div>
+          </div>
+
+          <div>
+            <Label>Return Type</Label>
+            <RadioGroup value={returnType} onValueChange={setReturnType} className="flex items-center gap-6 mt-2" disabled={loading}>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="standard" id="returnTypeStandard" />
+                <Label htmlFor="returnTypeStandard" className="font-normal cursor-pointer">Standard Return</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="warranty" id="returnTypeWarranty" />
+                <Label htmlFor="returnTypeWarranty" className="font-normal cursor-pointer flex items-center gap-1">
+                  <Shield className="w-3.5 h-3.5 text-green-600 dark:text-green-400" /> Warranty
+                </Label>
+              </div>
+            </RadioGroup>
           </div>
 
           <div>
@@ -122,28 +170,54 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
               type="number"
               min="1"
               max={Math.max(0, (parseFloat(lineItem.qty) || 0) - (parseFloat(lineItem.qty_on_order) || 0))}
-              value={returnQuantity}
+              value={returnType === 'warranty' ? lineItem.qty : returnQuantity}
               onChange={(e) => setReturnQuantity(e.target.value)}
               required
-              disabled={loading}
+              disabled={loading || returnType === 'warranty'}
             />
           </div>
 
-          <div>
-            <Label htmlFor="returnReason">Reason for Return</Label>
-            <Select value={returnReason} onValueChange={setReturnReason} disabled={loading}>
-              <SelectTrigger id="returnReason">
-                <SelectValue placeholder="Select a reason" />
-              </SelectTrigger>
-              <SelectContent>
-                {reasons.map((r) => (
-                  <SelectItem key={r.id} value={r.reason}>
-                    {r.reason}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {returnType === 'warranty' ? (
+            <>
+              <div>
+                <Label htmlFor="warrantyScope">Warranty Scope</Label>
+                <Select value={warrantyScope} onValueChange={setWarrantyScope} disabled={loading}>
+                  <SelectTrigger id="warrantyScope">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Parts Only">Parts Only</SelectItem>
+                    <SelectItem value="Parts & Labour">Parts & Labour</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {isWarrantyQtyBlocked && (
+                <div className="flex items-start gap-2 p-3 bg-yellow-50 dark:bg-yellow-950/40 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                  <AlertTriangle className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+                  <div className="text-sm text-yellow-800 dark:text-yellow-300">
+                    <p className="font-medium">Partial warranties are not supported.</p>
+                    <p>If you need to return this line with a different quantity than shown above, please delete the line and split it. Marking a line for warranty can only be done for the full line.</p>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div>
+              <Label htmlFor="returnReason">Reason for Return</Label>
+              <Select value={returnReason} onValueChange={setReturnReason} disabled={loading}>
+                <SelectTrigger id="returnReason">
+                  <SelectValue placeholder="Select a reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  {reasons.map((r) => (
+                    <SelectItem key={r.id} value={r.reason}>
+                      {r.reason}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div>
             <Label htmlFor="returnNotes">Notes (Optional)</Label>
@@ -161,9 +235,13 @@ export default function ReturnWOPartModal({ open, onClose, lineItem, onReturn, w
             <Button type="button" variant="outline" onClick={onClose} disabled={loading}>
               Cancel
             </Button>
-            <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white dark:text-white" disabled={loading}>
-              <RotateCcw className="w-4 h-4 mr-2" />
-              {loading ? 'Processing...' : 'Process Return'}
+            <Button
+              type="submit"
+              className={returnType === 'warranty' ? "bg-green-600 hover:bg-green-700 text-white dark:text-white" : "bg-blue-600 hover:bg-blue-700 text-white dark:text-white"}
+              disabled={loading || isWarrantyQtyBlocked}
+            >
+              {returnType === 'warranty' ? <Shield className="w-4 h-4 mr-2" /> : <RotateCcw className="w-4 h-4 mr-2" />}
+              {loading ? 'Processing...' : (returnType === 'warranty' ? 'Process Warranty Return' : 'Process Return')}
             </Button>
           </DialogFooter>
         </form>

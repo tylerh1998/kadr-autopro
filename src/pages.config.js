@@ -76,6 +76,7 @@ import InvoiceConversion from './pages/InvoiceConversion';
 import JournalEntries from './pages/JournalEntries';
 import LankarImport from './pages/LankarImport';
 import LinesOfCredit from './pages/LinesOfCredit';
+import ManageTickets from './pages/ManageTickets';
 import PLReport from './pages/PLReport';
 import Payroll from './pages/Payroll';
 import Reconcile from './pages/Reconcile';
@@ -84,6 +85,17 @@ import ReconcileSupplier from './pages/ReconcileSupplier';
 import Schedule from './pages/Schedule';
 import Setup from './pages/Setup';
 import StockReorderReport from './pages/StockReorderReport';
+import PayproEmployees from './pages/paypro/Employees';
+import PayproEditEmployee from './pages/paypro/EditEmployee';
+import PayproTimeRecords from './pages/paypro/TimeRecords';
+import PayproPayroll from './pages/paypro/Payroll';
+import PayproPayStubs from './pages/paypro/PayStubs';
+import PayproPayrollChequeWriter from './pages/paypro/PayrollChequeWriter';
+import PayproRemittances from './pages/paypro/Remittances';
+import PayproT4s from './pages/paypro/T4s';
+import PayproReports from './pages/paypro/Reports';
+import PayproTrends from './pages/paypro/Trends';
+import PayproSetup from './pages/paypro/Setup';
 import SupplierTx from './pages/SupplierTx';
 import SupplierTxView from './pages/SupplierTxView';
 import Suppliers from './pages/Suppliers';
@@ -126,6 +138,7 @@ export const PAGES = {
     "JournalEntries": JournalEntries,
     "LankarImport": LankarImport,
     "LinesOfCredit": LinesOfCredit,
+    "ManageTickets": ManageTickets,
     "PLReport": PLReport,
     "Payroll": Payroll,
     "Reconcile": Reconcile,
@@ -134,6 +147,17 @@ export const PAGES = {
     "Schedule": Schedule,
     "Setup": Setup,
     "StockReorderReport": StockReorderReport,
+    "paypro/Employees": PayproEmployees,
+    "paypro/EditEmployee": PayproEditEmployee,
+    "paypro/TimeRecords": PayproTimeRecords,
+    "paypro/Payroll": PayproPayroll,
+    "paypro/PayStubs": PayproPayStubs,
+    "paypro/PayrollChequeWriter": PayproPayrollChequeWriter,
+    "paypro/Remittances": PayproRemittances,
+    "paypro/T4s": PayproT4s,
+    "paypro/Reports": PayproReports,
+    "paypro/Trends": PayproTrends,
+    "paypro/Setup": PayproSetup,
     "SupplierTx": SupplierTx,
     "SupplierTxView": SupplierTxView,
     "Suppliers": Suppliers,

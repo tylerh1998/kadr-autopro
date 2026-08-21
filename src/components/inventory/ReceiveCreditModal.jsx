@@ -100,6 +100,21 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
 
   const subtotal = returnItem?.total_cost || 0;
   const gst = Math.round(subtotal * 0.05 * 100) / 100;
+
+  // Split the return's total into Parts / Cores for display and for the two SupplierInvoiceLine/GL
+  // entries below. For a pure core return (return_type 'core', from ROCoreModal or CreditInvoice.jsx),
+  // the whole amount lives in cost_per_unit with no core_per_unit - it's all "Cores". For a merged
+  // 'part_core' return, cost_per_unit is the part portion and core_per_unit is the core portion. Plain
+  // 'return'/'warranty' rows have no core component, so coresAmount is 0.
+  const returnQty = returnItem?.quantity_returned || 0;
+  const isCoreOnlyReturn = returnItem?.return_type === 'core';
+  const partsAmount = isCoreOnlyReturn ? 0 : Math.round((returnItem?.cost_per_unit || 0) * returnQty * 100) / 100;
+  const coresAmount = isCoreOnlyReturn
+    ? Math.round((returnItem?.cost_per_unit || 0) * returnQty * 100) / 100
+    : Math.round((returnItem?.core_per_unit || 0) * returnQty * 100) / 100;
+  const partsGst = Math.round(partsAmount * 0.05 * 100) / 100;
+  const coresGst = Math.round(coresAmount * 0.05 * 100) / 100;
+
   const adj = parseFloat(adjustmentAmount) || 0;
   const adjGst = Math.round(adj * 0.05 * 100) / 100;
   const adjTotal = Math.round((adj + adjGst) * 100) / 100;
@@ -192,27 +207,48 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
     }
 
     try {
-      // 1. Create SupplierInvoiceLine for the parts credit
-      const creditLineDescription = `ReturnPart/x${returnItem.quantity_returned}/${returnItem.part_number}`;
+      // 1. Create SupplierInvoiceLine(s) for the parts/cores credit - two separate lines so AP
+      // reconciliation against the supplier's own invoice can match each portion independently.
       const supplierIdForInvoice = refundCreditTo === 'Supplier AP' ? toAccount : returnItem.supplier;
       const invoiceLineNow = new Date().toISOString();
 
-      await supabase.from('SupplierInvoiceLine').insert([{
-        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
-        supplier_id: supplierIdForInvoice,
-        invoice_number: invoiceNumber,
-        invoice_date: invoiceDate,
-        description: creditLineDescription,
-        purchase_amount: Math.round(-subtotal * 100) / 100,
-        gst_amount: Math.round(-gst * 100) / 100,
-        gl_account: '1200',
-        inventory: true,
-        inventory_credit: true,
-        inventory_item_id: returnItem.inventory_item_id || '',
-        paid_amount: 0,
-        created_date: invoiceLineNow,
-        updated_date: invoiceLineNow
-      }]);
+      if (partsAmount !== 0) {
+        await supabase.from('SupplierInvoiceLine').insert([{
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+          supplier_id: supplierIdForInvoice,
+          invoice_number: invoiceNumber,
+          invoice_date: invoiceDate,
+          description: `ReturnPart/x${returnItem.quantity_returned}/${returnItem.part_number}`,
+          purchase_amount: Math.round(-partsAmount * 100) / 100,
+          gst_amount: Math.round(-partsGst * 100) / 100,
+          gl_account: '1200',
+          inventory: true,
+          inventory_credit: true,
+          inventory_item_id: returnItem.inventory_item_id || '',
+          paid_amount: 0,
+          created_date: invoiceLineNow,
+          updated_date: invoiceLineNow
+        }]);
+      }
+
+      if (coresAmount !== 0) {
+        await supabase.from('SupplierInvoiceLine').insert([{
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+          supplier_id: supplierIdForInvoice,
+          invoice_number: invoiceNumber,
+          invoice_date: invoiceDate,
+          description: `ReturnCore/x${returnItem.quantity_returned}/${returnItem.part_number}`,
+          purchase_amount: Math.round(-coresAmount * 100) / 100,
+          gst_amount: Math.round(-coresGst * 100) / 100,
+          gl_account: '1200',
+          inventory: true,
+          inventory_credit: true,
+          inventory_item_id: returnItem.inventory_item_id || '',
+          paid_amount: 0,
+          created_date: invoiceLineNow,
+          updated_date: invoiceLineNow
+        }]);
+      }
 
       // 2. Create SupplierInvoiceLine for adjustment (if any)
       if (adj !== 0) {
@@ -256,30 +292,59 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
       // 4. Post GL transactions based on refund destination
       const glDescription = `Inventory Return Credit: ${returnItem.part_number} (Inv: ${invoiceNumber})`;
 
-      // Credit Inventory (1200) for subtotal (parts cost ONLY)
-      await createGLTransaction({
-        transaction_date: invoiceDate,
-        account_number: '1200',
-        description: glDescription,
-        debit_amount: 0,
-        credit_amount: subtotal,
-        reference: `Credit: ${invoiceNumber}`,
-        source_type: 'inventory_return_credit',
-        source_id: returnItem.id
-      });
-
-      // Credit GST Paid (2003) for the GST portion of the main return item
-      if (gst !== 0) {
+      // Credit Inventory (1200) for the Parts portion, plus its GST (2003) - kept as its own pair
+      // of GL rows (rather than blended with Cores below) so the GL register itself shows the split.
+      if (partsAmount !== 0) {
         await createGLTransaction({
           transaction_date: invoiceDate,
-          account_number: '2003',
-          description: glDescription,
+          account_number: '1200',
+          description: `${glDescription} - Parts`,
           debit_amount: 0,
-          credit_amount: gst,
+          credit_amount: partsAmount,
           reference: `Credit: ${invoiceNumber}`,
           source_type: 'inventory_return_credit',
           source_id: returnItem.id
         });
+
+        if (partsGst !== 0) {
+          await createGLTransaction({
+            transaction_date: invoiceDate,
+            account_number: '2003',
+            description: `${glDescription} - Parts GST`,
+            debit_amount: 0,
+            credit_amount: partsGst,
+            reference: `Credit: ${invoiceNumber}`,
+            source_type: 'inventory_return_credit',
+            source_id: returnItem.id
+          });
+        }
+      }
+
+      // Credit Inventory (1200) for the Cores portion, plus its GST (2003)
+      if (coresAmount !== 0) {
+        await createGLTransaction({
+          transaction_date: invoiceDate,
+          account_number: '1200',
+          description: `${glDescription} - Cores`,
+          debit_amount: 0,
+          credit_amount: coresAmount,
+          reference: `Credit: ${invoiceNumber}`,
+          source_type: 'inventory_return_credit',
+          source_id: returnItem.id
+        });
+
+        if (coresGst !== 0) {
+          await createGLTransaction({
+            transaction_date: invoiceDate,
+            account_number: '2003',
+            description: `${glDescription} - Cores GST`,
+            debit_amount: 0,
+            credit_amount: coresGst,
+            reference: `Credit: ${invoiceNumber}`,
+            source_type: 'inventory_return_credit',
+            source_id: returnItem.id
+          });
+        }
       }
 
       // Handle GL entries for Adjustment if any
@@ -494,6 +559,16 @@ export default function ReceiveCreditModal({ open, onClose, returnItem, onUpdate
                 Financial Summary
               </h4>
               <div className="space-y-2 text-sm dark:text-slate-300">
+                <div className="flex justify-between">
+                  <span>Parts:</span>
+                  <span className="font-medium dark:text-slate-200">${partsAmount.toFixed(2)}</span>
+                </div>
+                {coresAmount !== 0 && (
+                  <div className="flex justify-between">
+                    <span>Cores:</span>
+                    <span className="font-medium dark:text-slate-200">${coresAmount.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span>Subtotal:</span>
                   <span className="font-medium dark:text-slate-200">${displaySubtotal.toFixed(2)}</span>

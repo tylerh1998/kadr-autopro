@@ -149,14 +149,12 @@ export default function WorkPROViewPage() {
         }
 
         // Load employees
-        const { data: allEmployeesData, error: allEmployeesError } = await supabase.from('Employee').select('*');
-        if (allEmployeesError) throw allEmployeesError;
-        const techs = (allEmployeesData || []).filter(emp =>
-          emp.position === 'technician' || 
-          emp.position === 'apprentice' ||
-          emp.position === 'service_advisor'
-        );
-        setEmployees(techs);
+        const { data: techs, error: employeesError } = await supabase
+          .from('Employee')
+          .select('*')
+          .eq('employee_type', 'tech');
+        if (employeesError) throw employeesError;
+        setEmployees(techs || []);
 
         if (foundProject) {
           setProject(foundProject);
@@ -284,6 +282,12 @@ export default function WorkPROViewPage() {
     return `${employee.first_name} ${employee.last_name}`;
   };
 
+  // Hide inactive techs from the picker, except ones already assigned to this
+  // project - otherwise an existing assignment silently disappears from view.
+  const visibleEmployees = employees.filter(employee =>
+    employee.status === 'active' || formData.assigned_employees.includes(getEmployeeName(employee))
+  );
+
   const getStatusBadge = (status) => {
     const colors = {
       'to_do': 'bg-slate-100 text-slate-800 dark:bg-slate-700/60 dark:text-slate-300',
@@ -400,10 +404,10 @@ export default function WorkPROViewPage() {
             <div>
               <Label className="text-sm font-medium">Employees Assigned</Label>
               <div className="grid grid-cols-2 gap-2 mt-2 p-3 border rounded-lg bg-slate-50 dark:bg-slate-800 max-h-32 overflow-y-auto">
-                {employees.map((employee) => {
+                {visibleEmployees.map((employee) => {
                   const employeeName = getEmployeeName(employee);
                   const isChecked = formData.assigned_employees.includes(employeeName);
-                  
+
                   return (
                     <div key={employee.id} className="flex items-center space-x-2">
                       <Checkbox
@@ -416,11 +420,12 @@ export default function WorkPROViewPage() {
                         className="text-sm leading-none cursor-pointer"
                       >
                         {employeeName}
+                        {employee.status !== 'active' && <span className="text-slate-400 dark:text-slate-500"> (Inactive)</span>}
                       </label>
                     </div>
                   );
                 })}
-                {employees.length === 0 && (
+                {visibleEmployees.length === 0 && (
                   <p className="text-slate-500 dark:text-slate-400 text-sm col-span-2">No employees found</p>
                 )}
               </div>

@@ -94,7 +94,8 @@ export const prepareWorkOrderSavePayload = ({
       oc_total: item.oc_total || 0,
       gl_account: item.gl_account || '',
       serial_num: item.serial_num || '',
-      other_charge_id: item.other_charge_id || null
+      other_charge_id: item.other_charge_id || null,
+      inventoryreturn_id: item.inventoryreturn_id || null
     };
 
     if (item.supplier_invoice_line_id) {

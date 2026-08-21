@@ -31,7 +31,8 @@ import {
   AlertTriangle,
   DollarSign,
   Hash,
-  GripVertical
+  GripVertical,
+  Shield
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -54,6 +55,7 @@ export default function LineItemsTable({
   onReceivePart,
   onMarkPartsOrdered,
   onCores,
+  onUndoWarrantyReturn,
   onDeleteLine, // Accept onDeleteLine prop
   onInsertLine,
   workOrder,
@@ -358,10 +360,17 @@ export default function LineItemsTable({
       {line.part_number && (
         <>
           {mode !== 'estimate' && (
-            <ContextMenuItem onClick={() => onReturnPart(index)} disabled={!line.part_number}>
-              <RotateCcw className="mr-2 h-4 w-4" />
-              <span>Return Part</span>
-            </ContextMenuItem>
+            line.inventoryreturn_id ? (
+              <ContextMenuItem onClick={() => onUndoWarrantyReturn(index)}>
+                <Shield className="mr-2 h-4 w-4" />
+                <span>Undo Warranty Return</span>
+              </ContextMenuItem>
+            ) : (
+              <ContextMenuItem onClick={() => onReturnPart(index)} disabled={!line.part_number}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                <span>Return Part</span>
+              </ContextMenuItem>
+            )
           )}
           {line.inventory_item_id && (
             <ContextMenuItem onClick={() => handleOpenSerialNumModal(index)}>
@@ -526,7 +535,12 @@ export default function LineItemsTable({
                         S/N: {line.serial_num}
                       </Badge>
                     )}
-                    {coreOutstanding > 0 && (
+                    {line.inventoryreturn_id && (
+                      <Badge variant="outline" className="px-1 py-0 text-xs bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400 border-green-300 dark:border-green-700 whitespace-nowrap flex items-center gap-1">
+                        <Shield className="w-3 h-3" /> Warranty
+                      </Badge>
+                    )}
+                    {coreOutstanding > 0 && !line.inventoryreturn_id && (
                       <Badge variant="outline" className="px-1 py-0 text-xs bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-700 whitespace-nowrap">
                         Cores ({coreOutstanding}) - ${coreOsamt.toFixed(2)}
                       </Badge>

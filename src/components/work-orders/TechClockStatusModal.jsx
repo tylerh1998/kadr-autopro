@@ -49,7 +49,8 @@ export default function TechClockStatusModal({ open, onClose }) {
       const { data: employees = [], error: empError } = await supabase
         .from('Employee')
         .select('*')
-        .eq('employee_type', 'tech');
+        .eq('employee_type', 'tech')
+        .eq('status', 'active');
       if (empError) throw empError;
 
       // Fetch WorkPRO TimeRecord (global clock in/out)

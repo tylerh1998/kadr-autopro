@@ -47,7 +47,8 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
         const { data: techs, error: employeesError } = await supabase
           .from('Employee')
           .select('*')
-          .eq('employee_type', 'tech');
+          .eq('employee_type', 'tech')
+          .eq('status', 'active');
         if (employeesError) throw employeesError;
         setEmployees(techs || []);
       } catch (error) {

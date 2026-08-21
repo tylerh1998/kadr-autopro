@@ -61,7 +61,7 @@ begin
     if v_found_by_id then
       update public."SupplierInvoiceLine"
       set
-        paid_amount = round(paid_amount + v_remaining_for_invoice, 2),
+        paid_amount = round(coalesce(paid_amount, 0) + v_remaining_for_invoice, 2),
         updated_date = v_updated_at
       where id = v_target_line.id;
 

@@ -118,6 +118,7 @@ serve(async (req) => {
         credit_amount: line.credit,
         source_type: 'manual',
         source_id: pairingId,
+        batch_id: pairingId,
         created_date: nowIso,
         updated_date: nowIso,
         created_by: creatorName,

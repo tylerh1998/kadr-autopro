@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { conceptualKey, resolveConceptualInvoiceIds } from "../_shared/glBatch.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -523,6 +524,17 @@ async function processInventoryReceiptCreate(supabase: any, user: any, supplier:
 
     let createdLines = [];
     if (invoiceLinesToCreate.length > 0) {
+      // Every line in a single receipt (parts, freight, enviro fee) shares one supplier_id +
+      // invoice_number, so they all belong to the same conceptual invoice - one resolver call
+      // for the whole batch, stamped onto every line before insert.
+      const receiptConceptualIds = await resolveConceptualInvoiceIds(supabase, [
+        { supplier_id: supplier.id, invoice_number: invoice_number }
+      ]);
+      const receiptConceptualId = receiptConceptualIds[conceptualKey(supplier.id, invoice_number)];
+      invoiceLinesToCreate.forEach((line: any) => {
+        line.conceptual_invoice_id = receiptConceptualId;
+      });
+
       createdLines = await insertSupplierInvoiceLines(supabase, user, invoiceLinesToCreate);
       results.created_invoice_lines = createdLines.map(line => line.id);
 
@@ -754,7 +766,10 @@ async function processInventoryReceiptReverse(supabase: any, user: any, supplier
       purchase_amount: -1 * (originalLine.purchase_amount || 0),
       gst_amount: -1 * (originalLine.gst_amount || 0),
       gl_account: originalLine.gl_account || '1200',
-      inventory: true
+      inventory: true,
+      // Same supplier_id/invoice_number as originalLine - keep it in the same conceptual
+      // invoice rather than minting a new one.
+      conceptual_invoice_id: originalLine.conceptual_invoice_id
     });
 
     results.created_contra_line_id = contraLine.id;
@@ -933,12 +948,23 @@ async function processInventoryReceiptEdit(supabase: any, user: any, supplierInv
       ? `AddCore Qty${newQuantity} ${partNumber}`
       : `AddPart Qty${newQuantity} ${partNumber}`;
 
+    // supplier_id doesn't change in this flow, only invoice_number/date - regroup only if the
+    // invoice number actually moved to a different one.
+    let nextConceptualInvoiceId = originalLine.conceptual_invoice_id;
+    if (String(newInvoiceNumber || '') !== String(originalLine.invoice_number || '')) {
+      const regroupedIds = await resolveConceptualInvoiceIds(supabase, [
+        { supplier_id: originalLine.supplier_id, invoice_number: newInvoiceNumber, exclude_id: supplierInvoiceLineId }
+      ]);
+      nextConceptualInvoiceId = regroupedIds[conceptualKey(originalLine.supplier_id, newInvoiceNumber)];
+    }
+
     const updatedLine = await updateSupplierInvoiceLine(supabase, supplierInvoiceLineId, {
       invoice_number: newInvoiceNumber,
       invoice_date: newInvoiceDate,
       description: newDescription,
       purchase_amount: Math.round(newPurchaseAmount * 100) / 100,
-      gst_amount: Math.round(newGstAmount * 100) / 100
+      gst_amount: Math.round(newGstAmount * 100) / 100,
+      conceptual_invoice_id: nextConceptualInvoiceId
     });
     results.updated_line_id = updatedLine.id;
 

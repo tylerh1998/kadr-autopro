@@ -125,7 +125,9 @@ export default function SchedulePage() {
         };
       });
 
-      const availableTechs = employeesData.filter(e => e.position === 'technician' || e.position === 'apprentice');
+      // techMap (above) intentionally stays unfiltered - existing appointments
+      // must still show their assigned tech's name even if now inactive.
+      const availableTechs = employeesData.filter(e => e.employee_type === 'tech' && e.status === 'active');
 
       setEvents(formattedEvents);
       setEmployees(availableTechs);

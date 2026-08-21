@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { buildBatchId, conceptualKey, resolveConceptualInvoiceIds } from "../_shared/glBatch.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -150,7 +151,8 @@ serve(async (req) => {
             debit_amount: multiplier * purchaseAmount > 0 ? multiplier * purchaseAmount : 0,
             credit_amount: multiplier * purchaseAmount < 0 ? Math.abs(multiplier * purchaseAmount) : 0,
             source_type: 'supplier_invoice',
-            source_id: line.id || ''
+            source_id: line.id || '',
+            batch_id: buildBatchId('supplier_invoice', line.conceptual_invoice_id)
           });
         }
 
@@ -169,7 +171,8 @@ serve(async (req) => {
             debit_amount: multiplier * gstAmount > 0 ? multiplier * gstAmount : 0,
             credit_amount: multiplier * gstAmount < 0 ? Math.abs(multiplier * gstAmount) : 0,
             source_type: 'supplier_invoice',
-            source_id: line.id || ''
+            source_id: line.id || '',
+            batch_id: buildBatchId('supplier_invoice', line.conceptual_invoice_id)
           });
         }
 
@@ -188,7 +191,8 @@ serve(async (req) => {
             debit_amount: multiplier * lineTotal < 0 ? Math.abs(multiplier * lineTotal) : 0,
             credit_amount: multiplier * lineTotal > 0 ? multiplier * lineTotal : 0,
             source_type: 'supplier_invoice',
-            source_id: line.id || ''
+            source_id: line.id || '',
+            batch_id: buildBatchId('supplier_invoice', line.conceptual_invoice_id)
           });
         }
       };
@@ -265,6 +269,11 @@ serve(async (req) => {
     // 2. Process Additions
     let createdLinesForGL: any[] = [];
     if (addedLines.length > 0) {
+      const addedConceptualIds = await resolveConceptualInvoiceIds(
+        supabase,
+        addedLines.map((line: any) => ({ supplier_id: supplierId, invoice_number: line.invoice_number }))
+      );
+
       const linesToInsert = addedLines.map((line: any) => {
         const nowIso = getCurrentMountainTimeISO();
         return {
@@ -278,6 +287,7 @@ serve(async (req) => {
           gl_account: line.gl_account,
           gst_override: line.gst_override,
           paid_amount: 0,
+          conceptual_invoice_id: addedConceptualIds[conceptualKey(supplierId, line.invoice_number)],
           created_date: nowIso,
           updated_date: nowIso,
           created_by: userDisplay,
@@ -309,9 +319,37 @@ serve(async (req) => {
     // 3. Process Modifications
     const updatedLinesForGL: any[] = [];
     const oldValuesForGL: any[] = [];
+
+    // A line's conceptual invoice only changes when supplier_id/invoice_number changes - not
+    // on every edit - so amount-only edits keep the same batch and never touch the resolver.
+    const isGroupingChanged = (nextSupplierId: any, invoiceNumber: any, existingLine: any) => (
+      String(nextSupplierId || '') !== String(existingLine.supplier_id || '') ||
+      String(invoiceNumber || '') !== String(existingLine.invoice_number || '')
+    );
+
+    const existingLinesById: Record<string, any> = {};
+    for (const line of modifiedLines) {
+      const { data: existingLine } = await supabase.from('SupplierInvoiceLine').select('*').eq('id', line.id).single();
+      if (existingLine) existingLinesById[line.id] = existingLine;
+    }
+
+    // Resolve every regrouped line's new conceptual_invoice_id in one batched call so that,
+    // e.g., two lines both being retyped to the same new invoice number in this same save
+    // land in the same new group instead of each minting their own.
+    const regroupKeys: any[] = [];
+    for (const line of modifiedLines) {
+      const existingLine = existingLinesById[line.id];
+      if (!existingLine) continue;
+      const nextSupplierId = line.supplier_id || existingLine.supplier_id || supplierId;
+      if (isGroupingChanged(nextSupplierId, line.invoice_number, existingLine)) {
+        regroupKeys.push({ supplier_id: nextSupplierId, invoice_number: line.invoice_number, exclude_id: line.id });
+      }
+    }
+    const regroupedConceptualIds = await resolveConceptualInvoiceIds(supabase, regroupKeys);
+
     for (const line of modifiedLines) {
       try {
-        const { data: existingLine } = await supabase.from('SupplierInvoiceLine').select('*').eq('id', line.id).single();
+        const existingLine = existingLinesById[line.id];
         if (!existingLine) continue;
 
         const currentPurchaseAmount = parseFloat(line.purchase_amount) || 0;
@@ -333,6 +371,15 @@ serve(async (req) => {
           currentGstAmount !== oldGstAmount
         );
 
+        // On a regroup, the old reversal (below) reads existingLine.conceptual_invoice_id
+        // (still the pre-update value) so it lands in the OLD batch; the fresh entries read
+        // updatedLine.conceptual_invoice_id (the new value persisted here) so they land in
+        // the NEW batch. No explicit "delete old batch" step - reversal + repost handles it,
+        // same as every other GL-relevant edit already does.
+        const nextConceptualInvoiceId = isGroupingChanged(nextSupplierId, line.invoice_number, existingLine)
+          ? regroupedConceptualIds[conceptualKey(nextSupplierId, line.invoice_number)]
+          : existingLine.conceptual_invoice_id;
+
         const updateData = {
           supplier_id: nextSupplierId,
           invoice_number: line.invoice_number,
@@ -342,6 +389,7 @@ serve(async (req) => {
           gst_amount: line.gst_amount,
           gl_account: line.gl_account,
           gst_override: line.gst_override,
+          conceptual_invoice_id: nextConceptualInvoiceId,
           updated_date: getCurrentMountainTimeISO(),
           updated_by: userDisplay
         };
