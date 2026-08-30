@@ -256,6 +256,9 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
               {hasAvailableCredit && (
                 <p className="text-xs text-slate-500 dark:text-slate-400">Available credit will be applied automatically.</p>
               )}
+              {outstandingCharges.length === 0 && (
+                <p className="text-xs text-slate-500 dark:text-slate-400">This customer has no outstanding balance - this payment will be recorded as a credit (overpayment) on their account.</p>
+              )}
             </div>
           </TabsContent>
         </Tabs>

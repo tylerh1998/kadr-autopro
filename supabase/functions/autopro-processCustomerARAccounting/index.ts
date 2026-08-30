@@ -108,6 +108,13 @@ serve(async (req) => {
     };
     const createId = () => crypto.randomUUID();
 
+    const round2 = (num: number) => Math.round((num + Number.EPSILON) * 100) / 100;
+
+    // Canadian cash rounding: physical cash only comes in 5-cent increments (the penny was
+    // discontinued in 2013), so a cash payment is rounded to the nearest nickel. Mirrors the
+    // same formula already used for invoice-conversion cash payments in InvoicePaymentModal.jsx.
+    const roundToNickel = (num: number) => round2(Math.round(num * 20) / 20);
+
     const formatCustomerDisplayName = (customer: any) => {
       if (!customer) return '';
       if (customer.org_name) {
@@ -413,9 +420,58 @@ serve(async (req) => {
       ];
     };
 
+    const isOverpaymentAdjustment = (adjustment: any) => adjustment.description === 'Overpayment' || adjustment.overpayment === true;
+
+    // Overpayment adjustments are NOT created via createAdjustmentGLRows - the create_payment
+    // handler posts them with deliberately inverted polarity (1100 debit / gl_account credit)
+    // so the liability account is correctly credited when the credit is established. Reusing
+    // reverseAdjustmentGLRows on them would reproduce that same pattern again instead of
+    // inverting it, doubling up the GL instead of canceling it out. This mirrors the actual
+    // original entries.
+    const reverseOverpaymentGLRows = ({ adjustment, reversalDate }: any) => {
+      const amount = Math.abs(Number(adjustment.amount) || 0);
+      const reference = `REV-${adjustment.id}`;
+      const description = `Reversal: ${adjustment.description || 'Overpayment'}`;
+
+      if (amount <= 0 || !adjustment.gl_account) return [];
+
+      return [
+        {
+          transaction_date: reversalDate,
+          account_number: '1100',
+          description,
+          debit_amount: 0,
+          credit_amount: amount,
+          reference,
+          source_type: 'adjustment',
+          source_id: adjustment.id
+        },
+        {
+          transaction_date: reversalDate,
+          account_number: adjustment.gl_account,
+          description,
+          debit_amount: amount,
+          credit_amount: 0,
+          reference,
+          source_type: 'adjustment',
+          source_id: adjustment.id
+        }
+      ];
+    };
+
+    const buildAdjustmentReversalGLRows = (adjustment: any, reversalDate: string) => {
+      return isOverpaymentAdjustment(adjustment)
+        ? reverseOverpaymentGLRows({ adjustment, reversalDate })
+        : reverseAdjustmentGLRows({ adjustment, reversalDate, sourceType: 'adjustment' });
+    };
+
     const isPaymentGeneratedAdjustment = (adjustment: any, payment: any, amountApplied: number) => {
       const reference = adjustment.reference || '';
-      if (reference === `CCFEE-${payment.id}` || reference === `OVERPAY-${payment.id}`) return true;
+      if (
+        reference === `CCFEE-${payment.id}` ||
+        reference === `OVERPAY-${payment.id}` ||
+        reference === `PENNY-${payment.id}`
+      ) return true;
 
       const adjustmentAmount = Number(adjustment.amount) || 0;
       const appliedAmount = Number(amountApplied) || 0;
@@ -437,6 +493,15 @@ serve(async (req) => {
         sameCustomer &&
         (adjustment.description === 'Overpayment' || adjustment.overpayment === true) &&
         adjustmentAmount < 0 &&
+        Math.abs(Math.abs(adjustmentAmount) - appliedAmount) < 0.01
+      ) {
+        return true;
+      }
+
+      if (
+        sameDate &&
+        sameCustomer &&
+        adjustment.description === 'Penny Adjustment' &&
         Math.abs(Math.abs(adjustmentAmount) - appliedAmount) < 0.01
       ) {
         return true;
@@ -490,8 +555,11 @@ serve(async (req) => {
 
       const totalChargesSelected = chargesToPay.reduce((sum, charge) => sum + (Number(charge.amountToApply) || 0), 0);
 
-      if (totalChargesSelected <= 0.01) {
-        return res({ success: false, error: 'No valid outstanding charges were selected.' });
+      // A customer can pay with zero outstanding charges to apply against (e.g. they already
+      // paid in full and are overpaying again) - that's fine as long as there's a real amount
+      // being paid; it all becomes an overpayment below. Only block true no-ops.
+      if (totalChargesSelected <= 0.01 && paymentAmount <= 0.01) {
+        return res({ success: false, error: 'No outstanding charges were selected and no payment amount was provided.' });
       }
 
       // Credits are drawn against the charges above: explicitly selected in 'selected' mode
@@ -517,9 +585,22 @@ serve(async (req) => {
         }
       }
 
-      const netCashNeeded = totalChargesSelected - creditAppliedTotal;
-      const usesRealCash = netCashNeeded > 0.01;
-      const totalAmountWithFee = usesRealCash ? (netCashNeeded + creditCardFeeAmount) : creditAppliedTotal;
+      // usesRealCash reflects whether the customer is actually handing over new money (vs. the
+      // handleSubmitCreditOnly path, which explicitly submits payment_amount: 0 to reallocate
+      // existing credit against a charge with no new cash). It must key off paymentAmount itself,
+      // not off the charges being paid down - a full overpayment has zero charges to apply against
+      // but is still real cash received.
+      const usesRealCash = paymentAmount > 0.01;
+
+      // Canadian cash rounding: physical cash settles to the nearest nickel, so a cash payment's
+      // actual collected amount can differ from the exact amount owed by a cent or two. The gap
+      // is booked as its own "Penny Adjustment" CustomerARAdjustment below (same GL account and
+      // convention already used for cash payments at invoice-conversion time), not silently
+      // absorbed into AR - charges/overpayment still settle at the exact penny amount owed.
+      const roundedPaymentAmount = (usesRealCash && payment_method === 'cash') ? roundToNickel(paymentAmount) : paymentAmount;
+      const pennyAdjustment = round2(roundedPaymentAmount - paymentAmount);
+
+      const totalAmountWithFee = usesRealCash ? (roundedPaymentAmount + creditCardFeeAmount) : creditAppliedTotal;
       const effectivePaymentMethod = usesRealCash ? payment_method : 'credit_applied';
       const effectivePaymentDate = usesRealCash ? payment_date : getCurrentMountainDate();
       const paymentId = createId();
@@ -580,6 +661,33 @@ serve(async (req) => {
           type: 'adj',
           amount: creditCardFeeAmount,
           description: feeAdjustment.description
+        });
+      }
+
+      if (pennyAdjustment !== 0) {
+        const pennyAdjustmentRecord = await insertAdjustment({
+          customer_id,
+          adjustment_date: payment_date,
+          amount: pennyAdjustment,
+          gl_account: '4013',
+          description: 'Penny Adjustment',
+          reference: `PENNY-${paymentRecord.id}`,
+          ar_paid: pennyAdjustment
+        });
+
+        await insertGLTransactions(
+          createAdjustmentGLRows({
+            adjustment: pennyAdjustmentRecord,
+            descriptionOverride: `Penny Adjustment - ${customerName}`,
+            sourceType: 'customer_ar_adjustment'
+          })
+        );
+
+        applyToEntries.push({
+          id: pennyAdjustmentRecord.id,
+          type: 'adj',
+          amount: Math.abs(pennyAdjustment),
+          description: pennyAdjustmentRecord.description
         });
       }
 
@@ -680,7 +788,7 @@ serve(async (req) => {
           amount: -overpaymentAmount,
           gl_account: '2100',
           description: 'Overpayment',
-          reference: `OVERPAY-${paymentRecord.id}`,
+          reference: '',
           ar_paid: 0,
           overpayment: true
         });
@@ -858,13 +966,7 @@ serve(async (req) => {
       }
 
       for (const adjustment of autoAdjustmentsToReverse.values()) {
-        await insertGLTransactions(
-          reverseAdjustmentGLRows({
-            adjustment,
-            reversalDate,
-            sourceType: 'adjustment'
-          })
-        );
+        await insertGLTransactions(buildAdjustmentReversalGLRows(adjustment, reversalDate));
         await deleteAdjustment(adjustment.id);
       }
 
@@ -891,13 +993,7 @@ serve(async (req) => {
       }
 
       const reversalDate = getCurrentMountainDate();
-      await insertGLTransactions(
-        reverseAdjustmentGLRows({
-          adjustment,
-          reversalDate,
-          sourceType: 'adjustment'
-        })
-      );
+      await insertGLTransactions(buildAdjustmentReversalGLRows(adjustment, reversalDate));
       await deleteAdjustment(adjustment.id);
 
       return res({ success: true });
