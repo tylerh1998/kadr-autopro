@@ -110,7 +110,8 @@ const parseAndValidateDateInput = (inputDate) => {
 
 const isLineLocked = (line) => {
   const paidAmount = parseFloat(line?.paid_amount);
-  return !isNaN(paidAmount) && paidAmount !== 0;
+  if (!isNaN(paidAmount) && paidAmount !== 0) return true;
+  return !!line?.pending_cash_flow_entry_id;
 };
 
 const recalculateConceptualInvoices = (lines, existingConceptualInvoices, range) => {
@@ -844,7 +845,7 @@ export default function SupplierTxPage() {
 
   const handleLineUpdate = useCallback(async (updatedLineData) => {
     if (!updatedLineData || !updatedLineData.id) return;
-    if (isLineLocked(updatedLineData)) return alert('This line cannot be updated because it has a payment applied or is an inventory line.');
+    if (isLineLocked(updatedLineData)) return alert('This line cannot be updated because it has a payment applied, is queued for payment on the cash flow sheet, or is an inventory line.');
     if (updatedLineData.charge === 'Error' || updatedLineData.gst === 'Error' || updatedLineData.line_total === 'Error') return alert('Please correct the invalid numeric inputs in the line editor before saving.');
     const parseResult = parseAndValidateDateInput(updatedLineData.invoice_date);
     if (!parseResult.valid) return alert(`Invalid date in line editor: ${parseResult.error}`);
@@ -876,7 +877,7 @@ export default function SupplierTxPage() {
     const line = (invoiceLines || []).find(l => l.id === lineId);
     if (!line) return;
     const locked = isLineLocked(line);
-    if (locked || line.inventory) return alert('This line cannot be deleted because it has a payment applied or is an inventory line.');
+    if (locked || line.inventory) return alert('This line cannot be deleted because it has a payment applied, is queued for payment on the cash flow sheet, or is an inventory line.');
     if (window.confirm('Are you sure you want to delete this line?')) {
       let nextLines = [];
       if (line.isNew || line.id.startsWith('temp_')) {

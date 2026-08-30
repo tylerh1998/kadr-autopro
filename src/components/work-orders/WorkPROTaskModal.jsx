@@ -5,8 +5,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Save, AlertCircle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function WorkPROTaskModal({ open, onClose, workOrder, project, onUpdate }) {
+  const { user, employee: currentEmployee } = useAuth();
   const [task, setTask] = useState('');
   const [loading, setLoading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
@@ -36,9 +38,10 @@ export default function WorkPROTaskModal({ open, onClose, workOrder, project, on
     try {
       if (project) {
         // Update existing project
+        const now = new Date().toISOString();
         const { error } = await supabase
           .from('Project')
-          .update({ task: task })
+          .update({ task: task, updated_date: now })
           .eq('id', project.id);
 
         if (error) throw error;
@@ -46,11 +49,16 @@ export default function WorkPROTaskModal({ open, onClose, workOrder, project, on
         onUpdate('task', task);
       } else {
         // Create new project
+        const now = new Date().toISOString();
         const projectData = {
           task: task,
           work_order: workOrder.wo_number,
           status: 'awaiting_work',
           priority: workOrder.priority || 'medium',
+          created_date: now,
+          updated_date: now,
+          created_by_id: user?.id || null,
+          created_by: currentEmployee?.email || user?.email || null,
         };
 
         const { error } = await supabase

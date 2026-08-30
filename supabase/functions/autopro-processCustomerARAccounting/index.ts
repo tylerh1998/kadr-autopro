@@ -629,7 +629,7 @@ serve(async (req) => {
           amount: creditCardFeeAmount,
           gl_account: '4009',
           description: 'Credit Card Processing Fee (3%)',
-          reference: `CCFEE-${paymentRecord.id}`,
+          reference: '',
           ar_paid: creditCardFeeAmount
         });
 
@@ -671,22 +671,31 @@ serve(async (req) => {
           amount: pennyAdjustment,
           gl_account: '4013',
           description: 'Penny Adjustment',
-          reference: `PENNY-${paymentRecord.id}`,
+          reference: '',
           ar_paid: pennyAdjustment
         });
 
+        const pennyAbs = Math.abs(pennyAdjustment);
+        const pennyDescription = `Penny Adjustment - ${customerName}`;
+        // Hand-rolled instead of createAdjustmentGLRows so the reference stays blank -
+        // that helper falls back to `ADJ-${id}` whenever reference is falsy, which would
+        // undo the point of leaving it empty. Same standard polarity it would have used.
         await insertGLTransactions(
-          createAdjustmentGLRows({
-            adjustment: pennyAdjustmentRecord,
-            descriptionOverride: `Penny Adjustment - ${customerName}`,
-            sourceType: 'customer_ar_adjustment'
-          })
+          pennyAdjustment > 0
+            ? [
+                { transaction_date: payment_date, account_number: '1100', description: pennyDescription, debit_amount: pennyAbs, credit_amount: 0, reference: '', source_type: 'customer_ar_adjustment', source_id: pennyAdjustmentRecord.id },
+                { transaction_date: payment_date, account_number: '4013', description: pennyDescription, debit_amount: 0, credit_amount: pennyAbs, reference: '', source_type: 'customer_ar_adjustment', source_id: pennyAdjustmentRecord.id }
+              ]
+            : [
+                { transaction_date: payment_date, account_number: '4013', description: pennyDescription, debit_amount: pennyAbs, credit_amount: 0, reference: '', source_type: 'customer_ar_adjustment', source_id: pennyAdjustmentRecord.id },
+                { transaction_date: payment_date, account_number: '1100', description: pennyDescription, debit_amount: 0, credit_amount: pennyAbs, reference: '', source_type: 'customer_ar_adjustment', source_id: pennyAdjustmentRecord.id }
+              ]
         );
 
         applyToEntries.push({
           id: pennyAdjustmentRecord.id,
           type: 'adj',
-          amount: Math.abs(pennyAdjustment),
+          amount: pennyAbs,
           description: pennyAdjustmentRecord.description
         });
       }

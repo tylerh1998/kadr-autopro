@@ -41,17 +41,20 @@ export default function AddToSheetModal({ open, onClose, initialValues, onSucces
     setSubmitting(true);
     try {
       const now = new Date().toISOString();
-      const { error } = await supabase.from('CashFlowEntry').insert([{
-        id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
-        supplier: formData.supplierName,
-        supplier_id: initialValues?.supplierId,
-        loc_id: initialValues?.locId,
-        amount: parseFloat(formData.amount),
-        due_date: formData.dueDate,
-        amount_paid: 0,
-        created_date: now,
-        updated_date: now
-      }]);
+      const { error } = await supabase.rpc('add_to_cash_flow_atomic', {
+        p_entry: {
+          id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+          supplier: formData.supplierName,
+          supplier_id: initialValues?.supplierId,
+          loc_id: initialValues?.locId,
+          amount: parseFloat(formData.amount),
+          due_date: formData.dueDate,
+          created_date: now,
+          updated_date: now
+        },
+        p_loc_transaction_ids: initialValues?.locTransactionIds || [],
+        p_supplier_invoice_line_ids: initialValues?.supplierInvoiceLineIds || []
+      });
       if (error) throw error;
 
       toast.success("Successfully added to Cash Flow");

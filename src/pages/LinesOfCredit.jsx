@@ -365,6 +365,8 @@ export default function LinesOfCreditPage() {
     setShowTransactionModal(true);
   };
 
+  const isLocTransactionLocked = (tx) => (tx.payment_amount || 0) !== 0 || !!tx.pending_cash_flow_entry_id;
+
   const handleTransactionMade = async () => {
     setShowTransactionModal(false);
     setEditingTransaction(null);
@@ -739,7 +741,7 @@ export default function LinesOfCreditPage() {
                               <td className="p-3"><SafeDateFormat dateString={tx.transaction_date} /></td>
                               <td className="p-3">
                                 <div>
-                                  {['manual', 'fee', 'cashback', 'interest'].includes(tx.source_type) && (!tx.payment_amount || tx.payment_amount === 0) ? (
+                                  {['manual', 'fee', 'cashback', 'interest'].includes(tx.source_type) && !isLocTransactionLocked(tx) ? (
                                     <span
                                       className="font-medium text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
                                       onClick={() => handleEditTransaction(tx)}
@@ -768,7 +770,9 @@ export default function LinesOfCreditPage() {
                               </td>
                               <td className="p-3 text-right">
                                 {tx.source_type !== 'payment_made' && (tx.charge_amount > 0 || tx.credit_amount > 0) && (
-                                  (tx.payment_amount || 0) === 0 ? (
+                                  (tx.payment_amount || 0) === 0 && tx.pending_cash_flow_entry_id ? (
+                                    <Badge className="bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40 border-amber-200 dark:border-amber-800">Pending Payment</Badge>
+                                  ) : (tx.payment_amount || 0) === 0 ? (
                                     <Badge className="bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/40 border-red-200 dark:border-red-800">Unpaid</Badge>
                                   ) : ((tx.charge_amount || tx.credit_amount || 0) - (tx.payment_amount || 0) <= 0.005) ? (
                                     <Badge className="bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/40 border-green-200 dark:border-green-800">Paid</Badge>

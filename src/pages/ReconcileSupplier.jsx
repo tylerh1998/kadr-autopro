@@ -10,6 +10,7 @@ import ReconcileInvoiceGroup from '../components/suppliers/ReconcileInvoiceGroup
 import ReconcileErrorGroup from '../components/suppliers/ReconcileErrorGroup';
 import AddToSheetModal from '../components/suppliers/AddToSheetModal';
 import { matchStatementToAutoPro, findDiscrepancies } from '@/lib/reconcileMatching';
+import { buildAppliedDetailsFromConceptualInvoice } from '@/lib/supplierInvoiceHelpers';
 
 const safeFormatDate = (dateString, formatString = 'MM/dd/yyyy') => {
   if (!dateString || dateString === '') return 'N/A';
@@ -463,6 +464,10 @@ export default function ReconcileSupplierPage() {
           supplierId: supplier?.id,
           amount: selectedMatchedTotal.toFixed(2),
           dueDate: format(endOfMonth(new Date()), 'yyyy-MM-dd'),
+          supplierInvoiceLineIds: matchedItems
+            .filter(item => selectedMatchedKeys.has(item.key))
+            .flatMap(item => buildAppliedDetailsFromConceptualInvoice(item).map(d => d.id))
+            .filter(Boolean)
         }}
         onSuccess={() => setSelectedMatchedKeys(new Set())}
       />
