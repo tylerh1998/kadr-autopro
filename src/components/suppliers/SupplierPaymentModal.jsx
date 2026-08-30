@@ -1258,7 +1258,12 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
               .flatMap(inv => buildAppliedDetailsFromConceptualInvoice(inv).map(d => d.id))
               .filter(Boolean)
         }}
-        onSuccess={onClose}
+        onSuccess={() => {
+          // The invoice list's lock state (isLineLocked) comes from data this modal already
+          // has loaded - the parent must refetch so it reflects the rows just locked, not just close.
+          if (onPaymentComplete) onPaymentComplete();
+          onClose();
+        }}
       />
     </>
   );

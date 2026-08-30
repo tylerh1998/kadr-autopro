@@ -383,6 +383,13 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
     onClose();
   };
 
+  const handleAddedToCashFlow = () => {
+    // The ledger's "Pending Payment" badge and lock come from data this modal already
+    // has loaded - the parent must refetch so it reflects the rows just locked, not just close.
+    if (onPaymentMade) onPaymentMade();
+    handleClose();
+  };
+
   const totalSelectedAmount = useMemo(() => {
     return outstandingCharges
       .filter(charge => selectedCharges[charge.id])
@@ -876,7 +883,7 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
             ? outstandingCharges.filter(c => selectedCharges[c.id] && !c.pending_cash_flow_entry_id).map(c => c.id)
             : []
         }}
-        onSuccess={handleClose}
+        onSuccess={handleAddedToCashFlow}
       />
     </Dialog>
   );
