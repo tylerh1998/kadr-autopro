@@ -51,7 +51,7 @@ Autonomous execution time per phase (not counting your UI verification time betw
 
 ## 5. Roadmap & Progress
 
-### Phase 1 — Schema: lock column + atomic "add to cash flow" RPC [Pending]
+### Phase 1 — Schema: lock column + atomic "add to cash flow" RPC [Executed]
 
 **Files impacted:**
 - `supabase/migrations/20260826000000_cashflow_entry_pending_lock.sql` (new)

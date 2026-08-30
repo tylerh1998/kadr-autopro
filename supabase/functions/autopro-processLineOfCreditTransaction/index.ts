@@ -138,6 +138,14 @@ serve(async (req) => {
       const { data: existingTx, error: existingTxError } = await supabase.from('LinesOfCreditTransaction').select('*').eq('id', id).single();
       if (existingTxError || !existingTx) return res({ success: false, error: 'Transaction not found' });
 
+      if ((existingTx.payment_amount || 0) !== 0) {
+        return res({ success: false, error: 'This transaction already has a payment applied and cannot be edited or deleted.' });
+      }
+
+      if (existingTx.pending_cash_flow_entry_id) {
+        return res({ success: false, error: 'This transaction is queued for payment on the cash flow sheet and cannot be edited or deleted. Remove it from the cash flow sheet first.' });
+      }
+
       const originalFiscalCheck = await checkFiscalPeriodStatus(supabase, existingTx.transaction_date);
       if (!originalFiscalCheck.isValid) return res({ success: false, error: 'Original transaction date is in a closed fiscal period', message: originalFiscalCheck.message });
 

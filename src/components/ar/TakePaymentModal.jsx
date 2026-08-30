@@ -166,10 +166,22 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
     setShowPaymentDetailsDialog(true);
   };
 
-  const creditCardFeeAmount = useMemo(() => {
-    const paymentAmount = activeTab === 'pay_invoices' ? netAmountDue : (parseFloat(amount) || 0);
-    return paymentMethod === 'credit_card' ? paymentAmount * 0.03 : 0;
-  }, [activeTab, netAmountDue, amount, paymentMethod]);
+  const baseAmount = useMemo(() => (
+    activeTab === 'pay_invoices' ? netAmountDue : (parseFloat(amount) || 0)
+  ), [activeTab, netAmountDue, amount]);
+
+  const creditCardFeeAmount = useMemo(() => (
+    paymentMethod === 'credit_card' ? baseAmount * 0.03 : 0
+  ), [baseAmount, paymentMethod]);
+
+  // Canadian cash rounding: physical cash settles to the nearest nickel, so a cash payment's
+  // amount due can differ from what's actually collected by a cent or two. Mirrors the exact
+  // rounding formula used server-side (autopro-processCustomerARAccounting) so this preview
+  // matches what actually gets charged/recorded as a Penny Adjustment.
+  const roundedCashAmount = useMemo(() => Math.round(baseAmount * 20) / 20, [baseAmount]);
+  const cashPennyAdjustment = useMemo(() => (
+    Math.round((roundedCashAmount - baseAmount + Number.EPSILON) * 100) / 100
+  ), [roundedCashAmount, baseAmount]);
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -285,7 +297,7 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
             <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
               <p className="text-sm text-slate-600 dark:text-slate-400">Payment Amount:</p>
               <p className="text-xl font-bold">
-                ${(activeTab === 'pay_invoices' ? netAmountDue : (parseFloat(amount) || 0)).toFixed(2)}
+                ${baseAmount.toFixed(2)}
               </p>
             </div>
 
@@ -300,7 +312,24 @@ export default function TakePaymentModal({ open, onClose, customer, invoices = [
                 <div className="flex justify-between items-center mt-2 pt-2 border-t border-amber-200 dark:border-amber-900/50">
                   <p className="text-sm font-semibold text-amber-900 dark:text-amber-400">Total to Charge:</p>
                   <p className="text-lg font-bold text-amber-900 dark:text-amber-300">
-                    ${((activeTab === 'pay_invoices' ? netAmountDue : (parseFloat(amount) || 0)) + creditCardFeeAmount).toFixed(2)}
+                    ${(baseAmount + creditCardFeeAmount).toFixed(2)}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {paymentMethod === 'cash' && cashPennyAdjustment !== 0 && (
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-900/50 rounded-lg">
+                <div className="flex justify-between items-center">
+                  <p className="text-sm text-blue-800 dark:text-blue-500">Penny Adjustment (Cash Rounding):</p>
+                  <p className="text-lg font-bold text-blue-800 dark:text-blue-400">
+                    {cashPennyAdjustment > 0 ? '+' : '-'}${Math.abs(cashPennyAdjustment).toFixed(2)}
+                  </p>
+                </div>
+                <div className="flex justify-between items-center mt-2 pt-2 border-t border-blue-200 dark:border-blue-900/50">
+                  <p className="text-sm font-semibold text-blue-900 dark:text-blue-400">Amount to Collect:</p>
+                  <p className="text-lg font-bold text-blue-900 dark:text-blue-300">
+                    ${roundedCashAmount.toFixed(2)}
                   </p>
                 </div>
               </div>
