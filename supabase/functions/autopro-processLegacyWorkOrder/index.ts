@@ -224,7 +224,7 @@ async function handleCreate(req: Request, supabaseAdmin: any, userEmail: string 
     parts_total: totals?.subtotal,
     labor_total: 0,
     shop_supply_total: 0,
-    line_items: JSON.stringify(processedLineItems),
+    line_items: processedLineItems,
     internal_notes: `Lankar WO# ${invoice_details?.invoice_number || 'N/A'}`,
     created_date: nowIso,
     created_by: userEmail,

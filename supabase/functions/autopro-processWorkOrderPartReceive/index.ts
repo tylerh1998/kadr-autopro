@@ -222,7 +222,7 @@ serve(async (req) => {
 
     const { error: workOrderUpdateError } = await supabaseAdmin
       .from('WorkOrder')
-      .update({ line_items: JSON.stringify(lineItems) })
+      .update({ line_items: lineItems })
       .eq('ro_number', workOrder.ro_number);
 
     if (workOrderUpdateError) {
