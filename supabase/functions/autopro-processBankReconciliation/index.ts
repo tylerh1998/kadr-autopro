@@ -29,6 +29,56 @@ const parseCsvDate = (dateStr) => {
   return isValid(date) ? date : null;
 };
 
+const round2 = (value) => Math.round((parseFloat(value) || 0) * 100) / 100;
+
+const dayDiff = (dateA, dateB) => {
+  if (!dateA || !dateB) return Infinity;
+  const a = dateA instanceof Date ? dateA : new Date(dateA);
+  const b = dateB instanceof Date ? dateB : new Date(dateB);
+  if (isNaN(a.getTime()) || isNaN(b.getTime())) return Infinity;
+  return Math.abs(a.getTime() - b.getTime()) / 86400000;
+};
+
+// Fuzzy amount-matching tiers, mirrored from src/lib/reconcileMatching.js (Supplier Statement
+// Reconciliation) so both reconciliation flows surface the same kinds of likely-but-not-exact matches.
+const AMOUNT_TOLERANCE = 0.005;
+const FUZZY_ABS_TOLERANCE = 2.0;
+const FUZZY_PCT_TOLERANCE = 0.02;
+
+const isFuzzyAmountMatch = (a, b) => {
+  const diff = Math.abs(a - b);
+  if (diff < AMOUNT_TOLERANCE) return false;
+  const tolerance = Math.max(FUZZY_ABS_TOLERANCE, Math.max(Math.abs(a), Math.abs(b)) * FUZZY_PCT_TOLERANCE);
+  return diff <= tolerance;
+};
+
+const toCents = (amount) => Math.round(Math.abs(amount) * 100);
+const digitMultiset = (value) => String(value).split('').sort().join('');
+
+const isDigitTransposition = (a, b) => {
+  const centsA = toCents(a);
+  const centsB = toCents(b);
+  if (centsA === centsB) return false;
+  const strA = String(centsA);
+  const strB = String(centsB);
+  if (strA.length !== strB.length) return false;
+  return digitMultiset(strA) === digitMultiset(strB);
+};
+
+const isDecimalShift = (a, b) => {
+  const absA = Math.abs(a);
+  const absB = Math.abs(b);
+  if (absA < AMOUNT_TOLERANCE || absB < AMOUNT_TOLERANCE) return false;
+  const ratio = absA > absB ? absA / absB : absB / absA;
+  return Math.abs(ratio - 10) < 0.02 || Math.abs(ratio - 100) < 0.2;
+};
+
+const buildDiscrepancyReason = (csvAmount, sysAmount) => {
+  if (isDigitTransposition(csvAmount, sysAmount)) return 'Possible Digit Transposition';
+  if (isDecimalShift(csvAmount, sysAmount)) return 'Possible Decimal Shift';
+  return 'Close Amount Match — Verify';
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
@@ -135,17 +185,66 @@ serve(async (req) => {
       }
     }
 
-    const unmatchedSystem = filteredSystemTransactions.filter(tx => !matchedSystemIds.has(tx.id));
+    const unmatchedSystemAfterExact = filteredSystemTransactions.filter(tx => !matchedSystemIds.has(tx.id));
+
+    // 5. Fuzzy discrepancy pass over leftovers from exact matching — surfaces likely-same
+    // transactions where the amount doesn't quite agree (digit transposition, decimal shift,
+    // or a close-but-not-exact amount) so they can be reviewed instead of silently missed.
+    const errors = [];
+    const remainingUnmatchedCsv = [];
+    const errorConsumedSystemIds = new Set();
+
+    for (const row of unmatchedCsv) {
+      const csvAmount = row.debit > 0 ? row.debit : row.credit;
+      const csvDate = parseCsvDate(row.date);
+
+      const candidates = unmatchedSystemAfterExact.filter((sysTx) => {
+        if (errorConsumedSystemIds.has(sysTx.id)) return false;
+        const sysAmount = row.debit > 0 ? sysTx.debit_amount : sysTx.credit_amount;
+        if (!(sysAmount > 0)) return false;
+        return isDigitTransposition(csvAmount, sysAmount)
+          || isDecimalShift(csvAmount, sysAmount)
+          || isFuzzyAmountMatch(csvAmount, sysAmount);
+      });
+
+      if (candidates.length === 0) {
+        remainingUnmatchedCsv.push(row);
+        continue;
+      }
+
+      const best = candidates.reduce((closest, sysTx) => {
+        const sysAmount = row.debit > 0 ? sysTx.debit_amount : sysTx.credit_amount;
+        const closestAmount = row.debit > 0 ? closest.debit_amount : closest.credit_amount;
+        const diffEntry = Math.abs(sysAmount - csvAmount);
+        const diffClosest = Math.abs(closestAmount - csvAmount);
+        if (diffEntry !== diffClosest) return diffEntry < diffClosest ? sysTx : closest;
+        return dayDiff(sysTx.transaction_date, csvDate) < dayDiff(closest.transaction_date, csvDate) ? sysTx : closest;
+      }, candidates[0]);
+
+      errorConsumedSystemIds.add(best.id);
+      const sysAmount = row.debit > 0 ? best.debit_amount : best.credit_amount;
+      errors.push({
+        key: `err_${errors.length}`,
+        csv: row,
+        system: best,
+        reason: buildDiscrepancyReason(csvAmount, sysAmount),
+        difference: round2(csvAmount - sysAmount)
+      });
+    }
+
+    const unmatchedSystem = unmatchedSystemAfterExact.filter(tx => !errorConsumedSystemIds.has(tx.id));
 
     return new Response(JSON.stringify({
       matches,
-      unmatchedCsv,
+      unmatchedCsv: remainingUnmatchedCsv,
       unmatchedSystem,
+      errors,
       stats: {
         totalCsv: csvRows.length,
         matched: matches.length,
-        unmatchedCsv: unmatchedCsv.length,
-        unmatchedSystem: unmatchedSystem.length
+        unmatchedCsv: remainingUnmatchedCsv.length,
+        unmatchedSystem: unmatchedSystem.length,
+        errors: errors.length
       }
     }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
