@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu';
-import { Printer, Calendar as CalendarIcon, DollarSign, FileText, ArrowUpDown, FileSpreadsheet, ExternalLink } from 'lucide-react';
+import { Printer, Calendar as CalendarIcon, DollarSign, FileText, ArrowUpDown, ExternalLink } from 'lucide-react';
 import { format, subMonths, endOfMonth, differenceInDays, parseISO } from 'date-fns';
 import moment from 'moment';
 import { Badge } from '@/components/ui/badge';
@@ -14,7 +14,6 @@ import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 import SupplierPaymentModal from './SupplierPaymentModal';
-import AddToSheetModal from '@/components/suppliers/AddToSheetModal';
 
 const MOUNTAIN_TIMEZONE = 'America/Edmonton';
 
@@ -64,8 +63,6 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
   const [pendingAsOfDate, setPendingAsOfDate] = useState(getDefaultAsOfDate);
   const [selectedSupplier, setSelectedSupplier] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [showAddToSheetModal, setShowAddToSheetModal] = useState(false);
-  const [addToSheetData, setAddToSheetData] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'ascending' });
   const [cashFlowEntries, setCashFlowEntries] = useState([]);
 
@@ -213,10 +210,11 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
     window.print();
   };
 
-  const handlePaymentMade = async () => {
+  const handlePaymentModalClosed = async () => {
     setShowPaymentModal(false);
     await loadData(asOfDate);
     setSelectedSupplier(null);
+    if (onCashFlowUpdate) onCashFlowUpdate();
   };
 
   const handleContextMenu = (supplier) => {
@@ -233,36 +231,6 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
     if (selectedSupplier) {
       const url = createPageUrl('SupplierTx') + `?id=${selectedSupplier.id}&from=apsummary`;
       navigate(url);
-    }
-  };
-
-  const handleAddToSheet = () => {
-    if (selectedSupplier) {
-      const amount = Math.max(0, selectedSupplier.total_balance - selectedSupplier.not_due).toFixed(2);
-      const dueDate = format(endOfMonth(new Date()), 'yyyy-MM-dd');
-      
-      setAddToSheetData({
-        supplierName: selectedSupplier.name,
-        supplierId: selectedSupplier.id,
-        amount: amount,
-        dueDate: dueDate
-      });
-      setShowAddToSheetModal(true);
-    }
-  };
-
-  const handleCashFlowAdded = async () => {
-    // Refresh local cash flow entries
-    try {
-      const { data: cfEntries } = await supabase.from('CashFlowEntry').select('*');
-      setCashFlowEntries(cfEntries || []);
-    } catch (error) {
-      console.error("Failed to refresh cash flow entries:", error);
-    }
-
-    // Notify parent if provided (e.g. CashFlow page)
-    if (onCashFlowUpdate) {
-      onCashFlowUpdate();
     }
   };
 
@@ -499,19 +467,12 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
                               <FileText className="w-4 h-4 mr-2" />
                               View Transactions
                             </ContextMenuItem>
-                            <ContextMenuItem 
+                            <ContextMenuItem
                               onClick={handleMakePayment}
                               className="bg-green-600 text-white focus:bg-green-700 focus:text-white cursor-pointer"
                             >
                               <DollarSign className="w-4 h-4 mr-2" />
                               Make Payment
-                            </ContextMenuItem>
-                            <ContextMenuItem 
-                              onClick={handleAddToSheet}
-                              className="bg-amber-400 text-black focus:bg-amber-500 focus:text-black cursor-pointer"
-                            >
-                              <FileSpreadsheet className="w-4 h-4 mr-2" />
-                              Add to Cash Flow
                             </ContextMenuItem>
                           </ContextMenuContent>
                         </ContextMenu>
@@ -540,23 +501,10 @@ export default function APSummaryTable({ isFullPage = false, onCashFlowUpdate })
 
       <SupplierPaymentModal
         open={showPaymentModal}
-        onClose={() => {
-          setShowPaymentModal(false);
-          setSelectedSupplier(null);
-        }}
+        onClose={handlePaymentModalClosed}
         supplier={selectedSupplier}
         invoiceLines={conceptualInvoicesForSupplier}
-        onPaymentComplete={handlePaymentMade}
-      />
-
-      <AddToSheetModal
-        open={showAddToSheetModal}
-        onClose={() => {
-          setShowAddToSheetModal(false);
-          setAddToSheetData(null);
-        }}
-        initialValues={addToSheetData}
-        onSuccess={handleCashFlowAdded}
+        onPaymentComplete={handlePaymentModalClosed}
       />
     </div>
   );
