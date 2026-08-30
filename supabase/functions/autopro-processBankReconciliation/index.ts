@@ -190,48 +190,52 @@ serve(async (req) => {
     // 5. Fuzzy discrepancy pass over leftovers from exact matching — surfaces likely-same
     // transactions where the amount doesn't quite agree (digit transposition, decimal shift,
     // or a close-but-not-exact amount) so they can be reviewed instead of silently missed.
-    const errors = [];
-    const remainingUnmatchedCsv = [];
-    const errorConsumedSystemIds = new Set();
-
-    for (const row of unmatchedCsv) {
+    //
+    // This has to be a global best-match assignment, not a greedy per-row scan: the fuzzy
+    // tolerance is generous (up to ~2% of the amount), so on a busy statement an unrelated
+    // transaction can fall inside another row's tolerance band and get grabbed first,
+    // stealing the system transaction a much closer (e.g. one-cent-off) row actually needs.
+    // Sorting every valid candidate pair by amount difference first guarantees near-exact
+    // pairs are locked in before looser ones compete for the same transaction.
+    const candidatePairs = [];
+    unmatchedCsv.forEach((row, csvIndex) => {
       const csvAmount = row.debit > 0 ? row.debit : row.credit;
       const csvDate = parseCsvDate(row.date);
-
-      const candidates = unmatchedSystemAfterExact.filter((sysTx) => {
-        if (errorConsumedSystemIds.has(sysTx.id)) return false;
+      unmatchedSystemAfterExact.forEach((sysTx) => {
         const sysAmount = row.debit > 0 ? sysTx.debit_amount : sysTx.credit_amount;
-        if (!(sysAmount > 0)) return false;
-        return isDigitTransposition(csvAmount, sysAmount)
-          || isDecimalShift(csvAmount, sysAmount)
-          || isFuzzyAmountMatch(csvAmount, sysAmount);
+        if (!(sysAmount > 0)) return;
+        if (!(isDigitTransposition(csvAmount, sysAmount) || isDecimalShift(csvAmount, sysAmount) || isFuzzyAmountMatch(csvAmount, sysAmount))) return;
+        candidatePairs.push({
+          csvIndex,
+          sysTx,
+          csvAmount,
+          sysAmount,
+          diff: Math.abs(csvAmount - sysAmount),
+          dayGap: dayDiff(sysTx.transaction_date, csvDate)
+        });
       });
+    });
 
-      if (candidates.length === 0) {
-        remainingUnmatchedCsv.push(row);
-        continue;
-      }
+    candidatePairs.sort((a, b) => (a.diff - b.diff) || (a.dayGap - b.dayGap));
 
-      const best = candidates.reduce((closest, sysTx) => {
-        const sysAmount = row.debit > 0 ? sysTx.debit_amount : sysTx.credit_amount;
-        const closestAmount = row.debit > 0 ? closest.debit_amount : closest.credit_amount;
-        const diffEntry = Math.abs(sysAmount - csvAmount);
-        const diffClosest = Math.abs(closestAmount - csvAmount);
-        if (diffEntry !== diffClosest) return diffEntry < diffClosest ? sysTx : closest;
-        return dayDiff(sysTx.transaction_date, csvDate) < dayDiff(closest.transaction_date, csvDate) ? sysTx : closest;
-      }, candidates[0]);
+    const errors = [];
+    const usedCsvIndexes = new Set();
+    const errorConsumedSystemIds = new Set();
 
-      errorConsumedSystemIds.add(best.id);
-      const sysAmount = row.debit > 0 ? best.debit_amount : best.credit_amount;
+    for (const pair of candidatePairs) {
+      if (usedCsvIndexes.has(pair.csvIndex) || errorConsumedSystemIds.has(pair.sysTx.id)) continue;
+      usedCsvIndexes.add(pair.csvIndex);
+      errorConsumedSystemIds.add(pair.sysTx.id);
       errors.push({
         key: `err_${errors.length}`,
-        csv: row,
-        system: best,
-        reason: buildDiscrepancyReason(csvAmount, sysAmount),
-        difference: round2(csvAmount - sysAmount)
+        csv: unmatchedCsv[pair.csvIndex],
+        system: pair.sysTx,
+        reason: buildDiscrepancyReason(pair.csvAmount, pair.sysAmount),
+        difference: round2(pair.csvAmount - pair.sysAmount)
       });
     }
 
+    const remainingUnmatchedCsv = unmatchedCsv.filter((_, idx) => !usedCsvIndexes.has(idx));
     const unmatchedSystem = unmatchedSystemAfterExact.filter(tx => !errorConsumedSystemIds.has(tx.id));
 
     return new Response(JSON.stringify({
