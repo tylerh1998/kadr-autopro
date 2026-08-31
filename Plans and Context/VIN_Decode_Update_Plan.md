@@ -1,6 +1,6 @@
 # VIN Decode Update Plan
 
-**Status:** Planning — awaiting approval. No code changes made yet.
+**Status:** **On hold (user decision, 2026-08-30)** — couldn't find a VIN-decode source that works as wanted; not pursuing this specific `DecodeVinValues` swap further for now. Planning was never approved and no code changes were made. Kept here (not archived) since this may be revisited if a better data source turns up — see `master_context.md` §3's Future Roadmap table for current status.
 **Scope:** Swap the NHTSA endpoint used by `autopro-decodeVin` from `DecodeVin` (array-of-variables) to `DecodeVinValues` (flat object). Nothing else.
 
 ---

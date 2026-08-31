@@ -5,7 +5,25 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabase';
-import { Upload, FileText, CheckCircle2, AlertCircle, ArrowRight, Printer } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { Upload, FileText, CheckCircle2, AlertCircle, AlertTriangle, ArrowRight, Printer } from 'lucide-react';
+
+// Dates coming back from the backend can be plain CSV strings (e.g. "01/15/2026") or full
+// ISO timestamps from the BankTransaction table (e.g. "2026-01-15T00:00:00.000Z") — strip
+// any time component so the review tables only ever show a date.
+const formatDateOnly = (value) => {
+  if (!value) return '—';
+  const str = String(value).trim();
+  const isoMatch = str.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (isoMatch) {
+    try {
+      const parsed = parseISO(isoMatch[1]);
+      if (!isNaN(parsed.getTime())) return format(parsed, 'MMM d, yyyy');
+    } catch {}
+    return isoMatch[1];
+  }
+  return str.split(' ')[0];
+};
 
 export default function AutoReconcileModal({ open, onClose, bankAccountId, periodEnd, onApplyMatches }) {
   const [file, setFile] = useState(null);
@@ -111,8 +129,12 @@ export default function AutoReconcileModal({ open, onClose, bankAccountId, perio
             .text-right { text-align: right; }
             .text-center { text-align: center; }
             .section-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; border-bottom: 2px solid #eee; padding-bottom: 5px; }
+            .section-title.error-title { color: #b91c1c; border-bottom-color: #b91c1c; }
+            .error-table th { background-color: #fee2e2 !important; }
+            .reason-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; background-color: #fee2e2; color: #991b1b; font-size: 11px; font-weight: bold; }
             .red { color: #dc2626; }
             .green { color: #16a34a; }
+            .summary-box.red { background-color: #fef2f2; border-color: #fecaca; color: #991b1b; }
             @media print {
               .no-print { display: none; }
             }
@@ -120,8 +142,8 @@ export default function AutoReconcileModal({ open, onClose, bankAccountId, perio
         </head>
         <body>
           <h1>Reconciliation Report</h1>
-          <p>Date: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}</p>
-          
+          <p>Date: ${new Date().toLocaleDateString()}</p>
+
           <div class="summary">
             <div class="summary-box green">
               <div class="value">${results.stats.matched}</div>
@@ -135,7 +157,46 @@ export default function AutoReconcileModal({ open, onClose, bankAccountId, perio
               <div class="value">${results.stats.unmatchedSystem}</div>
               <div class="label">Unmatched System</div>
             </div>
+            <div class="summary-box red">
+              <div class="value">${(results.errors || []).length}</div>
+              <div class="label">Needs Review</div>
+            </div>
           </div>
+
+          ${(results.errors || []).length > 0 ? `
+          <div class="section-title error-title">Needs Review — Amount Mismatch</div>
+          <table class="error-table">
+            <thead>
+              <tr>
+                <th>Reason</th>
+                <th>CSV Date</th>
+                <th>CSV Desc</th>
+                <th class="text-right">CSV Amount</th>
+                <th>System Date</th>
+                <th>System Desc</th>
+                <th class="text-right">System Amount</th>
+                <th class="text-right">Difference</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${results.errors.map(err => {
+                const csvAmount = err.csv.debit > 0 ? err.csv.debit : err.csv.credit;
+                const sysAmount = err.csv.debit > 0 ? err.system.debit_amount : err.system.credit_amount;
+                return `
+                <tr>
+                  <td><span class="reason-badge">${err.reason}</span></td>
+                  <td>${formatDateOnly(err.csv.date)}</td>
+                  <td>${err.csv.description}</td>
+                  <td class="text-right">$${csvAmount.toFixed(2)}</td>
+                  <td>${formatDateOnly(err.system.transaction_date)}</td>
+                  <td>${err.system.description}</td>
+                  <td class="text-right">$${sysAmount.toFixed(2)}</td>
+                  <td class="text-right">$${Math.abs(err.difference).toFixed(2)}</td>
+                </tr>
+              `;}).join('')}
+            </tbody>
+          </table>
+          ` : ''}
 
           <div class="section-title">Unmatched CSV Transactions</div>
           <table>
@@ -150,7 +211,7 @@ export default function AutoReconcileModal({ open, onClose, bankAccountId, perio
             <tbody>
               ${results.unmatchedCsv.map(row => `
                 <tr>
-                  <td>${row.date}</td>
+                  <td>${formatDateOnly(row.date)}</td>
                   <td>${row.description}</td>
                   <td class="text-right ${row.debit > 0 ? 'red' : ''}">${row.debit > 0 ? '$'+row.debit.toFixed(2) : '-'}</td>
                   <td class="text-right ${row.credit > 0 ? 'green' : ''}">${row.credit > 0 ? '$'+row.credit.toFixed(2) : '-'}</td>
@@ -173,7 +234,7 @@ export default function AutoReconcileModal({ open, onClose, bankAccountId, perio
             <tbody>
               ${results.unmatchedSystem.map(tx => `
                 <tr>
-                  <td>${tx.transaction_date}</td>
+                  <td>${formatDateOnly(tx.transaction_date)}</td>
                   <td>${tx.description}</td>
                   <td class="text-right ${tx.debit_amount > 0 ? 'red' : ''}">${tx.debit_amount > 0 ? '$'+tx.debit_amount.toFixed(2) : '-'}</td>
                   <td class="text-right ${tx.credit_amount > 0 ? 'green' : ''}">${tx.credit_amount > 0 ? '$'+tx.credit_amount.toFixed(2) : '-'}</td>
@@ -196,14 +257,14 @@ export default function AutoReconcileModal({ open, onClose, bankAccountId, perio
               ${results.matches.map(m => `
                 <tr>
                   <td>
-                    <div>${m.csv.date}</div>
+                    <div>${formatDateOnly(m.csv.date)}</div>
                     <div style="color:#666">${m.csv.description}</div>
                   </td>
                   <td class="text-right">
                     ${m.csv.debit > 0 ? `<span class="red">-$${m.csv.debit.toFixed(2)}</span>` : `<span class="green">+$${m.csv.credit.toFixed(2)}</span>`}
                   </td>
                   <td>
-                    <div>${m.system.transaction_date}</div>
+                    <div>${formatDateOnly(m.system.transaction_date)}</div>
                     <div style="color:#666">${m.system.description}</div>
                   </td>
                 </tr>
@@ -254,10 +315,14 @@ export default function AutoReconcileModal({ open, onClose, bankAccountId, perio
 
           {step === 'review' && results && (
             <div className="space-y-4">
-              <div className="grid grid-cols-3 gap-4 mb-4">
+              <div className="grid grid-cols-4 gap-4 mb-4">
                  <div className="bg-green-50 dark:bg-green-950/30 p-4 rounded-lg border border-green-100 dark:border-green-800 text-center">
                     <div className="text-2xl font-bold text-green-700 dark:text-green-400">{results.stats.matched}</div>
                     <div className="text-sm text-green-600 dark:text-green-400">Matches Found</div>
+                 </div>
+                 <div className="bg-red-50 dark:bg-red-950/30 p-4 rounded-lg border border-red-100 dark:border-red-800 text-center">
+                    <div className="text-2xl font-bold text-red-700 dark:text-red-400">{results.stats.errors || 0}</div>
+                    <div className="text-sm text-red-600 dark:text-red-400">Needs Review</div>
                  </div>
                  <div className="bg-orange-50 dark:bg-orange-950/30 p-4 rounded-lg border border-orange-100 dark:border-orange-800 text-center">
                     <div className="text-2xl font-bold text-orange-700 dark:text-orange-400">{results.stats.unmatchedCsv}</div>
@@ -272,6 +337,7 @@ export default function AutoReconcileModal({ open, onClose, bankAccountId, perio
               <Tabs defaultValue="matched" className="w-full">
                 <TabsList className="w-full justify-start">
                   <TabsTrigger value="matched">Matched ({results.stats.matched})</TabsTrigger>
+                  <TabsTrigger value="errors">Needs Review ({results.stats.errors || 0})</TabsTrigger>
                   <TabsTrigger value="unmatched-csv">Unmatched CSV ({results.stats.unmatchedCsv})</TabsTrigger>
                   <TabsTrigger value="unmatched-system">Unmatched System ({results.stats.unmatchedSystem})</TabsTrigger>
                 </TabsList>
@@ -291,7 +357,7 @@ export default function AutoReconcileModal({ open, onClose, bankAccountId, perio
                           {results.matches.map((m, i) => (
                             <tr key={i} className="border-t hover:bg-slate-50 dark:hover:bg-slate-800/60">
                                <td className="p-2">
-                                  <div className="font-medium">{m.csv.date}</div>
+                                  <div className="font-medium">{formatDateOnly(m.csv.date)}</div>
                                   <div className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[200px]" title={m.csv.description}>{m.csv.description}</div>
                                </td>
                                <td className="p-2 text-right font-medium">
@@ -299,7 +365,7 @@ export default function AutoReconcileModal({ open, onClose, bankAccountId, perio
                                </td>
                                <td className="p-2 text-center text-green-500 dark:text-green-400"><ArrowRight className="w-4 h-4 mx-auto"/></td>
                                <td className="p-2">
-                                  <div className="font-medium">{m.system.transaction_date}</div>
+                                  <div className="font-medium">{formatDateOnly(m.system.transaction_date)}</div>
                                   <div className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[200px]" title={m.system.description}>{m.system.description}</div>
                                </td>
                             </tr>
@@ -308,6 +374,63 @@ export default function AutoReconcileModal({ open, onClose, bankAccountId, perio
                         </tbody>
                       </table>
                    </div>
+                </TabsContent>
+
+                <TabsContent value="errors" className="mt-4">
+                   {(results.errors || []).length > 0 ? (
+                     <div className="border border-red-200 dark:border-red-900 rounded-md overflow-hidden">
+                        <div className="bg-red-600 text-white px-3 py-2 flex items-center justify-between">
+                           <span className="font-semibold flex items-center gap-2">
+                              <AlertTriangle className="w-4 h-4" />
+                              Possible Matches — Amount Mismatch
+                           </span>
+                           <span className="font-semibold text-sm">
+                              Total Discrepancy: {formatCurrency(results.errors.reduce((sum, err) => sum + Math.abs(err.difference || 0), 0))}
+                           </span>
+                        </div>
+                        <table className="w-full text-sm">
+                          <thead className="bg-red-50 dark:bg-red-950/30">
+                            <tr>
+                              <th className="p-2 text-left">Reason</th>
+                              <th className="p-2 text-left">CSV Date/Desc</th>
+                              <th className="p-2 text-right">CSV Amount</th>
+                              <th className="p-2 text-left">System Date/Desc</th>
+                              <th className="p-2 text-right">System Amount</th>
+                              <th className="p-2 text-right">Difference</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {results.errors.map((err, i) => (
+                              <tr key={i} className="border-t border-red-100 dark:border-red-900 hover:bg-red-50/50 dark:hover:bg-red-950/20">
+                                 <td className="p-2">
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300">
+                                       {err.reason}
+                                    </span>
+                                 </td>
+                                 <td className="p-2">
+                                    <div className="font-medium">{formatDateOnly(err.csv.date)}</div>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[200px]" title={err.csv.description}>{err.csv.description}</div>
+                                 </td>
+                                 <td className="p-2 text-right font-medium">
+                                   {err.csv.debit > 0 ? <span className="text-red-600 dark:text-red-400">-${err.csv.debit.toFixed(2)}</span> : <span className="text-green-600 dark:text-green-400">+${err.csv.credit.toFixed(2)}</span>}
+                                 </td>
+                                 <td className="p-2">
+                                    <div className="font-medium">{formatDateOnly(err.system.transaction_date)}</div>
+                                    <div className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[200px]" title={err.system.description}>{err.system.description}</div>
+                                 </td>
+                                 <td className="p-2 text-right font-medium">
+                                   {err.csv.debit > 0 ? <span className="text-red-600 dark:text-red-400">-${(err.system.debit_amount || 0).toFixed(2)}</span> : <span className="text-green-600 dark:text-green-400">+${(err.system.credit_amount || 0).toFixed(2)}</span>}
+                                 </td>
+                                 <td className="p-2 text-right font-semibold text-red-700 dark:text-red-400">{formatCurrency(Math.abs(err.difference || 0))}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                     </div>
+                   ) : (
+                     <p className="text-center text-slate-500 dark:text-slate-400 py-8">No amount discrepancies found.</p>
+                   )}
+                   <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">These look like the same transaction, but the amount doesn't quite match (digit transposition, decimal shift, or a close amount) — review before reconciling manually.</p>
                 </TabsContent>
 
                 <TabsContent value="unmatched-csv" className="mt-4">
@@ -324,7 +447,7 @@ export default function AutoReconcileModal({ open, onClose, bankAccountId, perio
                         <tbody>
                           {results.unmatchedCsv.map((row, i) => (
                             <tr key={i} className="border-t hover:bg-slate-50 dark:hover:bg-slate-800/60">
-                               <td className="p-2">{row.date}</td>
+                               <td className="p-2">{formatDateOnly(row.date)}</td>
                                <td className="p-2 text-slate-600 dark:text-slate-400">{row.description}</td>
                                <td className="p-2 text-right text-red-600 dark:text-red-400">{row.debit > 0 ? formatCurrency(row.debit) : '-'}</td>
                                <td className="p-2 text-right text-green-600 dark:text-green-400">{row.credit > 0 ? formatCurrency(row.credit) : '-'}</td>
@@ -351,7 +474,7 @@ export default function AutoReconcileModal({ open, onClose, bankAccountId, perio
                         <tbody>
                           {results.unmatchedSystem.map((tx, i) => (
                             <tr key={i} className="border-t hover:bg-slate-50 dark:hover:bg-slate-800/60">
-                               <td className="p-2">{tx.transaction_date}</td>
+                               <td className="p-2">{formatDateOnly(tx.transaction_date)}</td>
                                <td className="p-2 text-slate-600 dark:text-slate-400">{tx.description}</td>
                                <td className="p-2 text-right text-red-600 dark:text-red-400">{tx.debit_amount > 0 ? formatCurrency(tx.debit_amount) : '-'}</td>
                                <td className="p-2 text-right text-green-600 dark:text-green-400">{tx.credit_amount > 0 ? formatCurrency(tx.credit_amount) : '-'}</td>

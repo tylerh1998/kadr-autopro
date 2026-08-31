@@ -247,6 +247,13 @@ serve(async (req) => {
             continue;
           }
 
+          if (lineToDelete.pending_cash_flow_entry_id) {
+            const skipMessage = `Skipping deletion of line ${lineId} because it is queued for payment on the cash flow sheet`;
+            console.warn(skipMessage);
+            skippedDeletions.push({ lineId, pending_cash_flow_entry_id: lineToDelete.pending_cash_flow_entry_id, message: skipMessage });
+            continue;
+          }
+
           const { error: deleteError } = await supabase.from('SupplierInvoiceLine').delete().eq('id', lineId);
           if (deleteError) throw deleteError;
 
@@ -319,6 +326,7 @@ serve(async (req) => {
     // 3. Process Modifications
     const updatedLinesForGL: any[] = [];
     const oldValuesForGL: any[] = [];
+    const skippedModifications: any[] = [];
 
     // A line's conceptual invoice only changes when supplier_id/invoice_number changes - not
     // on every edit - so amount-only edits keep the same batch and never touch the resolver.
@@ -351,6 +359,21 @@ serve(async (req) => {
       try {
         const existingLine = existingLinesById[line.id];
         if (!existingLine) continue;
+
+        const existingPaidAmount = parseFloat(existingLine.paid_amount || 0);
+        if (existingPaidAmount !== 0) {
+          const skipMessage = `Skipping update of line ${line.id} because it has paid amount ${existingPaidAmount}`;
+          console.warn(skipMessage);
+          skippedModifications.push({ lineId: line.id, paid_amount: existingPaidAmount, message: skipMessage });
+          continue;
+        }
+
+        if (existingLine.pending_cash_flow_entry_id) {
+          const skipMessage = `Skipping update of line ${line.id} because it is queued for payment on the cash flow sheet`;
+          console.warn(skipMessage);
+          skippedModifications.push({ lineId: line.id, pending_cash_flow_entry_id: existingLine.pending_cash_flow_entry_id, message: skipMessage });
+          continue;
+        }
 
         const currentPurchaseAmount = parseFloat(line.purchase_amount) || 0;
         const currentGstAmount = parseFloat(line.gst_amount) || 0;
@@ -483,12 +506,19 @@ serve(async (req) => {
       }
     }
 
+    const skippedMessages: string[] = [];
+    if (skippedDeletions.length > 0) {
+      skippedMessages.push(`${skippedDeletions.length} line deletion(s) were skipped because they are paid or queued for payment.`);
+    }
+    if (skippedModifications.length > 0) {
+      skippedMessages.push(`${skippedModifications.length} line edit(s) were skipped because they are paid or queued for payment.`);
+    }
+
     return res({
       success: true,
       skippedDeletions,
-      message: skippedDeletions.length > 0
-        ? `${skippedDeletions.length} line deletion(s) were skipped because they have payments applied.`
-        : undefined
+      skippedModifications,
+      message: skippedMessages.length > 0 ? skippedMessages.join(' ') : undefined
     });
   } catch (error: any) {
     console.error('Error in saveSupplierInvoiceTransactions:', error);

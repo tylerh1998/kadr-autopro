@@ -226,6 +226,7 @@ serve(async (req) => {
                 .from('LinesOfCreditTransaction')
                 .update({
                   payment_amount: currentPayment + charge.amount,
+                  pending_cash_flow_entry_id: null,
                   updated_date: new Date().toISOString()
                 })
                 .eq('id', charge.id);

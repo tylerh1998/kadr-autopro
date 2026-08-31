@@ -2,14 +2,22 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
-import { format } from 'date-fns';
+import { format, subDays } from 'date-fns';
 import { History, RefreshCw, Undo2, Ban, Printer, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { checkBankAccountLock } from '../utils/mountainTimeUtils';
 import DepositDetailsModal from './DepositDetailsModal';
+import HistoryFilters from '@/components/history/HistoryFilters';
 
 const ITEMS_PER_PAGE = 5;
+const DEFAULT_DEPOSIT_FILTERS = { daysBack: '', fromDate: '', toDate: '', search: '' };
+
+const computeFromDate = (filters) => {
+  if (filters.fromDate) return filters.fromDate;
+  if (filters.daysBack) return format(subDays(new Date(), Number(filters.daysBack)), 'yyyy-MM-dd');
+  return '1900-01-01';
+};
 
 export default function DepositHistoryModal({ open, onClose, onDepositReversed, onReprintSlip }) {
   const [deposits, setDeposits] = useState([]);
@@ -17,15 +25,18 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedDeposit, setSelectedDeposit] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [filters, setFilters] = useState({ ...DEFAULT_DEPOSIT_FILTERS });
 
-  const loadDeposits = useCallback(async () => {
+  const loadDeposits = useCallback(async (activeFilters) => {
     setLoading(true);
     try {
       const [bankTransactionsResult, fiscalPeriodsResult] = await Promise.all([
         supabase.functions.invoke('autopro-getBankTransactions', {
           body: {
             sourceType: 'deposit',
-            fromDate: '1900-01-01',
+            fromDate: computeFromDate(activeFilters),
+            toDate: activeFilters.toDate || undefined,
+            searchText: activeFilters.search?.trim() || undefined,
             sortField: 'transaction_date',
             sortDirection: 'desc'
           }
@@ -90,10 +101,10 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
 
   useEffect(() => {
     if (open) {
-      loadDeposits();
+      loadDeposits(filters);
       setCurrentPage(1);
     }
-  }, [open, loadDeposits]);
+  }, [open, filters, loadDeposits]);
 
   const handleReverseDeposit = useCallback(async (depositId, bankAccountId) => {
     // Check if bank account is locked before confirming
@@ -132,7 +143,7 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
       if (data.success) {
         alert('Deposit reversed successfully!');
         onDepositReversed();
-        loadDeposits();
+        loadDeposits(filters);
       } else {
         alert(`Failed to reverse deposit: ${data.error || 'Unknown error'}`);
       }
@@ -142,7 +153,7 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
     } finally {
       setLoading(false);
     }
-  }, [loadDeposits, onDepositReversed]);
+  }, [loadDeposits, onDepositReversed, filters]);
 
   // Pagination calculations
   const totalPages = Math.ceil(deposits.length / ITEMS_PER_PAGE);
@@ -158,6 +169,12 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
             Deposit History
           </DialogTitle>
         </DialogHeader>
+        <HistoryFilters
+          filters={filters}
+          onApply={setFilters}
+          title="Search & Filter Deposits"
+          description="Filter by days, date range, or description/reference search."
+        />
         <Card className="shadow-none border-none">
           <CardContent className="p-0">
             {loading ? (
@@ -280,7 +297,7 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
         </Card>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Close</Button>
-          <Button onClick={loadDeposits} disabled={loading}>
+          <Button onClick={() => loadDeposits(filters)} disabled={loading}>
             <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
@@ -297,7 +314,7 @@ export default function DepositHistoryModal({ open, onClose, onDepositReversed, 
         onReverseSuccess={() => {
           setShowDetailsModal(false);
           setSelectedDeposit(null);
-          loadDeposits();
+          loadDeposits(filters);
           if (onDepositReversed) onDepositReversed();
         }}
       />

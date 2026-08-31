@@ -40,6 +40,8 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
   const [lockMessage, setLockMessage] = useState('');
   const [lockAcquired, setLockAcquired] = useState(false);
   const [showAddToSheetModal, setShowAddToSheetModal] = useState(false);
+  const [pendingCashFlowEntries, setPendingCashFlowEntries] = useState([]);
+  const [activeCashFlowEntryId, setActiveCashFlowEntryId] = useState(null);
   const fileInputRef = React.useRef(null);
 
   const handleFileUpload = (event) => {
@@ -317,7 +319,32 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
             .sort((a, b) => new Date(a.transaction_date) - new Date(b.transaction_date));
 
           setOutstandingCharges(charges);
-          
+
+          // Batches already queued on the cash flow sheet ("Pay from Cash Flow Sheet" dropdown):
+          // default to the oldest one active so re-opening this modal for a routine payment
+          // never starts from a blank slate, while still letting the user switch batches.
+          const pendingEntryIds = [...new Set(charges.map(c => c.pending_cash_flow_entry_id).filter(Boolean))];
+          let pendingEntries = [];
+          if (pendingEntryIds.length > 0) {
+            const { data: cfeData } = await supabase.from('CashFlowEntry').select('*').in('id', pendingEntryIds);
+            pendingEntries = (cfeData || []).sort((a, b) => {
+              const aKey = a.due_date || a.created_date || '';
+              const bKey = b.due_date || b.created_date || '';
+              return aKey.localeCompare(bKey);
+            });
+          }
+          setPendingCashFlowEntries(pendingEntries);
+
+          if (pendingEntries.length > 0) {
+            const firstEntryId = pendingEntries[0].id;
+            setActiveCashFlowEntryId(firstEntryId);
+            const preselected = {};
+            charges.forEach(c => { if (c.pending_cash_flow_entry_id === firstEntryId) preselected[c.id] = true; });
+            setSelectedCharges(preselected);
+          } else {
+            setActiveCashFlowEntryId(null);
+          }
+
         } catch (error) {
           console.error('Error loading payment modal data:', error);
         }
@@ -356,6 +383,13 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
     onClose();
   };
 
+  const handleAddedToCashFlow = () => {
+    // The ledger's "Pending Payment" badge and lock come from data this modal already
+    // has loaded - the parent must refetch so it reflects the rows just locked, not just close.
+    if (onPaymentMade) onPaymentMade();
+    handleClose();
+  };
+
   const totalSelectedAmount = useMemo(() => {
     return outstandingCharges
       .filter(charge => selectedCharges[charge.id])
@@ -374,6 +408,11 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
   }, [selectedCharges, outstandingCharges]);
 
   const handleSelectCharge = (chargeId, checked) => {
+    const charge = outstandingCharges.find(c => c.id === chargeId);
+    // Locked to a different pending cash-flow entry - not selectable from here; the user
+    // switches the "Pay from Cash Flow Sheet" dropdown to work with that batch instead.
+    if (charge?.pending_cash_flow_entry_id && charge.pending_cash_flow_entry_id !== activeCashFlowEntryId) return;
+
     setSelectedCharges(prev => {
       const newSelection = { ...prev };
       if (checked) {
@@ -382,6 +421,20 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
         delete newSelection[chargeId];
       }
       return newSelection;
+    });
+  };
+
+  const handleSelectCashFlowEntry = (entryId) => {
+    setActiveCashFlowEntryId(entryId);
+    setSelectedCharges(prev => {
+      const next = { ...prev };
+      outstandingCharges.forEach(c => {
+        if (c.pending_cash_flow_entry_id) delete next[c.id];
+      });
+      outstandingCharges.forEach(c => {
+        if (c.pending_cash_flow_entry_id === entryId) next[c.id] = true;
+      });
+      return next;
     });
   };
 
@@ -515,12 +568,31 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="w-[calc(100vw-2rem)] max-w-2xl max-h-[90vh] overflow-hidden">
-        <DialogHeader>
-          <DialogTitle>Make Payment - {lineOfCredit?.name}</DialogTitle>
-          <DialogDescription>
-            Current Balance: ${(lineOfCredit?.current_balance || 0).toFixed(2)} | 
-            Available Credit: ${(lineOfCredit?.available_credit || 0).toFixed(2)}
-          </DialogDescription>
+        <DialogHeader className="flex flex-row items-start justify-between space-y-0">
+          <div>
+            <DialogTitle>Make Payment - {lineOfCredit?.name}</DialogTitle>
+            <DialogDescription>
+              Current Balance: ${(lineOfCredit?.current_balance || 0).toFixed(2)} |
+              Available Credit: ${(lineOfCredit?.available_credit || 0).toFixed(2)}
+            </DialogDescription>
+          </div>
+          {activeTab === 'pay_charges' && pendingCashFlowEntries.length > 0 && (
+            <div className="flex items-center gap-2 shrink-0">
+              <Label className="whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">Pay from Cash Flow Sheet</Label>
+              <Select value={activeCashFlowEntryId || ''} onValueChange={handleSelectCashFlowEntry}>
+                <SelectTrigger className="w-[220px] h-8 text-xs">
+                  <SelectValue placeholder="Select batch..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {pendingCashFlowEntries.map(entry => (
+                    <SelectItem key={entry.id} value={entry.id}>
+                      {(entry.comment || 'Reconciliation')} — ${(entry.amount || 0).toFixed(2)}{entry.due_date ? ` (due ${entry.due_date})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </DialogHeader>
 
         {isLocked ? (
@@ -550,20 +622,30 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
                   <TableBody>
                     {outstandingCharges.length > 0 ? outstandingCharges.map((charge, index) => {
                       const isSelected = !!selectedCharges[charge.id];
+                      const isLockedElsewhere = !!charge.pending_cash_flow_entry_id && charge.pending_cash_flow_entry_id !== activeCashFlowEntryId;
+                      const lockedEntry = isLockedElsewhere ? pendingCashFlowEntries.find(e => e.id === charge.pending_cash_flow_entry_id) : null;
                       return (
-                        <TableRow 
+                        <TableRow
                           key={charge.id}
-                          className={`cursor-pointer ${isSelected ? 'bg-blue-50 dark:bg-blue-900/30' : (index % 2 === 1 ? 'bg-slate-50 dark:bg-slate-800/50' : '')} hover:bg-blue-100 dark:hover:bg-blue-900/40`}
+                          className={`${isLockedElsewhere ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${isSelected ? 'bg-blue-50 dark:bg-blue-900/30' : (index % 2 === 1 ? 'bg-slate-50 dark:bg-slate-800/50' : '')} ${isLockedElsewhere ? '' : 'hover:bg-blue-100 dark:hover:bg-blue-900/40'}`}
                           onClick={() => handleSelectCharge(charge.id, !isSelected)}
                         >
                           <TableCell onClick={(e) => e.stopPropagation()}>
                             <Checkbox
                               checked={isSelected}
+                              disabled={isLockedElsewhere}
                               onCheckedChange={(checked) => handleSelectCharge(charge.id, checked)}
                             />
                           </TableCell>
                           <TableCell>{format(parseISO(charge.transaction_date), 'MMM d, yyyy')}</TableCell>
-                          <TableCell>{charge.description}</TableCell>
+                          <TableCell>
+                            {charge.description}
+                            {isLockedElsewhere && (
+                              <span className="ml-2 text-xs text-amber-600 dark:text-amber-400" title="Already queued on another cash flow sheet batch">
+                                🔒 {lockedEntry?.comment || 'on another batch'}
+                              </span>
+                            )}
+                          </TableCell>
                           <TableCell>{differenceInDays(new Date(), parseISO(charge.transaction_date))} days</TableCell>
                           <TableCell className={`text-right ${charge.credit_amount > 0 ? 'text-green-600 dark:text-green-400' : ''}`}>
                             {charge.credit_amount > 0 ? '-' : ''}${((charge.charge_amount || charge.credit_amount) - Math.abs(charge.payment_amount || 0)).toFixed(2)}
@@ -796,9 +878,12 @@ export default function LineOfCreditPaymentModal({ open, onClose, lineOfCredit, 
           supplierName: lineOfCredit?.name,
           locId: lineOfCredit?.id,
           amount: activeTab === 'pay_charges' ? totalSelectedAmount : (parseFloat(amount) || 0),
-          dueDate: format(endOfMonth(new Date()), 'yyyy-MM-dd')
+          dueDate: format(endOfMonth(new Date()), 'yyyy-MM-dd'),
+          locTransactionIds: activeTab === 'pay_charges'
+            ? outstandingCharges.filter(c => selectedCharges[c.id] && !c.pending_cash_flow_entry_id).map(c => c.id)
+            : []
         }}
-        onSuccess={handleClose}
+        onSuccess={handleAddedToCashFlow}
       />
     </Dialog>
   );

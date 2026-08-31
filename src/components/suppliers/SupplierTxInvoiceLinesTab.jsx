@@ -148,7 +148,7 @@ export default function SupplierTxInvoiceLinesTab({
                               <TooltipTrigger asChild>
                                 <div className="inline-flex items-center justify-center w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-md"><Lock className="w-4 h-4 text-orange-600 dark:text-orange-400" /></div>
                               </TooltipTrigger>
-                              <TooltipContent><span>This line is locked because it has a payment applied or is an inventory line.</span></TooltipContent>
+                              <TooltipContent><span>This line is locked because it has a payment applied, is queued for payment on the cash flow sheet, or is an inventory line.</span></TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
                         ) : (

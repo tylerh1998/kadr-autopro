@@ -9,8 +9,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, Save, Droplet, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/lib/AuthContext';
 
 export default function NewWorkPROModal({ open, onClose, customers, vehicles, onProjectCreated, initialData, lockedFields = [] }) {
+  const { user, employee: currentEmployee } = useAuth();
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -121,8 +123,13 @@ export default function NewWorkPROModal({ open, onClose, customers, vehicles, on
 
     setSaving(true);
     try {
+      const now = new Date().toISOString();
       const projectData = {
         id: crypto.randomUUID().replace(/-/g, '').substring(0, 24),
+        created_date: now,
+        updated_date: now,
+        created_by_id: user?.id || null,
+        created_by: currentEmployee?.email || user?.email || null,
         name: `${formData.customer}${formData.task ? ' - ' + formData.task : ''}`,
         customer: formData.customer,
         vehicle: formData.vehicle,

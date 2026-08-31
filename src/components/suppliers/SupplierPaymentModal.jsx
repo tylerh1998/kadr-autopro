@@ -19,6 +19,7 @@ import { createPageUrl } from '@/utils';
 import { checkBankAccountLock, checkEntityLock } from '../utils/mountainTimeUtils';
 import { checkFiscalPeriodStatus } from '../utils/fiscalPeriodUtils';
 import { releaseSupplierLockKeepAlive } from '../utils/supplierLockUtils';
+import { buildAppliedDetailsFromConceptualInvoice } from '@/lib/supplierInvoiceHelpers';
 import AddToSheetModal from './AddToSheetModal';
 
 // Helper function to safely parse date for calendar component
@@ -126,49 +127,6 @@ const parseAndValidateDateInput = (inputDate) => {
     }
 };
 
-const buildAppliedDetailsFromConceptualInvoice = (invoice) => {
-  const invoiceBalance = Math.round((parseFloat(invoice?.balance_due) || 0) * 100) / 100;
-  const lineDetails = Array.isArray(invoice?.lines)
-    ? invoice.lines
-        .map((line) => {
-          const charge = parseFloat(line?.line_total) || ((parseFloat(line?.charge ?? line?.purchase_amount) || 0) + (parseFloat(line?.gst ?? line?.gst_amount) || 0));
-          const paid = parseFloat(line?.paid_amount) || 0;
-          const amountApplied = Math.round((charge - paid) * 100) / 100;
-
-          if (Math.abs(amountApplied) <= 0.005) return null;
-
-          return {
-            id: line?.id || undefined,
-            invoice_number: line?.invoice_number || invoice?.invoice_number,
-            invoice_date: line?.invoice_date || invoice?.invoice_date,
-            amount_applied: amountApplied
-          };
-        })
-        .filter(Boolean)
-    : [];
-
-  if (lineDetails.length === 0) {
-    return [{
-      invoice_number: invoice?.invoice_number,
-      invoice_date: invoice?.invoice_date,
-      amount_applied: invoiceBalance
-    }];
-  }
-
-  const detailTotal = Math.round(lineDetails.reduce((sum, line) => sum + line.amount_applied, 0) * 100) / 100;
-  const roundingDifference = Math.round((invoiceBalance - detailTotal) * 100) / 100;
-
-  if (Math.abs(roundingDifference) > 0.005) {
-    const lastIndex = lineDetails.length - 1;
-    lineDetails[lastIndex] = {
-      ...lineDetails[lastIndex],
-      amount_applied: Math.round((lineDetails[lastIndex].amount_applied + roundingDifference) * 100) / 100
-    };
-  }
-
-  return lineDetails;
-};
-
 export default function SupplierPaymentModal({ open, onClose, supplier, invoiceLines, onPaymentComplete }) {
   const { employee } = useAuth();
   const [loading, setLoading] = useState(false);
@@ -191,6 +149,12 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
   const [dateRange, setDateRange] = useState({ from: undefined, to: undefined });
   const [cashFlowEntry, setCashFlowEntry] = useState(null);
   const [cashFlowLoading, setCashFlowLoading] = useState(false);
+  const [supplierLinePendingLocks, setSupplierLinePendingLocks] = useState({});
+  const [pendingCashFlowEntries, setPendingCashFlowEntries] = useState([]);
+  const [activeCashFlowEntryId, setActiveCashFlowEntryId] = useState(null);
+
+  const getInvoiceLockedEntryId = (invoice) =>
+    (invoice?.lines || []).map(l => supplierLinePendingLocks[l.id]).find(Boolean) || null;
 
   useEffect(() => {
     setCurrentUser(employee);
@@ -311,8 +275,50 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
         });
 
         setOutstandingInvoices(outstanding);
+
+        // Batches already queued on the cash flow sheet ("Pay from Cash Flow Sheet" dropdown):
+        // default to the oldest one active so re-opening this modal for a routine payment never
+        // starts from a blank slate, while still letting the user switch batches. Lock status
+        // isn't in the conceptual-invoice data this modal is handed, so it's fetched separately
+        // here rather than requiring every caller's aggregation query to expose it.
+        const lineIds = outstanding.flatMap(inv => (inv.lines || []).map(l => l.id).filter(Boolean));
+        let lockMap = {};
+        if (lineIds.length > 0) {
+          const { data: lockRows } = await supabase.from('SupplierInvoiceLine').select('id, pending_cash_flow_entry_id').in('id', lineIds);
+          (lockRows || []).forEach(row => {
+            if (row.pending_cash_flow_entry_id) lockMap[row.id] = row.pending_cash_flow_entry_id;
+          });
+        }
+        setSupplierLinePendingLocks(lockMap);
+
+        const pendingEntryIds = [...new Set(Object.values(lockMap))];
+        let pendingEntries = [];
+        if (pendingEntryIds.length > 0) {
+          const { data: cfeData } = await supabase.from('CashFlowEntry').select('*').in('id', pendingEntryIds);
+          pendingEntries = (cfeData || []).sort((a, b) => {
+            const aKey = a.due_date || a.created_date || '';
+            const bKey = b.due_date || b.created_date || '';
+            return aKey.localeCompare(bKey);
+          });
+        }
+        setPendingCashFlowEntries(pendingEntries);
+
+        if (pendingEntries.length > 0) {
+          const firstEntryId = pendingEntries[0].id;
+          setActiveCashFlowEntryId(firstEntryId);
+          const preselected = {};
+          outstanding.forEach(inv => {
+            if ((inv.lines || []).some(l => lockMap[l.id] === firstEntryId)) preselected[inv.uniqueKey] = true;
+          });
+          setSelectedInvoices(preselected);
+        } else {
+          setActiveCashFlowEntryId(null);
+        }
       } else {
         setOutstandingInvoices([]);
+        setSupplierLinePendingLocks({});
+        setPendingCashFlowEntries([]);
+        setActiveCashFlowEntryId(null);
       }
     } catch (error) {
       console.error('Error loading payment data:', error);
@@ -346,9 +352,32 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
     setCalculating(false);
     setCashFlowEntry(null);
     setCashFlowLoading(false);
+    setSupplierLinePendingLocks({});
+    setPendingCashFlowEntries([]);
+    setActiveCashFlowEntryId(null);
+  };
+
+  const handleSelectCashFlowEntry = (entryId) => {
+    setActiveCashFlowEntryId(entryId);
+    setSelectedInvoices(prev => {
+      const next = { ...prev };
+      outstandingInvoices.forEach(inv => {
+        if (getInvoiceLockedEntryId(inv)) delete next[inv.uniqueKey];
+      });
+      outstandingInvoices.forEach(inv => {
+        if (getInvoiceLockedEntryId(inv) === entryId) next[inv.uniqueKey] = true;
+      });
+      return next;
+    });
   };
 
   const handleInvoiceSelection = (invoiceKey, checked) => {
+    const invoice = outstandingInvoices.find(inv => inv.uniqueKey === invoiceKey);
+    const lockedEntryId = getInvoiceLockedEntryId(invoice);
+    // Locked to a different pending cash-flow entry - not selectable from here; the user
+    // switches the "Pay from Cash Flow Sheet" dropdown to work with that batch instead.
+    if (lockedEntryId && lockedEntryId !== activeCashFlowEntryId) return;
+
     setSelectedInvoices(prev => ({
       ...prev,
       [invoiceKey]: checked
@@ -752,14 +781,31 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                 </PopoverContent>
               </Popover>
               {dateRange?.from && (
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={() => setDateRange({ from: undefined, to: undefined })}
                   title="Clear date filter"
                 >
                   <X className="h-4 w-4" />
                 </Button>
+              )}
+              {activeTab === 'pay_invoices' && pendingCashFlowEntries.length > 0 && (
+                <div className="flex items-center gap-2 shrink-0">
+                  <Label className="whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">Pay from Cash Flow Sheet</Label>
+                  <Select value={activeCashFlowEntryId || ''} onValueChange={handleSelectCashFlowEntry}>
+                    <SelectTrigger className="w-[220px] h-8 text-xs">
+                      <SelectValue placeholder="Select batch..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {pendingCashFlowEntries.map(entry => (
+                        <SelectItem key={entry.id} value={entry.id}>
+                          {(entry.comment || 'Reconciliation')} — ${(entry.amount || 0).toFixed(2)}{entry.due_date ? ` (due ${entry.due_date})` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               )}
             </div>
           </DialogHeader>
@@ -801,20 +847,31 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
                           const age = differenceInDays(new Date(), parseISO(invoice.invoice_date));
                           const isSelected = selectedInvoices[invoice.uniqueKey];
                           const isCredit = invoice.balance_due < 0;
-                          
+                          const lockedEntryId = getInvoiceLockedEntryId(invoice);
+                          const isLockedElsewhere = !!lockedEntryId && lockedEntryId !== activeCashFlowEntryId;
+                          const lockedEntry = isLockedElsewhere ? pendingCashFlowEntries.find(e => e.id === lockedEntryId) : null;
+
                           return (
-                            <TableRow 
+                            <TableRow
                               key={invoice.uniqueKey}
-                              className={`cursor-pointer ${isSelected ? 'bg-blue-50 dark:bg-blue-900/30' : (isCredit ? 'bg-green-50 dark:bg-green-900/20' : '')} hover:bg-blue-100 dark:hover:bg-blue-900/40`}
+                              className={`${isLockedElsewhere ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} ${isSelected ? 'bg-blue-50 dark:bg-blue-900/30' : (isCredit ? 'bg-green-50 dark:bg-green-900/20' : '')} ${isLockedElsewhere ? '' : 'hover:bg-blue-100 dark:hover:bg-blue-900/40'}`}
                               onClick={() => handleInvoiceSelection(invoice.uniqueKey, !isSelected)}
                             >
                               <TableCell onClick={(e) => e.stopPropagation()}>
                                 <Checkbox
                                   checked={isSelected || false}
+                                  disabled={isLockedElsewhere}
                                   onCheckedChange={(checked) => handleInvoiceSelection(invoice.uniqueKey, checked)}
                                 />
                               </TableCell>
-                              <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
+                              <TableCell className="font-medium">
+                                {invoice.invoice_number}
+                                {isLockedElsewhere && (
+                                  <span className="ml-2 text-xs text-amber-600 dark:text-amber-400" title="Already queued on another cash flow sheet batch">
+                                    🔒 {lockedEntry?.comment || 'on another batch'}
+                                  </span>
+                                )}
+                              </TableCell>
                               <TableCell className="text-right font-semibold">
                                 {invoice.balance_due.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}
                               </TableCell>
@@ -1195,9 +1252,18 @@ export default function SupplierPaymentModal({ open, onClose, supplier, invoiceL
             supplierName: supplier?.name,
             supplierId: supplier?.id,
             amount: (Math.round(totalSelectedAmount * 100) / 100).toFixed(2),
-            dueDate: format(endOfMonth(new Date()), 'yyyy-MM-dd')
+            dueDate: format(endOfMonth(new Date()), 'yyyy-MM-dd'),
+            supplierInvoiceLineIds: outstandingInvoices
+              .filter(inv => selectedInvoices[inv.uniqueKey] && !getInvoiceLockedEntryId(inv))
+              .flatMap(inv => buildAppliedDetailsFromConceptualInvoice(inv).map(d => d.id))
+              .filter(Boolean)
         }}
-        onSuccess={onClose}
+        onSuccess={() => {
+          // The invoice list's lock state (isLineLocked) comes from data this modal already
+          // has loaded - the parent must refetch so it reflects the rows just locked, not just close.
+          if (onPaymentComplete) onPaymentComplete();
+          onClose();
+        }}
       />
     </>
   );

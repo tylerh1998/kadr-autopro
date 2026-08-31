@@ -62,6 +62,7 @@ begin
       update public."SupplierInvoiceLine"
       set
         paid_amount = round(coalesce(paid_amount, 0) + v_remaining_for_invoice, 2),
+        pending_cash_flow_entry_id = null,
         updated_date = v_updated_at
       where id = v_target_line.id;
 
@@ -112,6 +113,7 @@ begin
           )::numeric,
           2
         ),
+        pending_cash_flow_entry_id = null,
         updated_date = v_updated_at
       where id = v_target_line.id;
 

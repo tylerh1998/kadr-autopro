@@ -196,6 +196,15 @@ export default function LineOfCreditTransactionModal({ open, onClose, lineOfCred
   };
 
   const handleDelete = async () => {
+    if ((transaction?.payment_amount || 0) !== 0) {
+      alert('This transaction already has a payment applied and cannot be deleted.');
+      return;
+    }
+    if (transaction?.pending_cash_flow_entry_id) {
+      alert('This transaction is queued for payment on the cash flow sheet and cannot be deleted. Remove it from the cash flow sheet first.');
+      return;
+    }
+
     if (!confirm('Are you sure you want to delete this transaction? This will reverse the GL entries and update the account balance.')) {
       return;
     }

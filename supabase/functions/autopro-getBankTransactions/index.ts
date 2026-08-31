@@ -51,14 +51,24 @@ const matchesReconciledFilter = (tx, isReconciledProvided, isReconciled) => {
   return tx.reconciled === false || tx.reconciled === null || tx.reconciled === undefined;
 };
 
+const formatAmountForSearch = (value) => {
+  const num = Number(value);
+  return Number.isFinite(num) ? num.toFixed(2) : '';
+};
+
 const matchesSearch = (tx, searchText) => {
   if (!searchText) return true;
 
-  const needle = searchText.toLowerCase();
+  const needle = searchText.toLowerCase().trim().replace(/^\$/, '');
   const description = (tx.description || '').toLowerCase();
   const reference = (tx.reference || '').toLowerCase();
+  const creditAmount = formatAmountForSearch(tx.credit_amount);
+  const debitAmount = formatAmountForSearch(tx.debit_amount);
 
-  return description.includes(needle) || reference.includes(needle);
+  return description.includes(needle)
+    || reference.includes(needle)
+    || creditAmount.includes(needle)
+    || debitAmount.includes(needle);
 };
 
 const isReversedTransaction = (value) => value === true || value === 'true';
