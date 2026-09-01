@@ -50,7 +50,9 @@ import {
   User as UserIcon,
   AlertCircle,
   Ticket,
-  MoreHorizontal
+  MoreHorizontal,
+  Bell,
+  BellOff
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -153,6 +155,12 @@ function LayoutContent({ children, currentPageName }) {
     setDarkMode(newDarkMode);
     const { error } = await updateEmployeePrefs({ dark_mode: newDarkMode });
     if (error) console.error("Failed to save dark mode preference", error);
+  };
+
+  const handleToggleProjectNotifications = async () => {
+    const newStatus = !employee?.notify_for_projects;
+    const { error } = await updateEmployeePrefs({ notify_for_projects: newStatus });
+    if (error) console.error("Failed to save project notifications preference", error);
   };
 
   useEffect(() => {
@@ -950,12 +958,6 @@ function LayoutContent({ children, currentPageName }) {
                     </a>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <a href="https://paypro.kensauto.ca" target="_blank" rel="noopener noreferrer" className="cursor-pointer">
-                      <DollarSign className="mr-2 h-4 w-4" />
-                      <span>KADR PayPRO</span>
-                    </a>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
                     <a href="https://registry-pos-tracker-b5793593.base44.app/" target="_blank" rel="noopener noreferrer" className="cursor-pointer">
                       <FileText className="mr-2 h-4 w-4" />
                       <span>Registries POS</span>
@@ -965,6 +967,10 @@ function LayoutContent({ children, currentPageName }) {
                   <DropdownMenuItem onClick={handleToggleDarkMode} className="cursor-pointer">
                     {darkMode ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
                     <span>{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleToggleProjectNotifications} className="cursor-pointer">
+                    {employee?.notify_for_projects ? <Bell className="mr-2 h-4 w-4" /> : <BellOff className="mr-2 h-4 w-4" />}
+                    <span>{employee?.notify_for_projects ? 'Project Notifications: On' : 'Project Notifications: Off'}</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => setShowReportIssueModal(true)} className="cursor-pointer">
                     <AlertCircle className="mr-2 h-4 w-4" />
