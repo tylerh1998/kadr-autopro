@@ -936,7 +936,8 @@ function LayoutContent({ children, currentPageName }) {
                           {employee?.admin === true ? "Program Administrator" :
                             employee?.autopro_access_lvl === 'lvl3_user' ? "Executive Access" :
                               employee?.autopro_access_lvl === 'lvl2_user' ? "Supervisor Access" :
-                                "Standard Access"}
+                                employee?.autopro_access_lvl === 'no_access' ? "Access Disabled" :
+                                  "Standard Access"}
                         </span>
                         <span className="text-[11px] font-medium text-[#1fa291] leading-none mt-0.5">
                           Manage Account &rarr;

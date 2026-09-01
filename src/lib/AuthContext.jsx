@@ -108,6 +108,9 @@ export const AuthProvider = ({ children }) => {
     return { data, error };
   };
 
+  const hasNoAccess = isAuthenticated && (!employee || employee?.autopro_access_lvl === 'no_access');
+  const autoproAccessLvl = employee?.autopro_access_lvl || 'no_access';
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -115,6 +118,8 @@ export const AuthProvider = ({ children }) => {
       employee,
       isAuthenticated,
       needsEnrollment,
+      hasNoAccess,
+      autoproAccessLvl,
       isLoadingAuth,
       logout,
       navigateToLogin,

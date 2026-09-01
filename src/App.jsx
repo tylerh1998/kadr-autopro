@@ -12,6 +12,8 @@ import DevLogin from './lib/DevLogin';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import LankarWOView from './pages/LankarWOView';
 
+import AccessDeniedLock from './lib/AccessDeniedLock';
+
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
 const MainPage = mainPageKey ? Pages[mainPageKey] : <></>;
@@ -33,13 +35,6 @@ const RedirectToSSO = () => {
   );
 };
 
-// A valid session with zero MFA factors enrolled - can't be redirected
-// straight through login (it's already authenticated, so /login could just
-// bounce it right back here, looping), and can't be shown the app shell
-// either (every gated table returns 0 rows silently). Point it at myKADR to
-// enroll a factor, via a manual click rather than an auto-redirect - there is
-// no confirmed dedicated enrollment route (myKADR is a separate app/repo not
-// available to verify here), so this deliberately does not guess one.
 const RedirectToEnrollment = () => (
   <div className="fixed inset-0 flex flex-col items-center justify-center gap-4 text-center px-6">
     <p className="text-sm text-slate-600 max-w-sm">
@@ -56,7 +51,7 @@ const RedirectToEnrollment = () => (
 );
 
 const AuthenticatedApp = () => {
-  const { isLoadingAuth, isAuthenticated, needsEnrollment } = useAuth();
+  const { isLoadingAuth, isAuthenticated, needsEnrollment, hasNoAccess } = useAuth();
 
   // Show loading spinner while checking auth
   if (isLoadingAuth) {
@@ -65,6 +60,11 @@ const AuthenticatedApp = () => {
         <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
       </div>
     );
+  }
+
+  // UI Lock: If authenticated user has no_access (or no matching Employee record), block the entire app
+  if (isAuthenticated && hasNoAccess) {
+    return <AccessDeniedLock />;
   }
 
   const GateFallback = needsEnrollment ? RedirectToEnrollment : RedirectToSSO;
