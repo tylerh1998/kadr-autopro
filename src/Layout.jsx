@@ -248,20 +248,29 @@ function LayoutContent({ children, currentPageName }) {
 
   // Listen to project notifications for AutoPRO badge
   useEffect(() => {
+    console.log("AutoPRO Badge: Checking notify_for_projects:", workProEmployee?.notify_for_projects);
     if (!workProEmployee?.notify_for_projects) return;
 
+    console.log("AutoPRO Badge: Subscribing to project updates...");
     const channel = supabase.channel('autopro-project-done')
       .on('postgres_changes', 
         { event: 'UPDATE', schema: 'public', table: 'Project' }, 
         (payload) => {
+          console.log("AutoPRO Badge: Received UPDATE payload:", payload);
           if (payload.new.status === 'done' && payload.old.status !== 'done') {
+            console.log("AutoPRO Badge: Project marked as done, adding to state!");
             setProjectNotifications((prev) => [...prev, payload.new]);
+          } else {
+            console.log("AutoPRO Badge: Project UPDATE ignored (conditions not met)");
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("AutoPRO Badge: Subscription status:", status);
+      });
 
     return () => {
+      console.log("AutoPRO Badge: Unsubscribing");
       supabase.removeChannel(channel);
     };
   }, [workProEmployee?.notify_for_projects]);
