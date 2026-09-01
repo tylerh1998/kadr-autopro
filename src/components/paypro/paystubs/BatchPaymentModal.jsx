@@ -93,7 +93,8 @@ export default function BatchPaymentModal({ stubs, onComplete, onCancel }) {
             (ed.deduction_name || '').trim().toLowerCase() === (d.name || '').trim().toLowerCase()
           )
         : null;
-      return { ...d, gl_account: record?.gl_account || null };
+      const isAdvanceRepayment = (d.name || '').trim().toLowerCase() === 'advance repayment';
+      return { ...d, gl_account: record?.gl_account || (isAdvanceRepayment ? '1200' : null) };
     });
   };
 
@@ -173,6 +174,11 @@ export default function BatchPaymentModal({ stubs, onComplete, onCancel }) {
         const employerEi = (stub.ei_deduction || 0) * multiplier;
         const additionalDeductionsTotal = (stubDeductions[stub.id] || []).reduce((s, d) => s + (d.amount || 0), 0);
 
+        const advanceIssuedItem = (stub.income_breakdown || []).find(item => item.type === 'Advance Issued' || item.is_non_taxable);
+        const advanceIssued = advanceIssuedItem
+          ? (advanceIssuedItem.amount || 0)
+          : Math.max(0, Math.round(((stub.net_pay || 0) + (stub.total_deductions || 0) - (stub.gross_pay || 0)) * 100) / 100);
+
         totalCredits +=
           (stub.net_pay || 0) +
           (stub.federal_tax || 0) + (stub.provincial_tax || 0) +
@@ -182,7 +188,7 @@ export default function BatchPaymentModal({ stubs, onComplete, onCancel }) {
           employerCppMatch +
           employerEi;
 
-        totalDebits += (stub.gross_pay || 0) + employerCppMatch + employerEi;
+        totalDebits += (stub.gross_pay || 0) + advanceIssued + employerCppMatch + employerEi;
       }
 
       if (Math.abs(totalDebits - totalCredits) > 0.02) {
@@ -249,16 +255,37 @@ export default function BatchPaymentModal({ stubs, onComplete, onCancel }) {
         // Debit Payroll Expense Account - 5009 Bus Driver Wages, 5008 Regular Wages (O-6)
         const expenseAccount = isBusDriver ? '5009' : '5008';
         const expenseLabel = isBusDriver ? 'Bus Driver Wages' : 'Wages & Salaries';
-        glRowsToInsert.push({
-          account_number: expenseAccount,
-          transaction_date: payDate,
-          description: `${expenseLabel} ${stub.paycheque_number || ''}`,
-          reference,
-          debit_amount: stub.gross_pay || 0,
-          credit_amount: 0,
-          source_type: 'payment',
-          source_id: stub.id,
-        });
+        if ((stub.gross_pay || 0) > 0) {
+          glRowsToInsert.push({
+            account_number: expenseAccount,
+            transaction_date: payDate,
+            description: `${expenseLabel} ${stub.paycheque_number || ''}`,
+            reference,
+            debit_amount: stub.gross_pay || 0,
+            credit_amount: 0,
+            source_type: 'payment',
+            source_id: stub.id,
+          });
+        }
+
+        // Debit Employee Advances Asset Account (1200) for advance issued
+        const advanceIssuedItem = (stub.income_breakdown || []).find(item => item.type === 'Advance Issued' || item.is_non_taxable);
+        const advanceIssued = advanceIssuedItem
+          ? (advanceIssuedItem.amount || 0)
+          : Math.max(0, Math.round(((stub.net_pay || 0) + (stub.total_deductions || 0) - (stub.gross_pay || 0)) * 100) / 100);
+
+        if (advanceIssued > 0) {
+          glRowsToInsert.push({
+            account_number: '1200',
+            transaction_date: payDate,
+            description: `Employee advance issued ${stub.paycheque_number || ''}`,
+            reference,
+            debit_amount: advanceIssued,
+            credit_amount: 0,
+            source_type: 'payment',
+            source_id: stub.id,
+          });
+        }
 
         const incomeTax = (stub.federal_tax || 0) + (stub.provincial_tax || 0);
         if (incomeTax > 0) {
