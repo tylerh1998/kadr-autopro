@@ -76,6 +76,7 @@ import { createworkorderdata } from '@/api/workOrderFunctions';
 import { SupplierLockProvider, useSupplierLock } from './components/context/SupplierLockContext';
 import ReportIssueModal from './components/layout/ReportIssueModal';
 import PayrollMoreModal from './components/paypro/PayrollMoreModal';
+import WorkPROModal from './components/work-orders/WorkPROModal';
 
 function LayoutContent({ children, currentPageName }) {
   const [showFindPartModal, setShowFindPartModal] = useState(false);
@@ -101,6 +102,7 @@ function LayoutContent({ children, currentPageName }) {
   const [isEmployee, setIsEmployee] = useState(true);
   const [workProEmployee, setWorkProEmployee] = useState(null);
   const [projectNotifications, setProjectNotifications] = useState([]);
+  const [selectedNotificationProject, setSelectedNotificationProject] = useState(null);
   const [clockLoading, setClockLoading] = useState(false);
 
   const getCurrentMountainTimeISO = () => moment.tz('America/Edmonton').toISOString();
@@ -682,9 +684,10 @@ function LayoutContent({ children, currentPageName }) {
                   <div
                     className={`flex flex-col justify-center px-3 py-2 rounded-lg transition-all duration-300 cursor-pointer relative ${
                       projectNotifications.length > 0
-                        ? 'bg-green-600 animate-pulse'
+                        ? 'bg-green-600 text-white'
                         : 'hover:bg-slate-100 dark:hover:bg-slate-800'
                     }`}
+                    style={projectNotifications.length > 0 ? { animation: 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite' } : {}}
                   >
                     <div className="flex items-center gap-2">
                       <div>
@@ -710,9 +713,30 @@ function LayoutContent({ children, currentPageName }) {
                     <DropdownMenuItem disabled>No new notifications</DropdownMenuItem>
                   ) : (
                     projectNotifications.map((notif, index) => (
-                      <DropdownMenuItem key={index} className="flex flex-col items-start gap-1">
-                        <span className="font-semibold">{notif.name || notif.work_order || 'Unknown'}</span>
-                        <span className="text-xs text-muted-foreground">was marked as Done</span>
+                      <DropdownMenuItem 
+                        key={index} 
+                        className="flex items-center justify-between gap-2 w-full pr-2 cursor-pointer"
+                        onSelect={(e) => {
+                          // Allow the dropdown to close, and open the modal
+                          setSelectedNotificationProject(notif);
+                        }}
+                      >
+                        <div className="flex flex-col items-start gap-1 flex-1">
+                          <span className="font-semibold">{notif.name || notif.work_order || 'Unknown'}</span>
+                          <span className="text-xs text-muted-foreground">was marked as Done</span>
+                        </div>
+                        <button 
+                          className="p-1 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-md text-slate-500 hover:text-red-500 z-10"
+                          onPointerDown={(e) => {
+                            e.stopPropagation(); // prevent DropdownMenuItem from selecting
+                            setProjectNotifications(prev => prev.filter((_, i) => i !== index));
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                          }}
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
                       </DropdownMenuItem>
                     ))
                   )}
@@ -1146,6 +1170,15 @@ function LayoutContent({ children, currentPageName }) {
         open={showPayrollMoreModal}
         onClose={() => setShowPayrollMoreModal(false)}
       />
+      
+      {selectedNotificationProject && (
+        <WorkPROModal
+          open={!!selectedNotificationProject}
+          onClose={() => setSelectedNotificationProject(null)}
+          initialWorkPROProject={selectedNotificationProject}
+          // We pass minimal props. The modal will fetch by initialWorkPROProject.id
+        />
+      )}
     </div>
   );
 }
