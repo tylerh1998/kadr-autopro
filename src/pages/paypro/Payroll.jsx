@@ -8,10 +8,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import PaychequeCreator from "@/components/paypro/payroll/PaychequeCreator";
 import BatchPaychequeProcessor from "@/components/paypro/payroll/BatchPaychequeProcessor";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Users, Download } from "lucide-react";
+import { AlertCircle, Users, Download, ChevronLeft, ChevronRight } from "lucide-react";
 import { importTimeData } from "@/components/paypro/payroll/TimeDataProcessor";
+import { useNavigate } from "react-router-dom";
 
 export default function Payroll() {
+  const navigate = useNavigate();
   const [employees, setEmployees] = useState([]);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
   const [payPeriod, setPayPeriod] = useState({ start: '', end: '', payDate: new Date().toLocaleDateString('en-CA')});
@@ -146,7 +148,19 @@ export default function Payroll() {
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100 mb-8">Run Payroll</h1>
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Run Payroll</h1>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate('/paypro/TimeRecords')} className="flex items-center gap-1">
+            <ChevronLeft className="w-4 h-4" />
+            Time Records
+          </Button>
+          <Button variant="outline" onClick={() => navigate('/paypro/PayStubs')} className="flex items-center gap-1">
+            Pay Stubs
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
 
         <Card className="border-0 shadow-sm dark:bg-slate-900">
           <CardContent className="pt-6 space-y-6">
@@ -292,6 +306,7 @@ export default function Payroll() {
           </CardContent>
         </Card>
 
+        {payPeriod.start && payPeriod.end && payPeriod.payDate && (
         <Card className="mt-6 border-0 shadow-sm dark:bg-slate-900">
           <CardHeader>
             <div className="flex flex-wrap justify-between items-center gap-3">
@@ -444,6 +459,7 @@ export default function Payroll() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {canShowPaycheque && processingMode === 'single' && selectedEmployee && (
           <PaychequeCreator

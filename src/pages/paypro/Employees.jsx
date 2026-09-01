@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Employee } from "@/components/paypro/lib/payrollEntities";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Settings, Users } from "lucide-react";
+import { Plus, Search, Settings, Users, Clock, Receipt } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createPageUrl } from "@/utils";
 
@@ -78,6 +78,20 @@ export default function Employees() {
           >
             <Plus className="w-5 h-5 mr-2" />
             Add Employee
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => navigate(createPageUrl('paypro/TimeRecords'))}
+          >
+            <Clock className="w-4 h-4 mr-2" />
+            Time Records
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => navigate(createPageUrl('paypro/PayStubs'))}
+          >
+            <Receipt className="w-4 h-4 mr-2" />
+            Pay Stubs
           </Button>
         </div>
       </div>

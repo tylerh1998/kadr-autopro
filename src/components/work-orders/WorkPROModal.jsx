@@ -913,17 +913,17 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
               {/* Oil Change Details Section */}
               {isOilChangeProject && (
                 <>
-                  <Card className="bg-blue-50 border-blue-200">
+                  <Card className="bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800">
                     <CardContent className="p-4">
                       <div className="flex items-center gap-2 mb-3">
-                        <Droplet className="w-5 h-5 text-blue-600" />
-                        <h3 className="text-sm font-semibold text-slate-900">Oil Change Details</h3>
+                        <Droplet className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Oil Change Details</h3>
                       </div>
                       
                       <div className="space-y-3">
                         {/* Oil Change Type - Radio Selection */}
                         <div>
-                          <Label className="text-xs font-medium text-slate-700 mb-2 block">Oil Change Type</Label>
+                          <Label className="text-xs font-medium text-slate-700 dark:text-slate-300 mb-2 block">Oil Change Type</Label>
                           <div className="flex gap-4">
                             <label className="flex items-center gap-2 cursor-pointer">
                               <input
@@ -934,7 +934,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                                 onChange={(e) => handleFieldChange('oil_change_type', e.target.value)}
                                 className="w-4 h-4 text-blue-600"
                               />
-                              <span className="text-sm text-slate-900">Regular</span>
+                              <span className="text-sm text-slate-900 dark:text-slate-100">Regular</span>
                             </label>
                             <label className="flex items-center gap-2 cursor-pointer">
                               <input
@@ -945,7 +945,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                                 onChange={(e) => handleFieldChange('oil_change_type', e.target.value)}
                                 className="w-4 h-4 text-blue-600"
                               />
-                              <span className="text-sm text-slate-900">Winter</span>
+                              <span className="text-sm text-slate-900 dark:text-slate-100">Winter</span>
                             </label>
                           </div>
                         </div>
@@ -953,36 +953,36 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                         {/* Filter, Oil Qty, Oil Grade, Oil Type - 4 columns */}
                         <div className="grid grid-cols-4 gap-3">
                           <div>
-                            <Label className="text-xs font-medium text-slate-700">Filter</Label>
+                            <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">Filter</Label>
                             <Input
                               value={formData.filter}
                               onChange={(e) => handleFieldChange('filter', e.target.value)}
                               placeholder="Filter #"
-                              className="text-sm"
+                              className="text-sm dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600"
                             />
                           </div>
                           <div>
-                            <Label className="text-xs font-medium text-slate-700">Oil Qty</Label>
+                            <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">Oil Qty</Label>
                             <Input
                               value={formData.oil_qty}
                               onChange={(e) => handleFieldChange('oil_qty', e.target.value)}
                               placeholder="e.g., 5L"
-                              className="text-sm"
+                              className="text-sm dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600"
                             />
                           </div>
                           <div>
-                            <Label className="text-xs font-medium text-slate-700">Oil Grade</Label>
+                            <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">Oil Grade</Label>
                             <Input
                               value={formData.oil}
                               onChange={(e) => handleFieldChange('oil', e.target.value)}
                               placeholder="e.g., 5W-30"
-                              className="text-sm"
+                              className="text-sm dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600"
                             />
                           </div>
                           <div>
-                            <Label className="text-xs font-medium text-slate-700">Oil Type</Label>
+                            <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">Oil Type</Label>
                             <Select value={formData.oil_type} onValueChange={(val) => handleFieldChange('oil_type', val)}>
-                              <SelectTrigger className="text-sm">
+                              <SelectTrigger className="text-sm dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600">
                                 <SelectValue placeholder="Select" />
                               </SelectTrigger>
                               <SelectContent>
@@ -996,30 +996,30 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                         {/* Air Filter, Cabin Filter, Wind Wash - 3 columns */}
                         <div className="grid grid-cols-3 gap-3">
                           <div>
-                            <Label className="text-xs font-medium text-slate-700">Air Filter</Label>
+                            <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">Air Filter</Label>
                             <Input
                               value={formData.air}
                               onChange={(e) => handleFieldChange('air', e.target.value)}
                               placeholder="Air filter details"
-                              className="text-sm"
+                              className="text-sm dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600"
                             />
                           </div>
                           <div>
-                            <Label className="text-xs font-medium text-slate-700">Cabin Filter</Label>
+                            <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">Cabin Filter</Label>
                             <Input
                               value={formData.cabin}
                               onChange={(e) => handleFieldChange('cabin', e.target.value)}
                               placeholder="Cabin filter details"
-                              className="text-sm"
+                              className="text-sm dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600"
                             />
                           </div>
                           <div>
-                            <Label className="text-xs font-medium text-slate-700">Windshield Wash (Jugs)</Label>
+                            <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">Windshield Wash (Jugs)</Label>
                             <Input
                               value={formData.wind_wash}
                               onChange={(e) => handleFieldChange('wind_wash', e.target.value)}
                               placeholder="e.g. 1"
-                              className="text-sm"
+                              className="text-sm dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600"
                             />
                           </div>
                         </div>
@@ -1027,9 +1027,9 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                         {/* Tire Rotation, TPMS Reset - 2 columns with dropdowns */}
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <Label className="text-xs font-medium text-slate-700">Tire Rotation</Label>
+                            <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">Tire Rotation</Label>
                             <Select value={formData.tire_rotation} onValueChange={(val) => handleFieldChange('tire_rotation', val)}>
-                              <SelectTrigger className="text-sm">
+                              <SelectTrigger className="text-sm dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600">
                                 <SelectValue placeholder="Select" />
                               </SelectTrigger>
                               <SelectContent>
@@ -1039,9 +1039,9 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                             </Select>
                           </div>
                           <div>
-                            <Label className="text-xs font-medium text-slate-700">TPMS Reset</Label>
+                            <Label className="text-xs font-medium text-slate-700 dark:text-slate-300">TPMS Reset</Label>
                             <Select value={formData.tpms_reset} onValueChange={(val) => handleFieldChange('tpms_reset', val)}>
-                              <SelectTrigger className="text-sm">
+                              <SelectTrigger className="text-sm dark:bg-slate-800 dark:text-slate-100 dark:border-slate-600">
                                 <SelectValue placeholder="Select" />
                               </SelectTrigger>
                               <SelectContent>
@@ -1053,18 +1053,18 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                         </div>
 
                         {/* Read-only fields */}
-                        <div className="grid grid-cols-2 gap-3 text-sm pt-2 border-t border-blue-200">
+                        <div className="grid grid-cols-2 gap-3 text-sm pt-2 border-t border-blue-200 dark:border-blue-800">
                           {formData.reset_oil_light && (
                             <div>
-                              <span className="text-slate-600 font-medium">Reset Oil Light:</span>
-                              <p className="text-slate-900 capitalize">{formData.reset_oil_light.replace(/_/g, ' ')}</p>
+                              <span className="text-slate-600 dark:text-slate-400 font-medium">Reset Oil Light:</span>
+                              <p className="text-slate-900 dark:text-slate-100 capitalize">{formData.reset_oil_light.replace(/_/g, ' ')}</p>
                             </div>
                           )}
                           
                           {formData.next_oil_change_odometer && (
                             <div>
-                              <span className="text-slate-600 font-medium">Next Oil Change:</span>
-                              <p className="text-slate-900">{parseFloat(formData.next_oil_change_odometer).toLocaleString()} km</p>
+                              <span className="text-slate-600 dark:text-slate-400 font-medium">Next Oil Change:</span>
+                              <p className="text-slate-900 dark:text-slate-100">{parseFloat(formData.next_oil_change_odometer).toLocaleString()} km</p>
                             </div>
                           )}
                         </div>
@@ -1074,9 +1074,9 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
 
                   {/* Inspection Results Table */}
                   {project.inspection_results && Object.keys(project.inspection_results).length > 0 && (
-                    <Card className="bg-slate-50 border-slate-200">
+                    <Card className="bg-slate-50 border-slate-200 dark:bg-slate-800/50 dark:border-slate-700">
                       <CardContent className="p-4">
-                        <h3 className="text-sm font-semibold text-slate-900 mb-3">Inspection Results</h3>
+                        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">Inspection Results</h3>
                         
                         <div className="space-y-4">
                           {INSPECTION_SECTIONS.sort((a, b) => a.display_order - b.display_order).map((section) => {
@@ -1085,24 +1085,24 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                             
                             return (
                               <div key={section.section_name}>
-                                <h4 className="text-xs font-semibold text-slate-700 mb-2">{section.section_name}</h4>
-                                <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                                <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">{section.section_name}</h4>
+                                <div className="bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
                                   <table className="w-full text-xs">
                                     <thead>
-                                      <tr className="bg-slate-100 border-b border-slate-200">
-                                        <th className="text-left p-2 font-medium text-slate-700">Item</th>
-                                        <th className="text-center p-2 font-medium text-slate-700 w-16">Good</th>
-                                        <th className="text-center p-2 font-medium text-slate-700 w-16">Fair</th>
-                                        <th className="text-center p-2 font-medium text-slate-700 w-16">Poor</th>
-                                        <th className="text-center p-2 font-medium text-slate-700 w-16">N/A</th>
+                                      <tr className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                                        <th className="text-left p-2 font-medium text-slate-700 dark:text-slate-300">Item</th>
+                                        <th className="text-center p-2 font-medium text-slate-700 dark:text-slate-300 w-16">Good</th>
+                                        <th className="text-center p-2 font-medium text-slate-700 dark:text-slate-300 w-16">Fair</th>
+                                        <th className="text-center p-2 font-medium text-slate-700 dark:text-slate-300 w-16">Poor</th>
+                                        <th className="text-center p-2 font-medium text-slate-700 dark:text-slate-300 w-16">N/A</th>
                                       </tr>
                                     </thead>
                                     <tbody>
                                       {section.inspection_items.map((item) => {
                                         const result = getInspectionResult(section.section_name, item);
                                         return (
-                                          <tr key={item} className="border-b border-slate-100 last:border-0">
-                                            <td className="p-2 text-slate-900">{item}</td>
+                                          <tr key={item} className="border-b border-slate-100 dark:border-slate-700/50 last:border-0">
+                                            <td className="p-2 text-slate-900 dark:text-slate-100">{item}</td>
                                             <td className="p-2 text-center">
                                               {result === 'good' && <CheckCircle2 className="w-4 h-4 text-green-600 mx-auto" />}
                                             </td>
@@ -1122,7 +1122,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                                   </table>
                                 </div>
                                 {sectionComment && (
-                                  <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-slate-700">
+                                  <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded text-xs text-slate-700 dark:text-slate-300">
                                     <span className="font-medium">Comments: </span>
                                     {sectionComment}
                                   </div>
