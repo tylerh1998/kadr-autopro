@@ -100,6 +100,7 @@ function LayoutContent({ children, currentPageName }) {
   const [currentTimeRecord, setCurrentTimeRecord] = useState(null);
   const [isEmployee, setIsEmployee] = useState(true);
   const [workProEmployee, setWorkProEmployee] = useState(null);
+  const [projectNotifications, setProjectNotifications] = useState([]);
   const [clockLoading, setClockLoading] = useState(false);
 
   const getCurrentMountainTimeISO = () => moment.tz('America/Edmonton').toISOString();
@@ -244,6 +245,26 @@ function LayoutContent({ children, currentPageName }) {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
+
+  // Listen to project notifications for AutoPRO badge
+  useEffect(() => {
+    if (!workProEmployee?.notify_for_projects) return;
+
+    const channel = supabase.channel('autopro-project-done')
+      .on('postgres_changes', 
+        { event: 'UPDATE', schema: 'public', table: 'Project' }, 
+        (payload) => {
+          if (payload.new.status === 'done' && payload.old.status !== 'done') {
+            setProjectNotifications((prev) => [...prev, payload.new]);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [workProEmployee?.notify_for_projects]);
 
   const handlePayrollClick = (e) => {
     // If paypro_user is true, allow default navigation to /Payroll
@@ -647,19 +668,58 @@ function LayoutContent({ children, currentPageName }) {
                 <img src="/dark_logo.png" alt="Logo" className="h-10 hidden dark:block" />
               </div>
 
-              <div
-                onClick={() => {
-                  handleLockedNavigation(createPageUrl("Home"));
-                }}
-                className="flex flex-col justify-center px-3 py-2 rounded-lg transition-all duration-300 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800"
-              >
-                <div className="text-lg font-bold text-slate-800 dark:text-slate-100 leading-tight">
-                  AutoPRO
-                </div>
-                <div className="text-xs text-gray-500 dark:text-slate-400 leading-tight">
-                  Ken's Auto
-                </div>
-              </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <div
+                    className={`flex flex-col justify-center px-3 py-2 rounded-lg transition-all duration-300 cursor-pointer relative ${
+                      projectNotifications.length > 0
+                        ? 'bg-green-600 animate-pulse'
+                        : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <div className={`text-lg font-bold leading-tight ${projectNotifications.length > 0 ? 'text-white' : 'text-slate-800 dark:text-slate-100'}`}>
+                          AutoPRO
+                        </div>
+                        <div className={`text-xs leading-tight ${projectNotifications.length > 0 ? 'text-white' : 'text-gray-500 dark:text-slate-400'}`}>
+                          Ken's Auto
+                        </div>
+                      </div>
+                      {projectNotifications.length > 0 && (
+                        <div className="bg-red-500 text-white rounded-full h-5 w-5 flex items-center justify-center text-xs font-bold shadow-md">
+                          {projectNotifications.length}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-64">
+                  <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {projectNotifications.length === 0 ? (
+                    <DropdownMenuItem disabled>No new notifications</DropdownMenuItem>
+                  ) : (
+                    projectNotifications.map((notif, index) => (
+                      <DropdownMenuItem key={index} className="flex flex-col items-start gap-1">
+                        <span className="font-semibold">{notif.name || notif.work_order || 'Unknown'}</span>
+                        <span className="text-xs text-muted-foreground">was marked as Done</span>
+                      </DropdownMenuItem>
+                    ))
+                  )}
+                  {projectNotifications.length > 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem 
+                        onClick={() => setProjectNotifications([])}
+                        className="text-red-600 font-semibold justify-center cursor-pointer"
+                      >
+                        Clear All
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
