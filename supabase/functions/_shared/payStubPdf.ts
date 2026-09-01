@@ -207,9 +207,10 @@ export function buildPayStubPdf(
   incomeBreakdown.forEach((item: any) => {
     const isBankedVacation = item.type === 'Vacation Pay' && isVacationBanked;
     const isReleased = item.type === 'Vacation Pay (Released from Bank)';
+    const isAdvance = item.type === 'Advance Issued' || item.is_non_taxable;
 
     let rateText = "-";
-    if (!item.type.includes('Vacation Pay')) {
+    if (!item.type.includes('Vacation Pay') && !isAdvance) {
       rateText = `${formatCurrency(item.rate || 0)}/ ${item.unit || 'Hour'}`;
     }
 
@@ -229,7 +230,7 @@ export function buildPayStubPdf(
 
     doc.text(label, 12, textY);
 
-    if (!item.type.includes('Vacation Pay')) {
+    if (!item.type.includes('Vacation Pay') && !isAdvance) {
       doc.text((item.hours || 0).toFixed(2), 38, textY);
       doc.text(rateText, 50, textY, { maxWidth: 22 });
     } else {

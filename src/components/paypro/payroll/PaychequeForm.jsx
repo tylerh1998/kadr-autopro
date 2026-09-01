@@ -177,8 +177,8 @@ export default function PaychequeForm({ employee, payPeriod, ytdData, importedTi
   const newBankedBalance = currentBankedBalance + vacationPayEarned - vacationPayRelease;
 
   const handleSaveClick = async () => {
-    if (grossEarnings === 0) {
-      alert("Please enter some hours or pay amounts before creating the paycheque.");
+    if (grossEarnings === 0 && advanceData.newAdvance === 0) {
+      alert("Please enter some hours, pay amounts, or an advance before creating the paycheque.");
       return;
     }
 
@@ -225,6 +225,19 @@ export default function PaychequeForm({ employee, payPeriod, ytdData, importedTi
         });
       }
 
+      // Add non-taxable advance issued to income breakdown if applicable
+      const roundedNewAdvance = Math.round(advanceData.newAdvance * 100) / 100;
+      if (roundedNewAdvance > 0) {
+        incomeBreakdown.push({
+          type: 'Advance Issued',
+          hours: 0,
+          rate: 0,
+          unit: '',
+          amount: roundedNewAdvance,
+          is_non_taxable: true
+        });
+      }
+
       const roundedGrossPay = Math.round(grossEarnings * 100) / 100;
 
       // Round individual deductions first
@@ -252,12 +265,19 @@ export default function PaychequeForm({ employee, payPeriod, ytdData, importedTi
           };
         });
 
+      if (roundedAdvanceDeduction > 0) {
+        additionalDeductionsList.push({
+          name: 'Advance Repayment',
+          type: 'fixed',
+          amount: roundedAdvanceDeduction
+        });
+      }
+
       // Calculate total deductions from already-rounded values to avoid penny discrepancies
       const additionalDeductionsSum = additionalDeductionsList.reduce((sum, ded) => sum + ded.amount, 0);
       const calculatedTotalDeductions = roundedFederalTax + roundedProvincialTax + roundedCppDeduction +
                                        roundedCpp2Deduction + roundedEiDeduction +
-                                       additionalDeductionsSum + roundedAdvanceDeduction;
-      const roundedNewAdvance = Math.round(advanceData.newAdvance * 100) / 100;
+                                       additionalDeductionsSum;
       const calculatedNetPay = roundedGrossPay - calculatedTotalDeductions + roundedNewAdvance;
 
       const payStubData = {
@@ -622,7 +642,7 @@ export default function PaychequeForm({ employee, payPeriod, ytdData, importedTi
 
           <Button
             onClick={handleSaveClick}
-            disabled={grossEarnings <= 0 || saving}
+            disabled={(grossEarnings <= 0 && advanceData.newAdvance <= 0) || saving}
             className="w-full bg-blue-800 hover:bg-blue-900 dark:bg-blue-700 dark:hover:bg-blue-600 text-white py-3 text-lg"
           >
             {saving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : (SaveIcon && <SaveIcon className="mr-2 h-5 w-5" />)}
