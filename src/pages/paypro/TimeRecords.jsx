@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Clock, RefreshCw, Lock, History, Plus, FileText, ShieldAlert } from 'lucide-react';
+import { Loader2, Clock, RefreshCw, Lock, History, Plus, FileText, ShieldAlert, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import TimeRecordsList from '@/components/paypro/timerecords/TimeRecordsList';
 import AddTimeRecordModal from '@/components/paypro/timerecords/AddTimeRecordModal';
 import EditTimeRecordModal from '@/components/paypro/timerecords/EditTimeRecordModal';
@@ -18,6 +19,7 @@ import ValidationNotices from '@/components/paypro/timerecords/ValidationNotices
 
 export default function TimeRecords() {
   const { employee } = useAuth();
+  const navigate = useNavigate();
 
   // Access gate (paypro_user) - RLS can't provide one here without breaking
   // WorkPRO's own live clock-in/out, which reads/writes this same table for
@@ -374,6 +376,10 @@ export default function TimeRecords() {
           <Button onClick={() => setAddModalOpen(true)} className="bg-emerald-600 hover:bg-emerald-700">
             <Plus className="w-4 h-4 mr-2" />
             Add Time Record
+          </Button>
+          <Button onClick={() => navigate('/paypro/Payroll')} className="bg-blue-600 hover:bg-blue-700">
+            Calculate Payroll
+            <ChevronRight className="w-4 h-4 ml-2" />
           </Button>
         </div>
       </div>
