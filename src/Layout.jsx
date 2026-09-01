@@ -964,11 +964,19 @@ function LayoutContent({ children, currentPageName }) {
                     </a>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleToggleDarkMode} className="cursor-pointer">
+                  <DropdownMenuItem 
+                    onClick={handleToggleDarkMode} 
+                    onSelect={(e) => e.preventDefault()} 
+                    className="cursor-pointer"
+                  >
                     {darkMode ? <Sun className="mr-2 h-4 w-4" /> : <Moon className="mr-2 h-4 w-4" />}
                     <span>{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleToggleProjectNotifications} className="cursor-pointer">
+                  <DropdownMenuItem 
+                    onClick={handleToggleProjectNotifications} 
+                    onSelect={(e) => e.preventDefault()} 
+                    className="cursor-pointer"
+                  >
                     {employee?.notify_for_projects ? <Bell className="mr-2 h-4 w-4" /> : <BellOff className="mr-2 h-4 w-4" />}
                     <span>{employee?.notify_for_projects ? 'Project Notifications: On' : 'Project Notifications: Off'}</span>
                   </DropdownMenuItem>
