@@ -1,37 +1,30 @@
-# Walkthrough: UI Lock for `autopro_access_lvl = no_access`
+# Walkthrough: PayPro Navigation Polish
 
-Added a full-screen UI lock in AutoPro that blocks access to all application routes, sidebars, headers, and page components whenever an authenticated user has `autopro_access_lvl = 'no_access'` (or lacks a matching Employee record).
+Implemented a complete, intuitive 360-degree navigation loop across all core pages in the **PayPro (Payroll)** module. Each page now features header navigation buttons with matching icons and directional chevrons (`←` / `→`) to allow seamless one-click transitions along the end-to-end payroll workflow.
 
-## Changes Made
+## Summary of Navigation Chain
 
-### Auth Context
-- **[AuthContext.jsx](file:///C:/Users/tyler/OneDrive/Documents/GitHub/kadr-autopro/src/lib/AuthContext.jsx)**
-  - Added `hasNoAccess` boolean flag and `autoproAccessLvl` string helper to `AuthContext`.
-  - Computes `hasNoAccess = isAuthenticated && (!employee || employee?.autopro_access_lvl === 'no_access')`.
+```
+[Employees] ──► [Time Records] ──► [Run Payroll] ──► [Pay Stubs]
+     ▲                                                    │
+     │                                                    ▼
+  [Setup] ◄─── [Trends] ◄─── [T4s] ◄─── [Reports] ◄─── [Remittances]
+```
 
-### UI Lock Component
-- **[NEW] [AccessDeniedLock.jsx](file:///C:/Users/tyler/OneDrive/Documents/GitHub/kadr-autopro/src/lib/AccessDeniedLock.jsx)**
-  - Full-screen, dark-mode compatible UI lock component.
-  - Displays amber warning badge, **Access Restricted** title, and clear error explanation.
-  - Summarizes user details (Name, Email, Employee ID, Access Level).
-  - Provides **Sign Out** button (calls `logout()`) and **myKADR Account** link.
+## Detailed Page Enhancements
 
-### Routing & Guard
-- **[App.jsx](file:///C:/Users/tyler/OneDrive/Documents/GitHub/kadr-autopro/src/App.jsx)**
-  - Top-level guard in `AuthenticatedApp`: if `isAuthenticated && hasNoAccess`, renders `<AccessDeniedLock />` immediately.
-  - Completely prevents routing, layout rendering, and background data fetching for restricted accounts.
+| Page | Navigation Shortcuts Added |
+|---|---|
+| **`/paypro/Employees`** | • `Clock` **Time Records**<br />• `Receipt` **Pay Stubs** |
+| **`/paypro/TimeRecords`** | • `ChevronRight` **Calculate Payroll** |
+| **`/paypro/Payroll`** | • `ChevronLeft` **Time Records**<br />• `ChevronRight` **Pay Stubs** |
+| **`/paypro/PayStubs`** | • `ChevronLeft` **Run Payroll**<br />• `ChevronRight` **Remittances** |
+| **`/paypro/Remittances`** | • `ChevronLeft` **Pay Stubs**<br />• `ChevronRight` **Reports** |
+| **`/paypro/Reports`** | • `ChevronLeft` **Remittances**<br />• `ChevronRight` **T4s** |
+| **`/paypro/T4s`** | • `ChevronLeft` **Reports**<br />• `ChevronRight` **Trends** |
+| **`/paypro/Trends`** | • `ChevronLeft` **T4s**<br />• `ChevronRight` **Setup** |
+| **`/paypro/Setup`** | • `ChevronLeft` **Trends**<br />• `ChevronRight` **Employees** |
 
-### Layout Badge
-- **[Layout.jsx](file:///C:/Users/tyler/OneDrive/Documents/GitHub/kadr-autopro/src/Layout.jsx)**
-  - Updated profile dropdown badge text to display `"Access Disabled"` when `autopro_access_lvl === 'no_access'`.
-
----
-
-## Verification Results
-
-1. **`no_access` Account Lock**:
-   - Authenticated users with `autopro_access_lvl = 'no_access'` (or missing Employee records) are immediately greeted with the full-screen `<AccessDeniedLock />` UI.
-   - All navigation controls, sidebar links, header actions, and background data queries are blocked.
-   - Clicking **Sign Out** redirects cleanly to the SSO login endpoint.
-2. **Valid Access Accounts**:
-   - Accounts with `'lvl1_user'`, `'lvl2_user'`, or `'lvl3_user'` continue to access AutoPro normally.
+## Key Benefits
+- **Zero dead-ends**: Users can cycle through the full payroll lifecycle (Employee setup → Time tracking → Running payroll → Generating stubs → Paying remittances → Viewing reports & T4s → Analytics → Configuration) without needing to reopen the main sidebar menu.
+- **Consistent visual language**: All buttons use official Lucide icons (`Users`, `Clock`, `Calculator`, `Receipt`, `Landmark`, `BarChart3`, `FileText`, `TrendingUp`, `Settings`) matching the primary navbar definitions.

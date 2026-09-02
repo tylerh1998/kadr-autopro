@@ -1,18 +1,34 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, ChevronLeft, ChevronRight, FileText, Settings } from "lucide-react";
 import TrendsDataProcessor from "@/components/paypro/trends/TrendsDataProcessor";
 import PayrollTrendChart from "@/components/paypro/trends/PayrollTrendChart";
 import LaborCostBarChart from "@/components/paypro/trends/LaborCostBarChart";
 import YearOverYearComparison from "@/components/paypro/trends/YearOverYearComparison";
 
 export default function Trends() {
+  const navigate = useNavigate();
+
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
-      <div className="flex items-center gap-3 mb-8">
-        <TrendingUp className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-        <div>
+      <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
+        <div className="flex items-center gap-3">
+          <TrendingUp className="w-8 h-8 text-blue-600 dark:text-blue-400" />
           <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Payroll Trends</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate('/paypro/T4s')} className="flex items-center gap-1">
+            <ChevronLeft className="w-4 h-4" />
+            <FileText className="w-4 h-4 mr-1" />
+            T4s
+          </Button>
+          <Button variant="outline" onClick={() => navigate('/paypro/Setup')} className="flex items-center gap-1">
+            <Settings className="w-4 h-4 mr-1" />
+            Setup
+            <ChevronRight className="w-4 h-4" />
+          </Button>
         </div>
       </div>
 

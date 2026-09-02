@@ -9,7 +9,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Eye, Loader2, Pencil, CheckCircle, Circle, Lock, Send, XCircle, Ban, ChevronDown, FileText } from "lucide-react";
+import { Eye, Loader2, Pencil, CheckCircle, Circle, Lock, Send, XCircle, Ban, ChevronDown, FileText, ChevronLeft, ChevronRight, Calculator, Landmark } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,6 +25,7 @@ import EmailPaystubsModal from "@/components/paypro/paystubs/EmailPaystubsModal"
 import PayStubViewerModal from "@/components/paypro/paystubs/PayStubViewerModal";
 
 export default function PayStubs() {
+  const navigate = useNavigate();
   const [payStubs, setPayStubs] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [remittedStubIds, setRemittedStubIds] = useState([]);
@@ -309,11 +311,23 @@ export default function PayStubs() {
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-start">
+      <div className="flex flex-wrap justify-between items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Pay Stubs</h1>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate('/paypro/Payroll')} className="flex items-center gap-1">
+            <ChevronLeft className="w-4 h-4" />
+            <Calculator className="w-4 h-4 mr-1" />
+            Run Payroll
+          </Button>
+          <Button variant="outline" onClick={() => navigate('/paypro/Remittances')} className="flex items-center gap-1">
+            <Landmark className="w-4 h-4 mr-1" />
+            Remittances
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
           {selectionType === 'unpaid' && selectedStubs.length > 0 && !hasRemittedOrCancelledSelected && (
             <Button
               onClick={() => setShowPaymentModal(true)}
