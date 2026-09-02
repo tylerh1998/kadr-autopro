@@ -311,11 +311,11 @@ export default function PayStubs() {
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
-      <div className="flex flex-wrap justify-between items-center gap-4">
+      <div className="flex flex-wrap justify-between items-start gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Pay Stubs</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" onClick={() => navigate('/paypro/Payroll')} className="flex items-center gap-1">
             <ChevronLeft className="w-4 h-4" />
             <Calculator className="w-4 h-4 mr-1" />
@@ -326,8 +326,7 @@ export default function PayStubs() {
             Remittances
             <ChevronRight className="w-4 h-4" />
           </Button>
-        </div>
-      </div>
+
           {selectionType === 'unpaid' && selectedStubs.length > 0 && !hasRemittedOrCancelledSelected && (
             <Button
               onClick={() => setShowPaymentModal(true)}
