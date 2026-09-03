@@ -308,7 +308,8 @@ export default function PaychequeForm({ employee, payPeriod, ytdData, importedTi
         ytd_ei: Math.round((ytdData.ei + standardDeductions.eiDeduction) * 100) / 100,
         ytd_net: Math.round((ytdData.net + netPay) * 100) / 100,
         vacation_pay_balance_forward: employee.banked_vacation_pay_balance || 0,
-        comments: comments || null
+        comments: comments || null,
+        field_trips: importedTimeData?.field_trips || null
       };
 
       // Prepare employee updates

@@ -87,7 +87,7 @@ Extract the following information with maximum precision:
    - "month": 1-indexed integer month (1 to 12).
    - "date_signed": Date written next to Driver Signature at the bottom, if present.
 
-2. **Field Trips & Special Extra Runs (CRITICAL)**:
+2. **Field Trips & Special Extra Runs (CRITICAL - WAIT TIME INCLUDED)**:
    Under our new pay model, regular daily school route runs are covered by a fixed monthly salary, BUT all Field Trips and special extra runs are paid hourly ($25.00/hr).
    Look through every day's Description column and shift times for entries indicating field trips, swim lessons, ski trips, auction mart trips, sports trips, or extra non-route duties:
    - Examples of field trip descriptions:
@@ -95,12 +95,19 @@ Extract the following information with maximum precision:
      * "FIELD TRIP 11:55-12:38 2:40-3:16 Vermilion Auction Mart"
      * "Swim Lessons - Lloyd (4.5 hr) 11:50-12:50 2:40-3:32"
      * "Swim Lessons - Lloyd 12:00-12:50 2:36-3:27"
-   - For each detected trip, extract:
-     * "day": integer (1 to 31)
-     * "date": formatted YYYY-MM-DD
-     * "description": trip description and destination (e.g. "Ski Trip", "Swim Lessons - Lloyd", "Vermilion Auction Mart")
-     * "time_breakdown": notes on times logged (e.g. "11:55-12:38, 2:40-3:16")
-     * "hours": calculated decimal hours for the field trip (driving + wait time). If the driver explicitly wrote total hours like "(4.5 hr)" or "(4.5)", use that number; otherwise, calculate elapsed time from start and end times. Round to 2 decimal places.
+   - **CRITICAL WAIT TIME RULE FOR FIELD TRIPS**:
+     Drivers record ONLY their active driving shift intervals on this sheet due to commercial vehicle Hours of Service logging rules (e.g. logging "11:55-12:38" for driving there and "2:40-3:16" for driving back).
+     HOWEVER, school bus drivers are compensated for the ENTIRE continuous duration including wait time from first departure to final return!
+     Therefore:
+     * "start_time": First departure time (e.g. "11:55 AM" or "9:00 AM").
+     * "end_time": Final return arrival time (e.g. "3:16 PM" or "5:33 PM").
+     * "driving_intervals": Text of driving intervals logged (e.g. "11:55-12:38, 2:40-3:16").
+     * "time_breakdown": Full span summary, e.g. "11:55 AM - 3:16 PM (Wait time included; Drive: 11:55-12:38, 2:40-3:16)".
+     * "hours": Calculate total continuous elapsed decimal hours from the FIRST departure time to the FINAL return time!
+       - Example: 11:55 AM to 3:16 PM (15:16) = 3 hours and 21 minutes = 3.35 hours (payable).
+       - Example: Ski trip 9:00 AM to 5:33 PM (17:33) = 8 hours and 33 minutes = 8.55 hours (payable).
+       - If the driver explicitly wrote a total payable hour count like "(4.5 hr)" or "4.5", use that explicit written number (4.50).
+       - Round to 2 decimal places.
      * "unit_number": bus unit number if noted (e.g. "933", "327", "VRD1").
      * "is_overtime": true if total field trip hours on this single day exceed 8.0 hours; false otherwise.
 
@@ -135,9 +142,24 @@ Format the output EXACTLY as a JSON object matching this schema with NO markdown
       "day": 6,
       "date": "2026-03-06",
       "description": "Ski Trip",
-      "time_breakdown": "9:00-10:34, 3:30-5:33",
-      "hours": 3.62,
+      "start_time": "9:00 AM",
+      "end_time": "5:33 PM",
+      "driving_intervals": "9:00-10:34, 3:30-5:33",
+      "time_breakdown": "9:00 AM - 5:33 PM (Wait time included)",
+      "hours": 8.55,
       "unit_number": "933",
+      "is_overtime": true
+    },
+    {
+      "day": 18,
+      "date": "2026-03-18",
+      "description": "Vermilion Auction Mart",
+      "start_time": "11:55 AM",
+      "end_time": "3:16 PM",
+      "driving_intervals": "11:55-12:38, 2:40-3:16",
+      "time_breakdown": "11:55 AM - 3:16 PM (Wait time included)",
+      "hours": 3.35,
+      "unit_number": "VRD1",
       "is_overtime": false
     }
   ],

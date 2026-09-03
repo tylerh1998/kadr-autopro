@@ -98,11 +98,10 @@ export default function BusDriverLogModal({
   const [newTrip, setNewTrip] = useState({
     date: '',
     description: '',
+    startTime: '',
+    endTime: '',
+    drivingNotes: '',
     hours: '',
-    startAm: '',
-    endAm: '',
-    startPm: '',
-    endPm: '',
     unit: '',
   });
   const [showAddTripForm, setShowAddTripForm] = useState(false);
@@ -284,12 +283,16 @@ export default function BusDriverLogModal({
       const parsedTrips = (extracted.field_trips || []).map((t, index) => {
         const hrs = parseFloat(t.hours) || 0;
         const isOt = t.is_overtime || hrs > 8;
+        const timeBreakdown = t.time_breakdown || (t.start_time && t.end_time ? `${t.start_time} - ${t.end_time}` : '');
         return {
           id: `trip-${Date.now()}-${index}`,
           date: t.date || '',
           description: t.description || 'Field Trip',
+          startTime: t.start_time || '',
+          endTime: t.end_time || '',
+          drivingIntervals: t.driving_intervals || '',
+          timeBreakdown: timeBreakdown,
           hours: hrs,
-          timeBreakdown: t.time_breakdown || '',
           unit: t.unit_number || '',
           isOvertime: isOt,
         };
@@ -381,31 +384,48 @@ export default function BusDriverLogModal({
     }
   };
 
-  const calculateElapsedHours = (start, end) => {
-    if (!start || !end) return 0;
-    const [h1, m1] = start.split(':').map(Number);
-    const [h2, m2] = end.split(':').map(Number);
-    const totalMinutes = (h2 * 60 + m2) - (h1 * 60 + m1);
-    return totalMinutes > 0 ? parseFloat((totalMinutes / 60).toFixed(2)) : 0;
+  const parseTimeToMinutes = (tStr) => {
+    if (!tStr) return null;
+    const clean = tStr.trim().toLowerCase();
+    const isPm = clean.includes('pm') || clean.includes('p.m.');
+    const isAm = clean.includes('am') || clean.includes('a.m.');
+    const digitsOnly = clean.replace(/[^\d:]/g, '');
+    const parts = digitsOnly.split(':');
+    if (!parts[0]) return null;
+    let h = parseInt(parts[0], 10);
+    const m = parts[1] ? parseInt(parts[1], 10) : 0;
+    if (isPm && h < 12) h += 12;
+    if (isAm && h === 12) h = 0;
+    return h * 60 + m;
+  };
+
+  const calculateContinuousSpanHours = (startStr, endStr) => {
+    let m1 = parseTimeToMinutes(startStr);
+    let m2 = parseTimeToMinutes(endStr);
+    if (m1 === null || m2 === null) return 0;
+    // If return time is numerically less than departure time (e.g. 11:55 to 3:16 without PM indicator),
+    // it crossed afternoon/noon, add 12 hours (720 min)
+    if (m2 < m1 && m2 + 720 > m1) {
+      m2 += 720;
+    }
+    const diff = m2 - m1;
+    return diff > 0 ? parseFloat((diff / 60).toFixed(2)) : 0;
   };
 
   const handleAddTrip = () => {
     let hours = parseFloat(newTrip.hours);
     if (!hours || isNaN(hours)) {
-      const amHours = calculateElapsedHours(newTrip.startAm, newTrip.endAm);
-      const pmHours = calculateElapsedHours(newTrip.startPm, newTrip.endPm);
-      hours = parseFloat((amHours + pmHours).toFixed(2));
+      hours = calculateContinuousSpanHours(newTrip.startTime, newTrip.endTime);
     }
 
     if (!newTrip.description || !hours || hours <= 0) {
-      alert("Please provide a trip description and valid hours.");
+      alert("Please provide a trip description and valid times or hours.");
       return;
     }
 
-    const timeBreakdown = [
-      newTrip.startAm && newTrip.endAm ? `AM: ${newTrip.startAm}-${newTrip.endAm}` : '',
-      newTrip.startPm && newTrip.endPm ? `PM: ${newTrip.startPm}-${newTrip.endPm}` : '',
-    ].filter(Boolean).join(', ');
+    const timeBreakdown = newTrip.startTime && newTrip.endTime
+      ? `${newTrip.startTime} - ${newTrip.endTime} (Wait time included)`
+      : '';
 
     setFieldTrips(prev => [
       ...prev,
@@ -413,8 +433,11 @@ export default function BusDriverLogModal({
         id: `trip-manual-${Date.now()}`,
         date: newTrip.date || payPeriod.start || new Date().toISOString().split('T')[0],
         description: newTrip.description,
-        hours: hours,
+        startTime: newTrip.startTime,
+        endTime: newTrip.endTime,
+        drivingIntervals: newTrip.drivingNotes,
         timeBreakdown: timeBreakdown,
+        hours: hours,
         unit: newTrip.unit,
         isOvertime: hours > 8,
       }
@@ -423,11 +446,10 @@ export default function BusDriverLogModal({
     setNewTrip({
       date: '',
       description: '',
+      startTime: '',
+      endTime: '',
+      drivingNotes: '',
       hours: '',
-      startAm: '',
-      endAm: '',
-      startPm: '',
-      endPm: '',
       unit: '',
     });
     setShowAddTripForm(false);
@@ -552,10 +574,34 @@ export default function BusDriverLogModal({
       });
     }
 
+    const formattedTripsForPaystub = fieldTrips.map(trip => {
+      const hrs = Number(trip.hours) || 0;
+      const isOt = trip.isOvertime || hrs > 8;
+      const lineRate = isOt ? rates.field_trip_ot_rate : rates.field_trip_hourly_rate;
+      const lineAmount = isOt
+        ? (8 * rates.field_trip_hourly_rate + (hrs - 8) * rates.field_trip_ot_rate)
+        : (hrs * rates.field_trip_hourly_rate);
+
+      return {
+        date: trip.date,
+        start_time: trip.startTime || '',
+        end_time: trip.endTime || '',
+        times: trip.timeBreakdown || (trip.startTime && trip.endTime ? `${trip.startTime} - ${trip.endTime}` : ''),
+        description: trip.description,
+        comments: trip.drivingIntervals ? `${trip.description} (${trip.drivingIntervals})` : trip.description,
+        hours: hrs,
+        rate: lineRate,
+        amount: parseFloat(lineAmount.toFixed(2)),
+        unit: trip.unit || '',
+        is_overtime: isOt,
+      };
+    });
+
     onApplyCompensation({
       driver: selectedDriver,
       payPeriod,
       directLineItems,
+      fieldTrips: formattedTripsForPaystub,
       totalGross: totalGrossCompensation,
       summary: {
         baseSalary: baseSalaryAmount,
@@ -1061,7 +1107,14 @@ export default function BusDriverLogModal({
                   <CardContent className="p-3 space-y-2">
                     {/* Add trip mini-form */}
                     {showAddTripForm && (
-                      <div className="p-2.5 bg-slate-50 dark:bg-slate-800/80 rounded-lg border border-slate-200 dark:border-slate-700 space-y-2 mb-2 text-xs">
+                      <div className="p-3 bg-blue-50/50 dark:bg-slate-800/90 rounded-lg border border-blue-200 dark:border-slate-700 space-y-2.5 mb-2 text-xs">
+                        <div className="font-semibold text-blue-950 dark:text-blue-200 flex items-center justify-between">
+                          <span>Add Field Trip / Special Run</span>
+                          <span className="text-[11px] font-normal text-slate-500">
+                            *Paid continuous duration (driving + wait time)
+                          </span>
+                        </div>
+
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                           <div>
                             <Label className="text-[10px] text-slate-500">Date</Label>
@@ -1069,71 +1122,87 @@ export default function BusDriverLogModal({
                               type="date"
                               value={newTrip.date}
                               onChange={e => setNewTrip({ ...newTrip, date: e.target.value })}
-                              className="h-6 text-xs dark:bg-slate-800"
+                              className="h-7 text-xs dark:bg-slate-800"
                             />
                           </div>
                           <div className="sm:col-span-2">
-                            <Label className="text-[10px] text-slate-500">Description / Destination</Label>
+                            <Label className="text-[10px] text-slate-500">Destination / Comments</Label>
                             <Input
-                              placeholder="e.g. Ski Trip, Swim Lessons, Vermilion Auction Mart"
+                              placeholder="e.g. Vermilion Auction Mart, Ski Trip, Swim Lessons"
                               value={newTrip.description}
                               onChange={e => setNewTrip({ ...newTrip, description: e.target.value })}
-                              className="h-6 text-xs dark:bg-slate-800"
+                              className="h-7 text-xs dark:bg-slate-800"
                             />
                           </div>
                         </div>
                         
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                           <div>
-                            <Label className="text-[10px] text-slate-500">AM (Start-End)</Label>
-                            <div className="flex gap-1">
-                              <Input
-                                placeholder="09:00"
-                                value={newTrip.startAm}
-                                onChange={e => setNewTrip({ ...newTrip, startAm: e.target.value })}
-                                className="h-6 text-xs dark:bg-slate-800 px-1"
-                              />
-                              <Input
-                                placeholder="10:30"
-                                value={newTrip.endAm}
-                                onChange={e => setNewTrip({ ...newTrip, endAm: e.target.value })}
-                                className="h-6 text-xs dark:bg-slate-800 px-1"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <Label className="text-[10px] text-slate-500">PM (Start-End)</Label>
-                            <div className="flex gap-1">
-                              <Input
-                                placeholder="14:00"
-                                value={newTrip.startPm}
-                                onChange={e => setNewTrip({ ...newTrip, startPm: e.target.value })}
-                                className="h-6 text-xs dark:bg-slate-800 px-1"
-                              />
-                              <Input
-                                placeholder="16:30"
-                                value={newTrip.endPm}
-                                onChange={e => setNewTrip({ ...newTrip, endPm: e.target.value })}
-                                className="h-6 text-xs dark:bg-slate-800 px-1"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <Label className="text-[10px] text-slate-500">Total Hours</Label>
+                            <Label className="text-[10px] text-slate-500">Departure Time</Label>
                             <Input
-                              type="number"
-                              step="0.1"
-                              placeholder="e.g. 4.5"
-                              value={newTrip.hours}
-                              onChange={e => setNewTrip({ ...newTrip, hours: e.target.value })}
-                              className="h-6 text-xs dark:bg-slate-800"
+                              placeholder="e.g. 11:55 AM"
+                              value={newTrip.startTime}
+                              onChange={e => {
+                                const val = e.target.value;
+                                const hrs = calculateContinuousSpanHours(val, newTrip.endTime);
+                                setNewTrip({ ...newTrip, startTime: val, hours: hrs > 0 ? hrs : newTrip.hours });
+                              }}
+                              className="h-7 text-xs dark:bg-slate-800 px-2"
                             />
                           </div>
-                          <div className="flex items-end">
-                            <Button size="sm" onClick={handleAddTrip} className="h-6 text-xs bg-blue-600 text-white w-full">
-                              Save Trip
-                            </Button>
+                          <div>
+                            <Label className="text-[10px] text-slate-500">Return Time</Label>
+                            <Input
+                              placeholder="e.g. 3:16 PM"
+                              value={newTrip.endTime}
+                              onChange={e => {
+                                const val = e.target.value;
+                                const hrs = calculateContinuousSpanHours(newTrip.startTime, val);
+                                setNewTrip({ ...newTrip, endTime: val, hours: hrs > 0 ? hrs : newTrip.hours });
+                              }}
+                              className="h-7 text-xs dark:bg-slate-800 px-2"
+                            />
                           </div>
+                          <div>
+                            <Label className="text-[10px] text-slate-500">
+                              Total Hours <span className="text-[9px] text-blue-600">(Wait inc.)</span>
+                            </Label>
+                            <Input
+                              type="number"
+                              step="0.05"
+                              placeholder="e.g. 3.35"
+                              value={newTrip.hours}
+                              onChange={e => setNewTrip({ ...newTrip, hours: e.target.value })}
+                              className="h-7 text-xs dark:bg-slate-800 font-semibold"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[10px] text-slate-500">Driving Notes (HOS)</Label>
+                            <Input
+                              placeholder="e.g. 11:55-12:38, 2:40-3:16"
+                              value={newTrip.drivingNotes}
+                              onChange={e => setNewTrip({ ...newTrip, drivingNotes: e.target.value })}
+                              className="h-7 text-xs dark:bg-slate-800"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowAddTripForm(false)}
+                            className="h-7 text-xs"
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={handleAddTrip}
+                            className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                          >
+                            Save Trip
+                          </Button>
                         </div>
                       </div>
                     )}
@@ -1148,7 +1217,8 @@ export default function BusDriverLogModal({
                           <TableHeader className="bg-slate-50 dark:bg-slate-800/40">
                             <TableRow className="text-[11px] h-7">
                               <TableHead className="w-20 py-1">Date</TableHead>
-                              <TableHead className="py-1">Description</TableHead>
+                              <TableHead className="py-1">Destination & Notes</TableHead>
+                              <TableHead className="w-32 py-1">Times (Wait inc.)</TableHead>
                               <TableHead className="w-20 text-right py-1">Hours</TableHead>
                               <TableHead className="w-24 text-right py-1">Subtotal</TableHead>
                               <TableHead className="w-8 py-1"></TableHead>
@@ -1162,14 +1232,21 @@ export default function BusDriverLogModal({
                                 ? (8 * rates.field_trip_hourly_rate + (hrs - 8) * rates.field_trip_ot_rate)
                                 : (hrs * rates.field_trip_hourly_rate);
 
+                              const timesDisplay = trip.timeBreakdown || (trip.startTime && trip.endTime ? `${trip.startTime} - ${trip.endTime}` : '-');
+
                               return (
                                 <TableRow key={trip.id} className="dark:border-slate-800 h-8">
                                   <TableCell className="py-1 font-mono text-[11px] text-slate-600 dark:text-slate-400">{trip.date}</TableCell>
                                   <TableCell className="py-1">
                                     <span className="font-medium dark:text-slate-200">{trip.description}</span>
-                                    {trip.timeBreakdown && (
-                                      <span className="text-[10px] text-slate-400 block">{trip.timeBreakdown}</span>
+                                    {trip.drivingIntervals && (
+                                      <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-mono">
+                                        Drive: {trip.drivingIntervals}
+                                      </span>
                                     )}
+                                  </TableCell>
+                                  <TableCell className="py-1 text-[11px] text-slate-600 dark:text-slate-300">
+                                    {timesDisplay}
                                   </TableCell>
                                   <TableCell className="py-1 text-right font-semibold">
                                     {hrs.toFixed(2)}h

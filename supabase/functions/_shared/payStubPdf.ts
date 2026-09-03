@@ -476,8 +476,83 @@ export function buildPayStubPdf(
     y += 10;
   }
 
+  // Field Trips Detail Section (for Bus Drivers or stubs with field trips)
+  if (stub.field_trips && Array.isArray(stub.field_trips) && stub.field_trips.length > 0) {
+    const trips = stub.field_trips;
+    const estimatedHeight = 15 + trips.length * 6.5;
+    if (y + estimatedHeight > 265) {
+      doc.addPage();
+      y = 15;
+    } else {
+      y += 2;
+    }
+
+    doc.setFillColor(...darkGray);
+    doc.rect(10, y, pageWidth - 20, 6, 'F');
+    doc.setTextColor(...white);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.text("Field Trips & Extra Runs Detail (Driving & Wait Time)", leftColX, y + 4);
+    y += 7;
+
+    // Table column headers
+    doc.setFillColor(...lightGray);
+    doc.rect(10, y, pageWidth - 20, 5, 'F');
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold');
+    doc.text("Date", 12, y + 3.5);
+    doc.text("Trip / Destination & Comments", 35, y + 3.5);
+    doc.text("Times (Wait time inc.)", 112, y + 3.5);
+    doc.text("Hours", pageWidth - 42, y + 3.5, { align: 'right' });
+    doc.text("Rate", pageWidth - 26, y + 3.5, { align: 'right' });
+    doc.text("Amount", pageWidth - 14, y + 3.5, { align: 'right' });
+    y += 6;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7.5);
+
+    trips.forEach((trip: any, idx: number) => {
+      if (y > 265) {
+        doc.addPage();
+        y = 15;
+      }
+
+      if (idx % 2 === 1) {
+        doc.setFillColor(248, 250, 252);
+        doc.rect(10, y - 1, pageWidth - 20, 6, 'F');
+      }
+
+      const tripDate = trip.date ? formatDate(trip.date) : '-';
+      const desc = trip.description || trip.comments || 'Field Trip';
+      const timesText = trip.times || trip.time_breakdown || (trip.start_time && trip.end_time ? `${trip.start_time} - ${trip.end_time}` : '-');
+      const hrs = Number(trip.hours) || 0;
+      const rate = Number(trip.rate) || 25.00;
+      const amount = Number(trip.amount) || (hrs * rate);
+      const isOt = trip.is_overtime || trip.isOvertime || hrs > 8;
+
+      doc.setTextColor(0, 0, 0);
+      doc.text(tripDate, 12, y + 3);
+      doc.text(desc, 35, y + 3, { maxWidth: 74 });
+      doc.text(timesText, 112, y + 3, { maxWidth: 42 });
+
+      const hrsText = isOt ? `${hrs.toFixed(2)}h (OT)` : `${hrs.toFixed(2)}h`;
+      doc.text(hrsText, pageWidth - 42, y + 3, { align: 'right' });
+      doc.text(`$${rate.toFixed(2)}`, pageWidth - 26, y + 3, { align: 'right' });
+      doc.text(formatCurrency(amount), pageWidth - 14, y + 3, { align: 'right' });
+
+      y += 6;
+    });
+
+    y += 4;
+  }
+
   // Comments section if present
   if (stub.comments) {
+    if (y + 20 > 265) {
+      doc.addPage();
+      y = 15;
+    }
     doc.setFillColor(239, 246, 255);
     doc.rect(10, y, pageWidth - 20, 15, 'F');
     doc.setTextColor(55, 65, 81);
@@ -487,6 +562,7 @@ export function buildPayStubPdf(
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.text(stub.comments, 14, y + 10);
+    y += 18;
   }
 
   const pdfDataUri = doc.output('datauristring');
