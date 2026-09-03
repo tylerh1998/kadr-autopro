@@ -110,7 +110,9 @@ export default function PaychequeCreator({ employee, payPeriod, importedTimeData
           <p>Employee ID: {employee.employee_id}</p>
           {importedTimeData && (
             <p className="text-blue-600 dark:text-blue-400 font-semibold">
-              ✓ WorkPRO time data loaded ({Object.keys(importedTimeData.payTypes).length} pay type(s))
+              {importedTimeData.directLineItems
+                ? `✓ Bus Driver Duty Record loaded (${importedTimeData.directLineItems.length} pay line item(s))`
+                : `✓ WorkPRO time data loaded (${Object.keys(importedTimeData.payTypes || {}).length} pay type(s))`}
             </p>
           )}
         </div>

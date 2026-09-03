@@ -52,7 +52,9 @@ export default function PaychequeForm({ employee, payPeriod, ytdData, importedTi
         setTaxYear(taxYearData.length > 0 ? taxYearData[0] : null);
 
         // Initialize pay data with imported time data if available
-        if (importedTimeData && importedTimeData.payTypes) {
+        if (importedTimeData && importedTimeData.directLineItems) {
+          setPayData({ payTypes: importedTimeData.directLineItems, additionalDeductions: [] });
+        } else if (importedTimeData && importedTimeData.payTypes) {
           const initialPayTypes = [];
 
           Object.entries(importedTimeData.payTypes).forEach(([payTypeNameFromWorkPRO, hours]) => {

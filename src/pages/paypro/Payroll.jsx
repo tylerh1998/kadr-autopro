@@ -8,9 +8,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import PaychequeCreator from "@/components/paypro/payroll/PaychequeCreator";
 import BatchPaychequeProcessor from "@/components/paypro/payroll/BatchPaychequeProcessor";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Users, Download, ChevronLeft, ChevronRight } from "lucide-react";
+import { AlertCircle, Users, Download, ChevronLeft, ChevronRight, Bus } from "lucide-react";
 import { importTimeData } from "@/components/paypro/payroll/TimeDataProcessor";
 import { useNavigate } from "react-router-dom";
+import BusDriverLogModal from "@/components/paypro/payroll/BusDriverLogModal";
 
 export default function Payroll() {
   const navigate = useNavigate();
@@ -23,6 +24,7 @@ export default function Payroll() {
   const [isImportingTime, setIsImportingTime] = useState(false);
   const [importedTimeData, setImportedTimeData] = useState(null);
   const [unmatchedEmployees, setUnmatchedEmployees] = useState([]);
+  const [busDriverModalOpen, setBusDriverModalOpen] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -151,6 +153,14 @@ export default function Payroll() {
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Run Payroll</h1>
         <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            onClick={() => setBusDriverModalOpen(true)} 
+            className="flex items-center gap-1.5 border-blue-200 text-blue-700 bg-blue-50/60 hover:bg-blue-100 dark:border-blue-900 dark:text-blue-300 dark:bg-blue-950/40"
+          >
+            <Bus className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            Bus Driver Pay Tool
+          </Button>
           <Button variant="outline" onClick={() => navigate('/paypro/TimeRecords')} className="flex items-center gap-1">
             <ChevronLeft className="w-4 h-4" />
             Time Records
@@ -345,6 +355,15 @@ export default function Payroll() {
                     </>
                   )}
                 </Button>
+                <Button
+                  onClick={() => setBusDriverModalOpen(true)}
+                  variant="outline"
+                  size="sm"
+                  className="border-blue-300 text-blue-700 bg-blue-50/60 hover:bg-blue-100 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-300 flex items-center gap-1.5"
+                >
+                  <Bus className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  Bus Driver Entry
+                </Button>
                 {(!payPeriod.start || !payPeriod.end) && (
                   <span className="text-sm text-amber-600 dark:text-amber-400">
                     ⚠ Set pay period dates first
@@ -438,9 +457,32 @@ export default function Payroll() {
                       e.stopPropagation();
                     }}
                   />
-                  <div className="flex-1 flex items-center gap-2">
-                    <span className="font-medium dark:text-slate-100">{emp.first_name} {emp.last_name}</span>
-                    <span className="text-sm text-slate-500 dark:text-slate-400">• {emp.position || emp.employee_type}</span>
+                  <div className="flex-1 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium dark:text-slate-100">{emp.first_name} {emp.last_name}</span>
+                      <span className="text-sm text-slate-500 dark:text-slate-400">• {emp.position || emp.employee_type}</span>
+                      {emp.employee_type === 'Bus Driver' && (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-semibold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300">
+                          <Bus className="w-3 h-3" />
+                          Bus Driver
+                        </span>
+                      )}
+                    </div>
+                    {emp.employee_type === 'Bus Driver' && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedEmployeeIds([emp.id]);
+                          setProcessingMode('single');
+                          setBusDriverModalOpen(true);
+                        }}
+                        className="h-7 text-xs text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                      >
+                        Duty Record Tool →
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -459,6 +501,32 @@ export default function Payroll() {
             )}
           </CardContent>
         </Card>
+        )}
+
+        {canShowPaycheque && processingMode === 'single' && selectedEmployee?.employee_type === 'Bus Driver' && (
+          <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 rounded-xl flex flex-wrap items-center justify-between gap-3 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
+                <Bus className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0" />
+              </div>
+              <div>
+                <p className="font-semibold text-sm text-blue-900 dark:text-blue-200">
+                  {selectedEmployee.first_name} {selectedEmployee.last_name} (Bus Driver)
+                </p>
+                <p className="text-xs text-blue-700 dark:text-blue-300">
+                  Operates under the BTPS Guaranteed Fixed Route Salary model ($21,640.30 annual base). Scan or enter their monthly paper Duty Record to calculate Field Trips and Winter Plug-in.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => setBusDriverModalOpen(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-700 text-xs font-semibold gap-1.5"
+            >
+              <Bus className="w-3.5 h-3.5" />
+              Scan / Enter Duty Record
+            </Button>
+          </div>
         )}
 
         {canShowPaycheque && processingMode === 'single' && selectedEmployee && (
@@ -482,6 +550,32 @@ export default function Payroll() {
             payPeriod={payPeriod}
             importedTimeData={importedTimeData}
             onComplete={handleBatchComplete}
+          />
+        )}
+
+        {busDriverModalOpen && (
+          <BusDriverLogModal
+            isOpen={busDriverModalOpen}
+            onClose={() => setBusDriverModalOpen(false)}
+            drivers={employees.filter(e => e.employee_type === 'Bus Driver')}
+            initialDriverId={selectedEmployee?.employee_type === 'Bus Driver' ? selectedEmployee.id : null}
+            initialPayPeriod={payPeriod}
+            onApplyCompensation={({ driver, payPeriod: newPeriod, directLineItems }) => {
+              if (newPeriod?.start && newPeriod?.end) {
+                setPayPeriod(newPeriod);
+                validateDates(newPeriod);
+              }
+              setSelectedEmployeeIds([driver.id]);
+              setProcessingMode('single');
+              setImportedTimeData(prev => ({
+                ...(prev || {}),
+                [driver.id]: {
+                  employee: driver,
+                  directLineItems,
+                  payTypes: {},
+                }
+              }));
+            }}
           />
         )}
       </div>
