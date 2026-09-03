@@ -1,30 +1,56 @@
-# Walkthrough: PayPro Navigation Polish
+# Walkthrough: Base44 Audit String Cleanup & Helper Centralization
 
-Implemented a complete, intuitive 360-degree navigation loop across all core pages in the **PayPro (Payroll)** module. Each page now features header navigation buttons with matching icons and directional chevrons (`←` / `→`) to allow seamless one-click transitions along the end-to-end payroll workflow.
+Centralized scattered `@no-reply.base44.com` audit string formatting and user display logic across the codebase into a single shared utility helper (`formatAuditUserDisplay`).
 
-## Summary of Navigation Chain
+## Changes Made
 
+### Shared Utilities
+- **[`src/utils/userDisplayUtils.js`](file:///C:/Users/tyler/OneDrive/Documents/GitHub/kadr-autopro/src/utils/userDisplayUtils.js)**
+  - Created a central, reusable utility helper `formatAuditUserDisplay(emailOrName, employees)`:
+    - Automatically maps `null`, `undefined`, `'System'`, and legacy `@no-reply.base44.com` email strings to `'System'`.
+    - Resolves employee emails against the active employee list to return full names.
+
+### Refactored Components
+- **[`InventoryHistoryModal.jsx`](file:///C:/Users/tyler/OneDrive/Documents/GitHub/kadr-autopro/src/components/inventory/InventoryHistoryModal.jsx)**
+  - Replaced inline `getCreatedByDisplay` function with `formatAuditUserDisplay`.
+- **[`WorkOrderHeaderInfo.jsx`](file:///C:/Users/tyler/OneDrive/Documents/GitHub/kadr-autopro/src/components/work-orders/form/WorkOrderHeaderInfo.jsx)**
+  - Simplified `getUserDisplayName` helper to use `formatAuditUserDisplay`.
+- **[`WorkOrderViewHeaderInfo.jsx`](file:///C:/Users/tyler/OneDrive/Documents/GitHub/kadr-autopro/src/components/work-orders/form/WorkOrderViewHeaderInfo.jsx)**
+  - Simplified `getUserDisplayName` helper to use `formatAuditUserDisplay`.
+- **[`WorkOrderHistoryModal.jsx`](file:///C:/Users/tyler/OneDrive/Documents/GitHub/kadr-autopro/src/components/work-orders/history/WorkOrderHistoryModal.jsx)**
+  - Refactored `resolveUserName` to utilize `formatAuditUserDisplay`.
+
+---
+
+## Database Data Sanitization Script
+
+To permanently update legacy database rows in Supabase so that historical audit strings are stored as `'System'`, execute the following SQL in your **Supabase SQL Editor**:
+
+```sql
+-- Sanitize legacy Base44 system audit emails to 'System'
+UPDATE "InventoryAuditLog"
+SET created_by = 'System'
+WHERE created_by LIKE '%@no-reply.base44.com%';
+
+UPDATE "WorkOrder"
+SET created_by = 'System'
+WHERE created_by LIKE '%@no-reply.base44.com%';
+
+UPDATE "WorkOrder"
+SET last_updated_by = 'System'
+WHERE last_updated_by LIKE '%@no-reply.base44.com%';
+
+UPDATE "WorkOrder"
+SET completed_by = 'System'
+WHERE completed_by LIKE '%@no-reply.base44.com%';
+
+UPDATE "WorkOrderHistory"
+SET created_by = 'System'
+WHERE created_by LIKE '%@no-reply.base44.com%';
 ```
-[Employees] ──► [Time Records] ──► [Run Payroll] ──► [Pay Stubs]
-     ▲                                                    │
-     │                                                    ▼
-  [Setup] ◄─── [Trends] ◄─── [T4s] ◄─── [Reports] ◄─── [Remittances]
-```
 
-## Detailed Page Enhancements
+---
 
-| Page | Navigation Shortcuts Added |
-|---|---|
-| **`/paypro/Employees`** | • `Clock` **Time Records**<br />• `Receipt` **Pay Stubs** |
-| **`/paypro/TimeRecords`** | • `ChevronRight` **Calculate Payroll** |
-| **`/paypro/Payroll`** | • `ChevronLeft` **Time Records**<br />• `ChevronRight` **Pay Stubs** |
-| **`/paypro/PayStubs`** | • `ChevronLeft` **Run Payroll**<br />• `ChevronRight` **Remittances** |
-| **`/paypro/Remittances`** | • `ChevronLeft` **Pay Stubs**<br />• `ChevronRight` **Reports** |
-| **`/paypro/Reports`** | • `ChevronLeft` **Remittances**<br />• `ChevronRight` **T4s** |
-| **`/paypro/T4s`** | • `ChevronLeft` **Reports**<br />• `ChevronRight` **Trends** |
-| **`/paypro/Trends`** | • `ChevronLeft` **T4s**<br />• `ChevronRight` **Setup** |
-| **`/paypro/Setup`** | • `ChevronLeft` **Trends**<br />• `ChevronRight` **Employees** |
-
-## Key Benefits
-- **Zero dead-ends**: Users can cycle through the full payroll lifecycle (Employee setup → Time tracking → Running payroll → Generating stubs → Paying remittances → Viewing reports & T4s → Analytics → Configuration) without needing to reopen the main sidebar menu.
-- **Consistent visual language**: All buttons use official Lucide icons (`Users`, `Clock`, `Calculator`, `Receipt`, `Landmark`, `BarChart3`, `FileText`, `TrendingUp`, `Settings`) matching the primary navbar definitions.
+## Verification Results
+- All 4 components refactored cleanly with zero linting or import issues.
+- User display formatting remains 100% backwards compatible for legacy records while eliminating duplicate inline logic.

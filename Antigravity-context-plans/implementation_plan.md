@@ -1,69 +1,84 @@
-# Implementation Plan: UI Lock for `autopro_access_lvl = no_access`
+# Implementation Plan: Clean Up & Centralize `@no-reply.base44.com` Audit String Checks
 
-Implement a full-screen UI lock in AutoPro that blocks access to all application routes, navigation sidebars, and page components whenever an authenticated user has `autopro_access_lvl = 'no_access'` (or no matching Employee record). This is enforced strictly at the frontend routing layer without altering Database Row-Level Security (RLS).
+Refactor and centralize scattered `@no-reply.base44.com` string checks into a single shared utility helper (`formatAuditUserDisplay`), and provide a database cleanup script to sanitize legacy audit records in Supabase.
 
 ## User Review Required
 
 > [!IMPORTANT]
-> - **Fallback behavior**: If an authenticated user has no matching row in the `Employee` table or `autopro_access_lvl` is explicitly `'no_access'`, the UI Lock will trigger by default.
-> - **Pure UI Enforcement**: As requested, this plan alters only frontend context, routing, and layout guards. No database tables or RLS policies will be modified.
-
-## Open Questions
-
-> [!NOTE]
-> - Should `autopro_access_lvl === null` or `undefined` also trigger the UI Lock, or fall back to standard access? *(Current plan defaults to locking access whenever `autopro_access_lvl === 'no_access'` or when an employee record is missing).*
+> - **Two-Part Resolution**:
+>   1. **Frontend Refactor**: Centralizes user display logic into a single helper (`src/utils/userDisplayUtils.js`) and updates all 4 components (`InventoryHistoryModal`, `WorkOrderHeaderInfo`, `WorkOrderViewHeaderInfo`, `WorkOrderHistoryModal`).
+>   2. **Database Data Sanitization**: A SQL update script is provided to sanitize existing legacy rows in Supabase (`InventoryAuditLog`, `WorkOrder`, `WorkOrderHistory`), converting legacy `@no-reply.base44.com` emails directly to `'System'`.
 
 ## Proposed Changes
 
-### Auth & Security Context
+### Shared Utilities
 
-#### [MODIFY] [AuthContext.jsx](file:///C:/Users/tyler/OneDrive/Documents/GitHub/kadr-autopro/src/lib/AuthContext.jsx)
-- Expose `hasNoAccess` boolean flag and `autoproAccessLvl` string helper in `AuthContext`.
-- Compute `hasNoAccess = !employee || employee?.autopro_access_lvl === 'no_access'`.
-
----
-
-### UI Components
-
-#### [NEW] [AccessDeniedLock.jsx](file:///C:/Users/tyler/OneDrive/Documents/GitHub/kadr-autopro/src/lib/AccessDeniedLock.jsx)
-- Create a full-screen UI lock screen featuring:
-  - Shield/Lock icon badge with dark mode compatibility (`dark:bg-amber-950/40`, `dark:border-amber-800`).
-  - Clear heading: **Access Restricted**.
-  - Informative text: "Your employee account currently has no access permissions granted for AutoPro (`autopro_access_lvl = no_access`)."
-  - Summary details card showing User Name, Email, Employee ID, and Access Level status.
-  - Action button: **Sign Out / Switch Account** (calls `logout()` from `useAuth()`).
-  - Link: **Go to myKADR Account** (`https://my.kensauto.ca`).
+#### [NEW] [userDisplayUtils.js](file:///C:/Users/tyler/OneDrive/Documents/GitHub/kadr-autopro/src/utils/userDisplayUtils.js)
+- Create a centralized audit user display helper function:
+  ```javascript
+  export function formatAuditUserDisplay(emailOrName, employees = []) {
+    if (!emailOrName) return 'System';
+    if (emailOrName === 'System' || emailOrName.endsWith('@no-reply.base44.com')) return 'System';
+    if (employees && employees.length > 0) {
+      const match = employees.find(e => e.email === emailOrName);
+      if (match) return match.full_name || `${match.first_name || ''} ${match.last_name || ''}`.trim() || emailOrName;
+    }
+    return emailOrName;
+  }
+  ```
 
 ---
 
-### Core Application Router
+### Component Refactored Files
 
-#### [MODIFY] [App.jsx](file:///C:/Users/tyler/OneDrive/Documents/GitHub/kadr-autopro/src/App.jsx)
-- Update `AuthenticatedApp`:
-  - Check `hasNoAccess` after `isLoadingAuth` completes.
-  - If `true`, render `<AccessDeniedLock />` instead of `<Routes>` and `<LayoutWrapper>`.
-  - Ensures no sub-routes, pages, or background data-fetching hooks can be executed.
+#### [MODIFY] [InventoryHistoryModal.jsx](file:///C:/Users/tyler/OneDrive/Documents/GitHub/kadr-autopro/src/components/inventory/InventoryHistoryModal.jsx)
+- Replace local inline `getCreatedByDisplay` function with `formatAuditUserDisplay`.
+
+#### [MODIFY] [WorkOrderHeaderInfo.jsx](file:///C:/Users/tyler/OneDrive/Documents/GitHub/kadr-autopro/src/components/work-orders/form/WorkOrderHeaderInfo.jsx)
+- Replace local `getUserDisplayName` logic with `formatAuditUserDisplay`.
+
+#### [MODIFY] [WorkOrderViewHeaderInfo.jsx](file:///C:/Users/tyler/OneDrive/Documents/GitHub/kadr-autopro/src/components/work-orders/form/WorkOrderViewHeaderInfo.jsx)
+- Replace local `getUserDisplayName` logic with `formatAuditUserDisplay`.
+
+#### [MODIFY] [WorkOrderHistoryModal.jsx](file:///C:/Users/tyler/OneDrive/Documents/GitHub/kadr-autopro/src/components/work-orders/history/WorkOrderHistoryModal.jsx)
+- Replace local `resolveUserName` logic with `formatAuditUserDisplay`.
 
 ---
 
-### Layout & Badges
+### Database Data Sanitization Script
 
-#### [MODIFY] [Layout.jsx](file:///C:/Users/tyler/OneDrive/Documents/GitHub/kadr-autopro/src/Layout.jsx)
-- Update profile access level badge text (lines 936–940) to explicitly handle `'no_access'` ("Access Disabled").
-- Add secondary guard in `LayoutWrapper` to render `<AccessDeniedLock />` if `autopro_access_lvl === 'no_access'`.
+Provide the following SQL script to execute in the Supabase SQL Editor:
+
+```sql
+-- Sanitize legacy Base44 system audit emails to 'System'
+UPDATE "InventoryAuditLog"
+SET created_by = 'System'
+WHERE created_by LIKE '%@no-reply.base44.com%';
+
+UPDATE "WorkOrder"
+SET created_by = 'System'
+WHERE created_by LIKE '%@no-reply.base44.com%';
+
+UPDATE "WorkOrder"
+SET last_updated_by = 'System'
+WHERE last_updated_by LIKE '%@no-reply.base44.com%';
+
+UPDATE "WorkOrder"
+SET completed_by = 'System'
+WHERE completed_by LIKE '%@no-reply.base44.com%';
+
+UPDATE "WorkOrderHistory"
+SET created_by = 'System'
+WHERE created_by LIKE '%@no-reply.base44.com%';
+```
 
 ---
 
 ## Verification Plan
 
+### Automated / Syntax Check
+- Verify clean imports and zero linting/build errors (`npm run build`).
+
 ### Manual Verification
-1. **Testing `no_access` Lock**:
-   - Set an employee's `autopro_access_lvl = 'no_access'` in Supabase `Employee` table.
-   - Refresh the AutoPro application.
-   - Verify that `<AccessDeniedLock />` renders full-screen immediately.
-   - Verify that sidebar navigation, headers, routes, and data calls are completely blocked.
-   - Verify clicking **Sign Out** cleanly logs the user out to myKADR SSO.
-2. **Testing Valid Access (`lvl1_user`, `lvl2_user`, `lvl3_user`)**:
-   - Verify that employees with valid access levels load the application normally.
-3. **Dark Mode Verification**:
-   - Verify that the lock screen supports both light mode and dark mode palettes.
+- Open **Inventory History Modal** on an item and verify transaction creator displays `"System"` or employee name correctly.
+- Open **Work Order Header Info** and **Work Order History Modal** and verify creator/updater display names render cleanly.
