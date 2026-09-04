@@ -54,6 +54,9 @@ export default function PaychequeForm({ employee, payPeriod, ytdData, importedTi
         // Initialize pay data with imported time data if available
         if (importedTimeData && importedTimeData.directLineItems) {
           setPayData({ payTypes: importedTimeData.directLineItems, additionalDeductions: [] });
+          if (importedTimeData.comments) {
+            setComments(importedTimeData.comments);
+          }
         } else if (importedTimeData && importedTimeData.payTypes) {
           const initialPayTypes = [];
 

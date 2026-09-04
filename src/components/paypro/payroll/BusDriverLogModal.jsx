@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
-import { PayrollSetting } from "@/components/paypro/lib/payrollEntities";
+import { EmployeePayType } from "@/components/paypro/lib/payrollEntities";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { 
@@ -25,31 +24,13 @@ import {
   Clock, 
   GraduationCap, 
   FileCheck,
-  Settings,
   ZoomIn,
   ZoomOut,
-  Maximize2,
   ExternalLink,
   Columns,
   Square,
-  TrendingUp,
-  Save
+  MessageSquare
 } from "lucide-react";
-
-// Default BTPS Pay Model Rates (2026 Baseline)
-const DEFAULT_RATES = {
-  daily_rate: 113.30,
-  school_days: 180,
-  stat_days: 11,
-  annual_salary: 21640.30,
-  ten_month_rate: 2164.03,
-  twelve_month_rate: 1803.36,
-  winter_plugin_rate: 56.65,
-  field_trip_hourly_rate: 25.00,
-  field_trip_ot_rate: 37.50,
-  last_raise_percent: 3.0,
-  effective_year: "2026",
-};
 
 export default function BusDriverLogModal({
   isOpen,
@@ -64,17 +45,15 @@ export default function BusDriverLogModal({
   
   // View mode: 'split' (side-by-side) | 'form' | 'doc'
   const [viewMode, setViewMode] = useState('split');
-  
-  // Pay rates config
-  const [rates, setRates] = useState(DEFAULT_RATES);
-  const [showRateSettings, setShowRateSettings] = useState(false);
-  const [newRaisePercent, setNewRaisePercent] = useState('');
-  const [savingRates, setSavingRates] = useState(false);
 
   // Selection state
   const [selectedDriverId, setSelectedDriverId] = useState(initialDriverId || (drivers[0]?.id || ''));
   const [payPeriod, setPayPeriod] = useState(initialPayPeriod);
   
+  // Profile pay types for the selected driver
+  const [driverPayTypes, setDriverPayTypes] = useState([]);
+  const [loadingPayTypes, setLoadingPayTypes] = useState(false);
+
   // File upload & OCR state
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileBase64, setFileBase64] = useState(null);
@@ -85,15 +64,12 @@ export default function BusDriverLogModal({
   const [ocrError, setOcrError] = useState(null);
   const [ocrSuccessNotes, setOcrSuccessNotes] = useState('');
 
-  // Compensation model state
-  const [salarySchedule, setSalarySchedule] = useState('10_month'); // '10_month' | '12_month'
-  const [customBaseSalary, setCustomBaseSalary] = useState(DEFAULT_RATES.ten_month_rate);
-  
-  // Winter plug-in
+  // Winter plug-in ($56.65 half-day rate by default, routed to Misc Pay)
   const [includePlugin, setIncludePlugin] = useState(false);
+  const [pluginRate, setPluginRate] = useState(56.65);
   const [pluginCount, setPluginCount] = useState(1);
   
-  // Field trips
+  // Field trips (routed to Field Trip and Overtime)
   const [fieldTrips, setFieldTrips] = useState([]);
   const [newTrip, setNewTrip] = useState({
     date: '',
@@ -106,12 +82,12 @@ export default function BusDriverLogModal({
   });
   const [showAddTripForm, setShowAddTripForm] = useState(false);
 
-  // Training / PD
-  const [pdDays, setPdDays] = useState([]);
+  // Training / PD (manual entry from BTPS invoice, routed to Misc Pay)
   const [pdAmount, setPdAmount] = useState(0);
-  const [pdDescription, setPdDescription] = useState('BTPS Training / PD Day');
+  const [pdNotes, setPdNotes] = useState('');
+  const [ocrPdObservations, setOcrPdObservations] = useState([]);
 
-  // Audit context
+  // Audit context from OCR
   const [auditInfo, setAuditInfo] = useState({
     regularRunsCount: 0,
     statDaysCount: 0,
@@ -124,26 +100,26 @@ export default function BusDriverLogModal({
   const [archiveFileToEmployee, setArchiveFileToEmployee] = useState(true);
   const [isArchiving, setIsArchiving] = useState(false);
 
-  // Load configured rates from database (PayPro_PayrollSetting)
-  useEffect(() => {
-    const loadRates = async () => {
-      try {
-        const settings = await PayrollSetting.filter({ key: 'btps_bus_driver_rates' });
-        if (settings.length > 0 && settings[0].value) {
-          const parsed = JSON.parse(settings[0].value);
-          setRates(prev => ({ ...prev, ...parsed }));
-          if (salarySchedule === '10_month') {
-            setCustomBaseSalary(parsed.ten_month_rate || DEFAULT_RATES.ten_month_rate);
-          } else {
-            setCustomBaseSalary(parsed.twelve_month_rate || DEFAULT_RATES.twelve_month_rate);
-          }
-        }
-      } catch (err) {
-        console.warn("Could not load custom bus driver rates from DB, using defaults:", err);
-      }
-    };
-    loadRates();
+  // Fetch the selected driver's configured pay types from their employee profile
+  const fetchDriverPayTypes = useCallback(async (driverId) => {
+    if (!driverId) return;
+    setLoadingPayTypes(true);
+    try {
+      const types = await EmployeePayType.filter({ employee_id_ref: driverId });
+      setDriverPayTypes(types || []);
+    } catch (err) {
+      console.warn("Error fetching driver profile pay types:", err);
+      setDriverPayTypes([]);
+    } finally {
+      setLoadingPayTypes(false);
+    }
   }, []);
+
+  useEffect(() => {
+    if (selectedDriverId) {
+      fetchDriverPayTypes(selectedDriverId);
+    }
+  }, [selectedDriverId, fetchDriverPayTypes]);
 
   // Auto-select initial driver if supplied
   useEffect(() => {
@@ -154,7 +130,7 @@ export default function BusDriverLogModal({
     }
   }, [initialDriverId, drivers, selectedDriverId]);
 
-  // Sync pay period
+  // Sync pay period & auto-detect winter months (Nov–Mar)
   useEffect(() => {
     if (initialPayPeriod?.start && initialPayPeriod?.end) {
       setPayPeriod(initialPayPeriod);
@@ -163,15 +139,6 @@ export default function BusDriverLogModal({
       setIncludePlugin(isWinterMonth);
     }
   }, [initialPayPeriod]);
-
-  // Update base rate when schedule changes
-  useEffect(() => {
-    if (salarySchedule === '10_month') {
-      setCustomBaseSalary(rates.ten_month_rate);
-    } else {
-      setCustomBaseSalary(rates.twelve_month_rate);
-    }
-  }, [salarySchedule, rates]);
 
   // Clean up object URL when component unmounts or file changes
   useEffect(() => {
@@ -184,6 +151,16 @@ export default function BusDriverLogModal({
 
   const selectedDriver = drivers.find(d => d.id === selectedDriverId) || drivers[0];
 
+  // Lookups on driver's profile pay types
+  const salaryPayType = driverPayTypes.find(pt => pt.pay_type_name?.toLowerCase() === 'salary');
+  const fieldTripPayType = driverPayTypes.find(pt => pt.pay_type_name?.toLowerCase() === 'field trip');
+  const overtimePayType = driverPayTypes.find(pt => pt.pay_type_name?.toLowerCase() === 'overtime');
+  const miscPayType = driverPayTypes.find(pt => pt.pay_type_name?.toLowerCase() === 'misc pay');
+
+  const salaryRate = salaryPayType?.rate ?? 1803.36;
+  const fieldTripRate = fieldTripPayType?.rate ?? 25.00;
+  const overtimeRate = overtimePayType?.rate ?? 37.50;
+
   // Handle file selection and preview creation
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -192,7 +169,6 @@ export default function BusDriverLogModal({
     setSelectedFile(file);
     setOcrError(null);
 
-    // Create local object URL for instant high-speed browser rendering
     const objectUrl = URL.createObjectURL(file);
     setFilePreviewUrl(objectUrl);
 
@@ -246,6 +222,7 @@ export default function BusDriverLogModal({
         throw new Error("No structured data returned from the scanner.");
       }
 
+      // Auto-match driver
       if (extracted.driver_name) {
         const matched = drivers.find(d => 
           `${d.first_name} ${d.last_name}`.toLowerCase().includes(extracted.driver_name.toLowerCase()) ||
@@ -256,6 +233,7 @@ export default function BusDriverLogModal({
         }
       }
 
+      // Sync period
       if (extracted.year && extracted.month && (!payPeriod.start || !payPeriod.end)) {
         const y = extracted.year;
         const m = extracted.month;
@@ -268,6 +246,7 @@ export default function BusDriverLogModal({
         });
       }
 
+      // Plug-in auto-detection
       const pluginCountExtracted = extracted.winter_plugin_count || 0;
       const periodMonth = extracted.month || (payPeriod.end ? new Date(payPeriod.end).getMonth() + 1 : 0);
       const isWinter = [11, 12, 1, 2, 3].includes(periodMonth);
@@ -280,6 +259,7 @@ export default function BusDriverLogModal({
         setPluginCount(1);
       }
 
+      // Map parsed field trips with continuous elapsed duration
       const parsedTrips = (extracted.field_trips || []).map((t, index) => {
         const hrs = parseFloat(t.hours) || 0;
         const isOt = t.is_overtime || hrs > 8;
@@ -299,10 +279,9 @@ export default function BusDriverLogModal({
       });
       setFieldTrips(parsedTrips);
 
+      // PD days are kept informational only - DO NOT auto-calculate dollars
       if (extracted.pd_days && extracted.pd_days.length > 0) {
-        setPdDays(extracted.pd_days);
-        setPdAmount(rates.daily_rate * extracted.pd_days.length);
-        setPdDescription(extracted.pd_days.map(p => `${p.date}: ${p.description}`).join('; '));
+        setOcrPdObservations(extracted.pd_days);
       }
 
       setAuditInfo({
@@ -314,7 +293,7 @@ export default function BusDriverLogModal({
       });
 
       setOcrSuccessNotes(
-        `✓ Parsed log for ${extracted.driver_name || 'driver'} (${extracted.month_year_text || 'Month'}). ` +
+        `✓ Scanned log for ${extracted.driver_name || 'driver'} (${extracted.month_year_text || 'Month'}). ` +
         `Found ${parsedTrips.length} field trip(s)${pluginCountExtracted > 0 ? `, ${pluginCountExtracted} cord charging(s)` : ''}.`
       );
 
@@ -329,61 +308,7 @@ export default function BusDriverLogModal({
     }
   };
 
-  // Apply next year's BTPS raise percentage
-  const handleApplyRaisePercentage = async () => {
-    const percent = parseFloat(newRaisePercent);
-    if (!percent || isNaN(percent) || percent <= 0) {
-      alert("Please enter a valid raise percentage (e.g. 2.5 or 3.0).");
-      return;
-    }
-
-    setSavingRates(true);
-    try {
-      const multiplier = 1 + (percent / 100);
-      const newDailyRate = parseFloat((rates.daily_rate * multiplier).toFixed(2));
-      const totalDays = rates.school_days + rates.stat_days;
-      const newAnnual = parseFloat((totalDays * newDailyRate).toFixed(2));
-      const new10Mo = parseFloat((newAnnual / 10).toFixed(2));
-      const new12Mo = parseFloat((newAnnual / 12).toFixed(2));
-      const newPlugin = parseFloat((newDailyRate / 2).toFixed(2));
-
-      const updatedRates = {
-        ...rates,
-        daily_rate: newDailyRate,
-        annual_salary: newAnnual,
-        ten_month_rate: new10Mo,
-        twelve_month_rate: new12Mo,
-        winter_plugin_rate: newPlugin,
-        last_raise_percent: percent,
-        effective_year: String(new Date().getFullYear()),
-      };
-
-      // Save to database
-      const existing = await PayrollSetting.filter({ key: 'btps_bus_driver_rates' });
-      if (existing.length > 0) {
-        await PayrollSetting.update(existing[0].id, { value: JSON.stringify(updatedRates) });
-      } else {
-        await PayrollSetting.create({ key: 'btps_bus_driver_rates', value: JSON.stringify(updatedRates) });
-      }
-
-      setRates(updatedRates);
-      if (salarySchedule === '10_month') {
-        setCustomBaseSalary(new10Mo);
-      } else {
-        setCustomBaseSalary(new12Mo);
-      }
-
-      alert(`✓ BTPS ${percent}% Raise applied and saved!\n\nNew Daily Rate: $${newDailyRate}\nAnnual Base: $${newAnnual}\n10-Month: $${new10Mo}/mo\n12-Month: $${new12Mo}/mo\nWinter Plug-in: $${newPlugin}/mo`);
-      setNewRaisePercent('');
-      setShowRateSettings(false);
-    } catch (err) {
-      console.error("Error saving updated rates:", err);
-      alert("Error saving updated rates to database: " + err.message);
-    } finally {
-      setSavingRates(false);
-    }
-  };
-
+  // Helper: calculate continuous elapsed time between departure and return (handling wait time)
   const parseTimeToMinutes = (tStr) => {
     if (!tStr) return null;
     const clean = tStr.trim().toLowerCase();
@@ -403,8 +328,6 @@ export default function BusDriverLogModal({
     let m1 = parseTimeToMinutes(startStr);
     let m2 = parseTimeToMinutes(endStr);
     if (m1 === null || m2 === null) return 0;
-    // If return time is numerically less than departure time (e.g. 11:55 to 3:16 without PM indicator),
-    // it crossed afternoon/noon, add 12 hours (720 min)
     if (m2 < m1 && m2 + 720 > m1) {
       m2 += 720;
     }
@@ -419,7 +342,7 @@ export default function BusDriverLogModal({
     }
 
     if (!newTrip.description || !hours || hours <= 0) {
-      alert("Please provide a trip description and valid times or hours.");
+      alert("Please provide a trip destination and valid times (or total hours).");
       return;
     }
 
@@ -460,9 +383,11 @@ export default function BusDriverLogModal({
   };
 
   // Financial calculations
-  const baseSalaryAmount = Number(customBaseSalary) || 0;
-  const pluginAmount = includePlugin ? (rates.winter_plugin_rate * (Number(pluginCount) || 1)) : 0;
+  const baseSalaryAmount = salaryRate;
+  const pluginAmount = includePlugin ? (pluginRate * (Number(pluginCount) || 1)) : 0;
+  const numericPdAmount = Number(pdAmount) || 0;
 
+  // Field trip hours split
   let totalRegTripHours = 0;
   let totalOtTripHours = 0;
 
@@ -476,13 +401,16 @@ export default function BusDriverLogModal({
     }
   });
 
-  const regTripPay = parseFloat((totalRegTripHours * rates.field_trip_hourly_rate).toFixed(2));
-  const otTripPay = parseFloat((totalOtTripHours * rates.field_trip_ot_rate).toFixed(2));
+  const regTripPay = parseFloat((totalRegTripHours * fieldTripRate).toFixed(2));
+  const otTripPay = parseFloat((totalOtTripHours * overtimeRate).toFixed(2));
   const totalTripPay = parseFloat((regTripPay + otTripPay).toFixed(2));
-  const totalPdPay = Number(pdAmount) || 0;
 
+  // Misc Pay total (Winter Plug-in + BTPS Invoice PD)
+  const totalMiscPay = parseFloat((pluginAmount + numericPdAmount).toFixed(2));
+
+  // Total Gross Compensation
   const totalGrossCompensation = parseFloat(
-    (baseSalaryAmount + pluginAmount + totalTripPay + totalPdPay).toFixed(2)
+    (baseSalaryAmount + totalTripPay + totalMiscPay).toFixed(2)
   );
 
   // Apply to Payroll
@@ -509,7 +437,7 @@ export default function BusDriverLogModal({
             file_content: fullDataUrl,
             file_name: fileName,
             document_date: payPeriod.end || new Date().toISOString().split('T')[0],
-            notes: `Duty Record Timesheet processed via Bus Driver OCR. Gross Compensation: $${totalGrossCompensation.toFixed(2)}.`,
+            notes: `Duty Record Timesheet processed via Bus Driver Log Tool. Gross Compensation: $${totalGrossCompensation.toFixed(2)}.`,
           },
         });
       } catch (uploadErr) {
@@ -519,68 +447,72 @@ export default function BusDriverLogModal({
       }
     }
 
+    // Build comment string: explicitly lists plug-in and PD details
+    const commentLines = [];
+    if (includePlugin && pluginAmount > 0) {
+      commentLines.push(`Winter Plug-in: $${pluginAmount.toFixed(2)}${pluginCount > 1 ? ` (${pluginCount} cords)` : ''}`);
+    }
+    if (numericPdAmount > 0) {
+      commentLines.push(`BTPS Training / PD: $${numericPdAmount.toFixed(2)}${pdNotes ? ` (${pdNotes})` : ''}`);
+    }
+    if (auditInfo.anomalies.length > 0) {
+      commentLines.push(`Route Notes: ${auditInfo.anomalies.join('; ')}`);
+    }
+    const paystubComments = commentLines.join(' | ');
+
+    // Assemble direct line items using ONLY established employee profile pay types
     const directLineItems = [
       {
-        id: `route-salary-${selectedDriver.id}`,
-        type: `Route Salary (${salarySchedule === '10_month' ? '10-Mo' : '12-Mo'})`,
+        id: salaryPayType?.id || `salary-${selectedDriver.id}`,
+        type: salaryPayType?.pay_type_name || 'Salary',
         hours: 1,
-        rate: baseSalaryAmount,
-        unit: 'Month',
-        amount: baseSalaryAmount,
+        rate: salaryRate,
+        unit: salaryPayType?.unit || 'Month',
+        amount: salaryRate,
       }
     ];
 
-    if (includePlugin && pluginAmount > 0) {
-      directLineItems.push({
-        id: `plugin-${selectedDriver.id}`,
-        type: 'Winter Plug-in',
-        hours: Number(pluginCount) || 1,
-        rate: rates.winter_plugin_rate,
-        unit: 'Month',
-        amount: pluginAmount,
-      });
-    }
-
     if (totalRegTripHours > 0) {
       directLineItems.push({
-        id: `field-trips-reg-${selectedDriver.id}`,
-        type: 'Field Trips (Reg)',
+        id: fieldTripPayType?.id || `field-trip-${selectedDriver.id}`,
+        type: fieldTripPayType?.pay_type_name || 'Field Trip',
         hours: parseFloat(totalRegTripHours.toFixed(2)),
-        rate: rates.field_trip_hourly_rate,
-        unit: 'Hour',
+        rate: fieldTripRate,
+        unit: fieldTripPayType?.unit || 'Hour',
         amount: regTripPay,
       });
     }
 
     if (totalOtTripHours > 0) {
       directLineItems.push({
-        id: `field-trips-ot-${selectedDriver.id}`,
-        type: 'Field Trips (Overtime)',
+        id: overtimePayType?.id || `ot-${selectedDriver.id}`,
+        type: overtimePayType?.pay_type_name || 'Overtime',
         hours: parseFloat(totalOtTripHours.toFixed(2)),
-        rate: rates.field_trip_ot_rate,
-        unit: 'Hour',
+        rate: overtimeRate,
+        unit: overtimePayType?.unit || 'Hour',
         amount: otTripPay,
       });
     }
 
-    if (totalPdPay > 0) {
+    if (totalMiscPay > 0) {
       directLineItems.push({
-        id: `training-pd-${selectedDriver.id}`,
-        type: 'Training & PD (BTPS)',
-        hours: 1,
-        rate: totalPdPay,
-        unit: 'Flat',
-        amount: totalPdPay,
+        id: miscPayType?.id || `misc-pay-${selectedDriver.id}`,
+        type: miscPayType?.pay_type_name || 'Misc Pay',
+        hours: totalMiscPay,
+        rate: 1.00,
+        unit: miscPayType?.unit || 'Dollar',
+        amount: totalMiscPay,
       });
     }
 
+    // Format trips for PayPro_PayStub.field_trips (for pay stub PDF breakdown table)
     const formattedTripsForPaystub = fieldTrips.map(trip => {
       const hrs = Number(trip.hours) || 0;
       const isOt = trip.isOvertime || hrs > 8;
-      const lineRate = isOt ? rates.field_trip_ot_rate : rates.field_trip_hourly_rate;
+      const lineRate = isOt ? overtimeRate : fieldTripRate;
       const lineAmount = isOt
-        ? (8 * rates.field_trip_hourly_rate + (hrs - 8) * rates.field_trip_ot_rate)
-        : (hrs * rates.field_trip_hourly_rate);
+        ? (8 * fieldTripRate + (hrs - 8) * overtimeRate)
+        : (hrs * fieldTripRate);
 
       return {
         date: trip.date,
@@ -602,12 +534,13 @@ export default function BusDriverLogModal({
       payPeriod,
       directLineItems,
       fieldTrips: formattedTripsForPaystub,
+      comments: paystubComments,
       totalGross: totalGrossCompensation,
       summary: {
         baseSalary: baseSalaryAmount,
         pluginAmount,
         totalTripPay,
-        totalPdPay,
+        totalPdPay: numericPdAmount,
         fieldTripsCount: fieldTrips.length,
       }
     });
@@ -626,28 +559,18 @@ export default function BusDriverLogModal({
               </div>
               <div>
                 <DialogTitle className="text-xl font-bold dark:text-slate-100 flex items-center gap-2">
-                  Bus Driver Duty Record & Pay Tool
-                  <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/30 dark:text-emerald-400 font-mono">
-                    BTPS Base: ${rates.daily_rate}/day ({rates.last_raise_percent}% Raise Active)
+                  Bus Driver Duty Record & Timesheet Tool
+                  <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300 dark:bg-blue-950/30 dark:text-blue-400">
+                    Profile Salary: ${salaryRate.toFixed(2)}/mo
                   </Badge>
                 </DialogTitle>
                 <DialogDescription className="text-xs dark:text-slate-400">
-                  Side-by-side handwritten duty record scanner with automated BTPS compensation calculator.
+                  Side-by-side handwritten duty record scanner mapping field trips and wait time to employee profile pay types.
                 </DialogDescription>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowRateSettings(!showRateSettings)}
-                className="text-xs h-8 border-slate-300 dark:border-slate-700"
-              >
-                <Settings className="w-3.5 h-3.5 mr-1 text-slate-600 dark:text-slate-400" />
-                BTPS Raise & Rate Settings
-              </Button>
-
               {currentStep === 'review' && (
                 <div className="flex items-center border rounded-md p-0.5 bg-slate-100 dark:bg-slate-800 dark:border-slate-700 text-xs">
                   <Button
@@ -691,80 +614,6 @@ export default function BusDriverLogModal({
             </div>
           </div>
         </DialogHeader>
-
-        {/* ANNUAL RAISE & RATES CONFIGURATION DRAWER */}
-        {showRateSettings && (
-          <div className="my-2 p-4 bg-slate-100 dark:bg-slate-800/90 rounded-xl border border-blue-200 dark:border-blue-900 text-xs space-y-3 shrink-0">
-            <div className="flex items-center justify-between border-b dark:border-slate-700 pb-2">
-              <div className="font-bold text-sm text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                <TrendingUp className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                BTPS Pay Model Rates & Annual Raise Calculator
-              </div>
-              <span className="text-slate-500 dark:text-slate-400">
-                Effective Year: {rates.effective_year || '2026'}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-              <div className="p-2 bg-white dark:bg-slate-900 rounded-lg border dark:border-slate-700">
-                <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Daily Base Rate</span>
-                <span className="text-base font-bold text-slate-800 dark:text-slate-200">${rates.daily_rate.toFixed(2)}</span>
-              </div>
-              <div className="p-2 bg-white dark:bg-slate-900 rounded-lg border dark:border-slate-700">
-                <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Annual Route Salary (191d)</span>
-                <span className="text-base font-bold text-slate-800 dark:text-slate-200">${rates.annual_salary.toFixed(2)}</span>
-              </div>
-              <div className="p-2 bg-white dark:bg-slate-900 rounded-lg border dark:border-slate-700">
-                <span className="text-slate-500 dark:text-slate-400 block text-[11px]">10-Month / 12-Month</span>
-                <span className="text-sm font-bold text-blue-600 dark:text-blue-400">${rates.ten_month_rate} / ${rates.twelve_month_rate}</span>
-              </div>
-              <div className="p-2 bg-white dark:bg-slate-900 rounded-lg border dark:border-slate-700">
-                <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Winter Plug-in Rate</span>
-                <span className="text-base font-bold text-cyan-600 dark:text-cyan-400">${rates.winter_plugin_rate.toFixed(2)}/mo</span>
-              </div>
-              <div className="p-2 bg-white dark:bg-slate-900 rounded-lg border dark:border-slate-700">
-                <span className="text-slate-500 dark:text-slate-400 block text-[11px]">Field Trip / OT Rate</span>
-                <span className="text-sm font-bold text-amber-600 dark:text-amber-400">${rates.field_trip_hourly_rate}/h (${rates.field_trip_ot_rate} OT)</span>
-              </div>
-            </div>
-
-            {/* Apply Next Year's Raise */}
-            <div className="p-3 bg-blue-50/80 dark:bg-blue-950/40 rounded-lg border border-blue-200 dark:border-blue-900/60 flex flex-wrap items-center justify-between gap-3">
-              <div className="space-y-0.5">
-                <span className="font-semibold text-blue-900 dark:text-blue-200 block text-xs">
-                  Apply Next Year's BTPS Funding Increase (%)
-                </span>
-                <span className="text-slate-500 dark:text-slate-400 text-[11px]">
-                  When BTPS gives another raise, enter the % here to automatically recalculate and save all base rates for PayPRO.
-                </span>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1">
-                  <Input
-                    type="number"
-                    step="0.1"
-                    placeholder="e.g. 3.0"
-                    value={newRaisePercent}
-                    onChange={(e) => setNewRaisePercent(e.target.value)}
-                    className="w-24 h-8 text-xs dark:bg-slate-900"
-                  />
-                  <span className="font-bold text-slate-700 dark:text-slate-300">%</span>
-                </div>
-
-                <Button
-                  size="sm"
-                  onClick={handleApplyRaisePercentage}
-                  disabled={savingRates || !newRaisePercent}
-                  className="h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white gap-1"
-                >
-                  {savingRates ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-                  Apply & Save New Rates
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Global Driver & Date Selector Bar */}
         <div className="my-2 bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700 grid grid-cols-1 md:grid-cols-3 gap-3 shrink-0">
@@ -816,7 +665,7 @@ export default function BusDriverLogModal({
                 Upload Scanned Driver Duty Record
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-4">
-                Upload a PDF scan or photo of the monthly log sheet. Gemini AI reads handwritten routes, field trips, swim lessons, cord charging, and PD notes.
+                Upload a PDF scan or photo of the monthly log sheet. Gemini AI reads handwritten routes, field trips (including wait time), cord charging, and weather closures.
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -884,7 +733,7 @@ export default function BusDriverLogModal({
                 }}
                 className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
               >
-                Skip to Manual Compensation Calculator →
+                Skip to Manual Entry →
               </Button>
             </div>
           </div>
@@ -893,7 +742,7 @@ export default function BusDriverLogModal({
         {/* STEP 2: SIDE-BY-SIDE REVIEW & COMPENSATION */}
         {currentStep === 'review' && (
           <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-12 gap-4 pt-1 min-h-0">
-            {/* LEFT PANE: DOCUMENT VIEWER (Visible in 'split' or 'doc' viewMode) */}
+            {/* LEFT PANE: DOCUMENT VIEWER */}
             {(viewMode === 'split' || viewMode === 'doc') && (
               <div className={`${viewMode === 'doc' ? 'lg:col-span-12' : 'lg:col-span-6'} flex flex-col border rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-950 dark:border-slate-800`}>
                 <div className="flex items-center justify-between p-2 bg-slate-200/80 dark:bg-slate-900 border-b dark:border-slate-800 shrink-0 text-xs">
@@ -978,7 +827,7 @@ export default function BusDriverLogModal({
               </div>
             )}
 
-            {/* RIGHT PANE: COMPENSATION FORM (Visible in 'split' or 'form' viewMode) */}
+            {/* RIGHT PANE: REVIEW & MAPPING FORM */}
             {(viewMode === 'split' || viewMode === 'form') && (
               <div className={`${viewMode === 'form' ? 'lg:col-span-12' : 'lg:col-span-6'} flex flex-col space-y-3 overflow-y-auto pr-1`}>
                 {ocrSuccessNotes && (
@@ -988,109 +837,46 @@ export default function BusDriverLogModal({
                   </div>
                 )}
 
-                {/* 1. Guaranteed Fixed Route Salary */}
+                {/* 1. Established Route Salary */}
                 <Card className="border dark:bg-slate-900 dark:border-slate-800 shadow-sm">
                   <CardHeader className="py-2.5 px-3.5 bg-slate-50/70 dark:bg-slate-800/40 border-b dark:border-slate-800">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
                         <Bus className="w-4 h-4 text-blue-600 dark:text-blue-400" />
                         <CardTitle className="text-xs font-bold dark:text-slate-100">
-                          1. Fixed Route Salary (${rates.daily_rate}/day base)
+                          1. Base Salary (Pay Type: Salary)
                         </CardTitle>
                       </div>
-                      <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                        Annual: ${rates.annual_salary.toLocaleString('en-CA', { minimumFractionDigits: 2 })} (191 days)
-                      </span>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-3 space-y-2">
-                    <RadioGroup 
-                      value={salarySchedule} 
-                      onValueChange={setSalarySchedule}
-                      className="grid grid-cols-1 sm:grid-cols-2 gap-2"
-                    >
-                      <div className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-all ${salarySchedule === '10_month' ? 'bg-blue-50/60 border-blue-300 dark:bg-blue-950/30 dark:border-blue-800' : 'border-slate-200 dark:border-slate-700'}`}>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="10_month" id="opt_10_month" />
-                          <Label htmlFor="opt_10_month" className="cursor-pointer">
-                            <div className="font-semibold text-xs dark:text-slate-200">10-Month Schedule</div>
-                            <div className="text-[10px] text-slate-500">Sept – June (School Year)</div>
-                          </Label>
-                        </div>
-                        <span className="text-sm font-bold text-blue-700 dark:text-blue-300">${rates.ten_month_rate.toFixed(2)}</span>
-                      </div>
-
-                      <div className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-all ${salarySchedule === '12_month' ? 'bg-blue-50/60 border-blue-300 dark:bg-blue-950/30 dark:border-blue-800' : 'border-slate-200 dark:border-slate-700'}`}>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="12_month" id="opt_12_month" />
-                          <Label htmlFor="opt_12_month" className="cursor-pointer">
-                            <div className="font-semibold text-xs dark:text-slate-200">12-Month Schedule</div>
-                            <div className="text-[10px] text-slate-500">Year-Round (July/Aug inc.)</div>
-                          </Label>
-                        </div>
-                        <span className="text-sm font-bold text-blue-700 dark:text-blue-300">${rates.twelve_month_rate.toFixed(2)}</span>
-                      </div>
-                    </RadioGroup>
-                  </CardContent>
-                </Card>
-
-                {/* 2. Winter Plug-in / Cord Charging */}
-                <Card className="border dark:bg-slate-900 dark:border-slate-800 shadow-sm">
-                  <CardHeader className="py-2.5 px-3.5 bg-slate-50/70 dark:bg-slate-800/40 border-b dark:border-slate-800">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <Snowflake className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
-                        <CardTitle className="text-xs font-bold dark:text-slate-100">
-                          2. Winter Plug-in / Cord Charging (Nov – Mar)
-                        </CardTitle>
-                      </div>
-                      <Badge variant="outline" className="text-[10px] py-0 bg-cyan-50 text-cyan-700 border-cyan-300 dark:bg-cyan-950/30 dark:text-cyan-400">
-                        ${rates.winter_plugin_rate}/mo
+                      <Badge variant="outline" className="text-[10px] py-0 text-slate-600 dark:text-slate-400">
+                        Configured in Employee Profile
                       </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
-                      <div className="flex items-center gap-2.5">
-                        <Switch
-                          id="plugin-toggle"
-                          checked={includePlugin}
-                          onCheckedChange={setIncludePlugin}
-                        />
-                        <Label htmlFor="plugin-toggle" className="cursor-pointer">
-                          <span className="font-semibold text-xs dark:text-slate-200 block">Include Winter Plug-in</span>
-                          <span className="text-[10px] text-slate-500">Weather-dependent engine heater rate (Nov–Mar).</span>
-                        </Label>
+                    <div className="flex items-center justify-between text-xs">
+                      <div>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200 block">
+                          {selectedDriver?.first_name} {selectedDriver?.last_name} Route Salary
+                        </span>
+                        <span className="text-[11px] text-slate-500">
+                          1.00 Month @ ${salaryRate.toFixed(2)}/mo
+                        </span>
                       </div>
-
-                      {includePlugin && (
-                        <div className="flex items-center gap-1.5">
-                          <Label className="text-[11px] text-slate-600 dark:text-slate-400">Qty:</Label>
-                          <Input
-                            type="number"
-                            min="1"
-                            max="5"
-                            value={pluginCount}
-                            onChange={(e) => setPluginCount(Math.max(1, parseInt(e.target.value) || 1))}
-                            className="w-14 h-7 text-xs dark:bg-slate-800 text-center"
-                          />
-                          <span className="font-bold text-slate-900 dark:text-slate-100 text-xs">
-                            = ${pluginAmount.toFixed(2)}
-                          </span>
-                        </div>
-                      )}
+                      <span className="text-base font-bold text-blue-700 dark:text-blue-300">
+                        ${salaryRate.toFixed(2)}
+                      </span>
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* 3. Field Trips */}
+                {/* 2. Field Trips (Continuous Drive + Wait Time) */}
                 <Card className="border dark:bg-slate-900 dark:border-slate-800 shadow-sm">
                   <CardHeader className="py-2.5 px-3.5 bg-slate-50/70 dark:bg-slate-800/40 border-b dark:border-slate-800">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
                         <Clock className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                         <CardTitle className="text-xs font-bold dark:text-slate-100">
-                          3. Field Trips & Extra Runs (${rates.field_trip_hourly_rate}/hr drive + wait)
+                          2. Field Trips (${fieldTripRate.toFixed(2)}/hr reg, ${overtimeRate.toFixed(2)}/hr OT)
                         </CardTitle>
                       </div>
                       <Button
@@ -1111,7 +897,7 @@ export default function BusDriverLogModal({
                         <div className="font-semibold text-blue-950 dark:text-blue-200 flex items-center justify-between">
                           <span>Add Field Trip / Special Run</span>
                           <span className="text-[11px] font-normal text-slate-500">
-                            *Paid continuous duration (driving + wait time)
+                            *Paid continuous duration (departure to return)
                           </span>
                         </div>
 
@@ -1217,7 +1003,7 @@ export default function BusDriverLogModal({
                           <TableHeader className="bg-slate-50 dark:bg-slate-800/40">
                             <TableRow className="text-[11px] h-7">
                               <TableHead className="w-20 py-1">Date</TableHead>
-                              <TableHead className="py-1">Destination & Notes</TableHead>
+                              <TableHead className="py-1">Destination & Driving Notes</TableHead>
                               <TableHead className="w-32 py-1">Times (Wait inc.)</TableHead>
                               <TableHead className="w-20 text-right py-1">Hours</TableHead>
                               <TableHead className="w-24 text-right py-1">Subtotal</TableHead>
@@ -1229,8 +1015,8 @@ export default function BusDriverLogModal({
                               const hrs = Number(trip.hours) || 0;
                               const isOt = trip.isOvertime || hrs > 8;
                               const subtotal = isOt 
-                                ? (8 * rates.field_trip_hourly_rate + (hrs - 8) * rates.field_trip_ot_rate)
-                                : (hrs * rates.field_trip_hourly_rate);
+                                ? (8 * fieldTripRate + (hrs - 8) * overtimeRate)
+                                : (hrs * fieldTripRate);
 
                               const timesDisplay = trip.timeBreakdown || (trip.startTime && trip.endTime ? `${trip.startTime} - ${trip.endTime}` : '-');
 
@@ -1274,9 +1060,9 @@ export default function BusDriverLogModal({
                     )}
 
                     {fieldTrips.length > 0 && (
-                      <div className="flex justify-end items-center gap-3 text-xs pt-1">
-                        <span className="text-slate-500">
-                          Total Hours: <strong>{(totalRegTripHours + totalOtTripHours).toFixed(2)}h</strong>
+                      <div className="flex justify-between items-center text-xs pt-1 text-slate-600 dark:text-slate-400">
+                        <span>
+                          Mapped to: <strong>Field Trip</strong> ({totalRegTripHours.toFixed(2)}h) {totalOtTripHours > 0 && <>+ <strong>Overtime</strong> ({totalOtTripHours.toFixed(2)}h)</>}
                         </span>
                         <span className="font-bold text-slate-900 dark:text-slate-100">
                           Trip Pay: ${totalTripPay.toFixed(2)}
@@ -1286,52 +1072,119 @@ export default function BusDriverLogModal({
                   </CardContent>
                 </Card>
 
-                {/* 4. Training & PD */}
+                {/* 3. Winter Plug-in & BTPS Invoice PD (Routed to Misc Pay @ $1.00) */}
                 <Card className="border dark:bg-slate-900 dark:border-slate-800 shadow-sm">
-                  <CardHeader className="py-2 px-3.5 bg-slate-50/70 dark:bg-slate-800/40 border-b dark:border-slate-800">
+                  <CardHeader className="py-2.5 px-3.5 bg-slate-50/70 dark:bg-slate-800/40 border-b dark:border-slate-800">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
-                        <GraduationCap className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                        <Snowflake className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
                         <CardTitle className="text-xs font-bold dark:text-slate-100">
-                          4. Training & PD (BTPS Pass-through)
+                          3. Add-ons: Winter Plug-in & PD (Routed to Misc Pay)
                         </CardTitle>
                       </div>
-                      {pdDays.length > 0 && (
-                        <Badge variant="outline" className="text-[10px] py-0 bg-indigo-50 text-indigo-700">
-                          {pdDays.length} PD Day(s) Found
-                        </Badge>
-                      )}
+                      <Badge variant="outline" className="text-[10px] py-0 text-slate-600 dark:text-slate-400">
+                        Added to Paystub Comments
+                      </Badge>
                     </div>
                   </CardHeader>
-                  <CardContent className="p-3">
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="col-span-2">
-                        <Input
-                          value={pdDescription}
-                          onChange={(e) => setPdDescription(e.target.value)}
-                          placeholder="Description / Date"
-                          className="h-7 text-xs dark:bg-slate-800"
+                  <CardContent className="p-3 space-y-3">
+                    {/* Winter Plug-in Row */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 text-xs pb-2 border-b dark:border-slate-800">
+                      <div className="flex items-center gap-2.5">
+                        <Switch
+                          id="plugin-toggle"
+                          checked={includePlugin}
+                          onCheckedChange={setIncludePlugin}
                         />
+                        <Label htmlFor="plugin-toggle" className="cursor-pointer">
+                          <span className="font-semibold text-xs dark:text-slate-200 block">Include Winter Plug-in</span>
+                          <span className="text-[10px] text-slate-500">Half-day allowance for engine block heater (Nov–Mar).</span>
+                        </Label>
                       </div>
-                      <div>
-                        <Input
-                          type="number"
-                          step="0.01"
-                          value={pdAmount}
-                          onChange={(e) => setPdAmount(parseFloat(e.target.value) || 0)}
-                          placeholder="Payout ($)"
-                          className="h-7 text-xs dark:bg-slate-800"
-                        />
-                      </div>
+
+                      {includePlugin && (
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1">
+                            <Label className="text-[10px] text-slate-500">Rate:</Label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={pluginRate}
+                              onChange={(e) => setPluginRate(parseFloat(e.target.value) || 0)}
+                              className="w-16 h-7 text-xs dark:bg-slate-800 text-center font-semibold"
+                            />
+                          </div>
+                          <span className="font-bold text-slate-900 dark:text-slate-100 text-xs">
+                            = ${pluginAmount.toFixed(2)}
+                          </span>
+                        </div>
+                      )}
                     </div>
+
+                    {/* PD Reimbursement Row (Manual entry from BTPS Invoice) */}
+                    <div className="space-y-1.5 text-xs">
+                      <div className="flex items-center justify-between">
+                        <Label className="font-semibold text-xs text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                          <GraduationCap className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                          BTPS Training & PD Reimbursement
+                        </Label>
+                        {ocrPdObservations.length > 0 && (
+                          <span className="text-[10px] text-indigo-600 dark:text-indigo-400">
+                            Log note: {ocrPdObservations.map(p => `${p.date} (${p.description})`).join(', ')}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="col-span-2">
+                          <Input
+                            value={pdNotes}
+                            onChange={(e) => setPdNotes(e.target.value)}
+                            placeholder="BTPS Invoice ref / description (e.g. Invoice #2026-03)"
+                            className="h-7 text-xs dark:bg-slate-800"
+                          />
+                        </div>
+                        <div>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={pdAmount || ''}
+                            onChange={(e) => setPdAmount(parseFloat(e.target.value) || 0)}
+                            placeholder="Amount ($)"
+                            className="h-7 text-xs dark:bg-slate-800 font-semibold"
+                          />
+                        </div>
+                      </div>
+                      <span className="text-[10px] text-slate-500 block">
+                        *Source of truth is your BTPS invoice. Enter the reimbursed dollar amount here.
+                      </span>
+                    </div>
+
+                    {/* Live Preview of Paystub Comments */}
+                    {(pluginAmount > 0 || numericPdAmount > 0) && (
+                      <div className="p-2 bg-slate-50 dark:bg-slate-800/80 rounded border dark:border-slate-700 text-xs flex items-start gap-2">
+                        <MessageSquare className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-semibold text-slate-700 dark:text-slate-300 block text-[11px]">
+                            Will appear in Pay Stub Comments:
+                          </span>
+                          <span className="text-slate-600 dark:text-slate-400 text-[11px]">
+                            {[
+                              pluginAmount > 0 ? `Winter Plug-in: $${pluginAmount.toFixed(2)}` : '',
+                              numericPdAmount > 0 ? `BTPS Training / PD: $${numericPdAmount.toFixed(2)}${pdNotes ? ` (${pdNotes})` : ''}` : '',
+                            ].filter(Boolean).join(' | ')}
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
 
-                {/* 5. Notes & Observations */}
+                {/* Route Anomalies from Log */}
                 {auditInfo.anomalies.length > 0 && (
                   <div className="p-2.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/50 rounded-lg text-xs space-y-1">
                     <span className="font-semibold text-amber-800 dark:text-amber-300 block">
-                      Handwritten Notes / Closures:
+                      Handwritten Notes / Route Closures:
                     </span>
                     {auditInfo.anomalies.map((a, idx) => (
                       <span key={idx} className="text-amber-700 dark:text-amber-400 block text-[11px]">
@@ -1341,12 +1194,17 @@ export default function BusDriverLogModal({
                   </div>
                 )}
 
-                {/* Final Gross Earnings Box */}
+                {/* Final Gross Summary */}
                 <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 border border-blue-200 dark:border-blue-900/60 rounded-xl space-y-2 mt-auto">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-600 dark:text-slate-300 font-medium">
-                      Gross Wages (GL 5009):
-                    </span>
+                    <div>
+                      <span className="text-slate-600 dark:text-slate-300 font-medium block">
+                        Gross Paycheque Earnings:
+                      </span>
+                      <span className="text-[10px] text-slate-500">
+                        Salary (${salaryRate.toFixed(2)}) + Trips (${totalTripPay.toFixed(2)}) + Misc Pay (${totalMiscPay.toFixed(2)})
+                      </span>
+                    </div>
                     <span className="text-xl font-black text-blue-700 dark:text-blue-300">
                       ${totalGrossCompensation.toFixed(2)}
                     </span>
@@ -1361,13 +1219,13 @@ export default function BusDriverLogModal({
                           onChange={(e) => setArchiveFileToEmployee(e.target.checked)}
                           className="rounded"
                         />
-                        Archive to Employee Profile
+                        Archive PDF to Employee Profile
                       </label>
                     )}
 
                     <Button
                       onClick={handleApplyToPayroll}
-                      disabled={isArchiving}
+                      disabled={isArchiving || loadingPayTypes}
                       className="bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-700 text-xs font-semibold h-8 ml-auto"
                     >
                       {isArchiving ? (

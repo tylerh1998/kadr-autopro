@@ -560,7 +560,7 @@ export default function Payroll() {
             drivers={employees.filter(e => e.employee_type === 'Bus Driver')}
             initialDriverId={selectedEmployee?.employee_type === 'Bus Driver' ? selectedEmployee.id : null}
             initialPayPeriod={payPeriod}
-            onApplyCompensation={({ driver, payPeriod: newPeriod, directLineItems, fieldTrips }) => {
+            onApplyCompensation={({ driver, payPeriod: newPeriod, directLineItems, fieldTrips, comments }) => {
               if (newPeriod?.start && newPeriod?.end) {
                 setPayPeriod(newPeriod);
                 validateDates(newPeriod);
@@ -573,6 +573,7 @@ export default function Payroll() {
                   employee: driver,
                   directLineItems,
                   field_trips: fieldTrips,
+                  comments,
                   payTypes: {},
                 }
               }));
