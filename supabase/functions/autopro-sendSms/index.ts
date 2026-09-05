@@ -73,6 +73,50 @@ serve(async (req) => {
     }
     logId = logInsert.data.id;
 
+    // --- BEGIN NEW: Conversational SMS Logging ---
+    try {
+      const { data: smsRecord, error: smsInsertError } = await supabaseAdmin
+        .from('SmsMessage')
+        .insert({
+          direction: 'outbound',
+          from_phone: 'system',
+          to_phone: to,
+          body: message,
+          is_read: true,
+          status: 'sent',
+          customer_id: customer_id || null,
+          work_order_id: work_order_id || null,
+          created_by_id: authData?.user?.id || null,
+          created_by_name: userEmail || 'System'
+        })
+        .select()
+        .single();
+        
+      if (!smsInsertError && smsRecord) {
+        const channel = supabaseAdmin.channel('sms_refresh');
+        await new Promise((resolve) => {
+          channel.subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+              try {
+                await channel.send({
+                  type: 'broadcast',
+                  event: 'new_sms',
+                  payload: { record: { ...smsRecord, sender_name: userEmail || 'System' } }
+                });
+              } catch (e) { /* ignore */ }
+              resolve(true);
+            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+              resolve(false);
+            }
+          });
+        });
+        await supabaseAdmin.removeChannel(channel);
+      }
+    } catch (chatLogError) {
+      console.warn('Failed to log to SmsMessage dev table, continuing...', chatLogError);
+    }
+    // --- END NEW ---
+
     const result = await sendViaTwilio(twilioSetup, to, message);
 
     await supabaseAdmin
