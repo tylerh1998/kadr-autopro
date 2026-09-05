@@ -316,14 +316,12 @@ function LayoutContent({ children, currentPageName }) {
       realtimeChannel = rtClient
         .channel('sms_refresh')
         .on('broadcast', { event: 'new_sms' }, (message) => {
-          console.log('Live SMS received:', message.payload);
-          const newMsg = message.payload.record;
-          if (newMsg && !newMsg.is_read) {
-            setSmsNotifications(prev => [newMsg, ...prev]);
-          }
+          console.log('Live SMS broadcast received in Layout:', message.payload);
+          fetchInitialUnread();
+          window.dispatchEvent(new CustomEvent('new-sms-received', { detail: message.payload }));
         })
         .subscribe((status) => {
-          console.log("SMS Badge: Subscription status:", status);
+          console.log("SMS Layout broadcast status:", status);
         });
     };
 

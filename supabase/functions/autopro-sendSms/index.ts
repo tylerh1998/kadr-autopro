@@ -123,6 +123,7 @@ serve(async (req) => {
             }
           });
         });
+        await new Promise((r) => setTimeout(r, 250));
         await supabaseAdmin.removeChannel(channel);
       }
     } catch (chatLogError) {

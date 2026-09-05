@@ -5,7 +5,6 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import moment from 'moment-timezone';
 import { supabase } from '@/lib/supabase';
-import { getSupabaseRealtimeClient } from '@/lib/supabaseRealtimeClient';
 
 import NewSmsDialog from './NewSmsDialog';
 import MediaViewerModal from './MediaViewerModal';
@@ -59,80 +58,58 @@ export default function SmsModal({ isOpen, onClose }) {
     return () => window.removeEventListener('open-sms-chat', handleOpenChat);
   }, []);
 
-  useEffect(() => {
-    if (!selectedChatPhone) {
+  const fetchHistory = async (phone = selectedChatPhone) => {
+    if (!phone) {
       setChatHistory([]);
       return;
     }
-    
-    const fetchHistory = async () => {
-      setIsLoadingHistory(true);
-      try {
-        const { data, error } = await supabase.rpc('get_sms_history', { p_phone: selectedChatPhone });
-        if (error) throw error;
-        setChatHistory(data || []);
+    setIsLoadingHistory(true);
+    try {
+      const { data, error } = await supabase.rpc('get_sms_history', { p_phone: phone });
+      if (error) throw error;
+      setChatHistory(data || []);
+      
+      const unreadInbound = data?.filter(m => m.direction === 'inbound' && !m.is_read);
+      if (unreadInbound && unreadInbound.length > 0) {
+        const unreadIds = unreadInbound.map(m => m.id);
+        await supabase.from('SmsMessage').update({ is_read: true }).in('id', unreadIds);
         
-        const unreadInbound = data?.filter(m => m.direction === 'inbound' && !m.is_read);
-        if (unreadInbound && unreadInbound.length > 0) {
-          const unreadIds = unreadInbound.map(m => m.id);
-          await supabase.from('SmsMessage').update({ is_read: true }).in('id', unreadIds);
-          
-          setConversations(prev => prev.map(c => 
-            c.external_phone === selectedChatPhone ? { ...c, is_unread: false } : c
-          ));
-          window.dispatchEvent(new CustomEvent('remove-unread-sms', { detail: { phone: selectedChatPhone } }));
-        }
-      } catch (err) {
-        console.error('Error fetching chat history:', err);
-      } finally {
-        setIsLoadingHistory(false);
-        setTimeout(() => scrollToBottom(), 100);
+        setConversations(prev => prev.map(c => 
+          c.external_phone === phone ? { ...c, is_unread: false } : c
+        ));
+        window.dispatchEvent(new CustomEvent('remove-unread-sms', { detail: { phone } }));
       }
-    };
-    
-    fetchHistory();
+    } catch (err) {
+      console.error('Error fetching chat history:', err);
+    } finally {
+      setIsLoadingHistory(false);
+      setTimeout(() => scrollToBottom(), 100);
+    }
+  };
+
+  useEffect(() => {
+    fetchHistory(selectedChatPhone);
+  }, [selectedChatPhone]);
+
+  const selectedChatPhoneRef = useRef(selectedChatPhone);
+  useEffect(() => {
+    selectedChatPhoneRef.current = selectedChatPhone;
   }, [selectedChatPhone]);
 
   useEffect(() => {
-    if (!isOpen) return;
-    let isActive = true;
-    let channel = null;
-
-    const setupRealtime = async () => {
-      const rtClient = await getSupabaseRealtimeClient();
-      if (!isActive) return;
-
-      channel = rtClient.channel('sms_refresh');
-      channel.on('broadcast', { event: 'new_sms' }, (message) => {
-        const newMsg = message.payload.record;
-        if (!newMsg) return;
-
-        const isCurrentChat = 
-          newMsg.from_phone === selectedChatPhone || 
-          newMsg.to_phone === selectedChatPhone;
-
-        if (isCurrentChat) {
-          setChatHistory(prev => {
-            if (prev.some(m => m.id === newMsg.id)) return prev;
-            return [...prev, newMsg];
-          });
-          setTimeout(() => scrollToBottom(), 100);
-          
-          if (newMsg.direction === 'inbound') {
-            supabase.from('SmsMessage').update({ is_read: true }).eq('id', newMsg.id).then();
-          }
-        }
-        fetchConversations();
-      });
-      channel.subscribe();
+    const handleNewSms = (e) => {
+      console.log('Live SMS broadcast received in SmsModal:', e.detail);
+      fetchConversations();
+      const newMsg = e.detail?.record;
+      const currentPhone = selectedChatPhoneRef.current;
+      if (newMsg && currentPhone && (newMsg.from_phone === currentPhone || newMsg.to_phone === currentPhone)) {
+        fetchHistory(currentPhone);
+      }
     };
 
-    setupRealtime();
-    return () => {
-      isActive = false;
-      channel?.unsubscribe();
-    };
-  }, [isOpen, selectedChatPhone]);
+    window.addEventListener('new-sms-received', handleNewSms);
+    return () => window.removeEventListener('new-sms-received', handleNewSms);
+  }, []);
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });

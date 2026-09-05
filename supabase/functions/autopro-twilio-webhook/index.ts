@@ -131,29 +131,35 @@ Deno.serve(async (req) => {
     }
 
     // Broadcast
-    const channel = supabase.channel('sms_refresh');
-    await new Promise((resolve, reject) => {
-      channel.subscribe(async (status) => {
-        if (status === 'SUBSCRIBED') {
-          try {
-            await channel.send({
-              type: 'broadcast',
-              event: 'new_sms',
-              payload: {
-                record: smsRecord ? { ...smsRecord, sender_name } : { body, from_phone, sender_name }
-              }
-            });
+    try {
+      const channel = supabase.channel('sms_refresh');
+      await new Promise((resolve) => {
+        channel.subscribe(async (status) => {
+          if (status === 'SUBSCRIBED') {
+            try {
+              await channel.send({
+                type: 'broadcast',
+                event: 'new_sms',
+                payload: {
+                  record: smsRecord ? { ...smsRecord, sender_name } : { body, from_phone, sender_name }
+                }
+              });
+            } catch (err) {
+              console.error('Broadcast send error:', err);
+            }
             resolve(true);
-          } catch (err) {
-            reject(err);
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            resolve(false);
           }
-        } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-          reject(new Error(`Failed to subscribe: ${status}`));
-        }
+        });
       });
-    });
 
-    await supabase.removeChannel(channel);
+      // Small delay to ensure websocket frame is flushed to network
+      await new Promise((r) => setTimeout(r, 250));
+      await supabase.removeChannel(channel);
+    } catch (e) {
+      console.warn('Broadcast exception:', e);
+    }
 
     // Twilio expects XML response ideally, but 200 OK is enough.
     return new Response("<Response></Response>", {
