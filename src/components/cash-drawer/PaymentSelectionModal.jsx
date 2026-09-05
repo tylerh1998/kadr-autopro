@@ -107,7 +107,7 @@ export default function PaymentSelectionModal({ open, onClose, paymentMethod, pa
             </Button>
           </div>
           <div className="text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full">
-            Selected: {selectedPayments.length} items (${selectedTotal.toFixed(2)})
+            Selected: {selectedPayments.length} items ({selectedTotal < 0 ? '-' : ''}${Math.abs(selectedTotal).toFixed(2)})
           </div>
         </div>
 

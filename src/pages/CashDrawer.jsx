@@ -37,6 +37,11 @@ const displayMethods = [
 ];
 const CASH_DRAWER_GL_ACCOUNT = '1010'; // Cash Drawer GL Account
 
+const formatAmount = (amount) => {
+  const isNegative = (amount || 0) < 0;
+  return `${isNegative ? '-' : ''}$${Math.abs(amount || 0).toFixed(2)}`;
+};
+
 export default function CashDrawerPage() {
   const { employee } = useAuth();
   const [bankAccounts, setBankAccounts] = useState([]);
@@ -282,9 +287,15 @@ export default function CashDrawerPage() {
       }
 
       const totalAmount = getTotalForDeposit();
+      const allItemsForDeposit = Object.values(forDepositItems).flat();
+
+      if (allItemsForDeposit.length === 0) {
+        alert('No payments selected for deposit.');
+        return;
+      }
 
       if (totalAmount === 0) {
-        alert('No payments selected for deposit.');
+        alert('Total deposit amount cannot be zero.');
         return;
       }
 
@@ -323,7 +334,6 @@ export default function CashDrawerPage() {
       };
 
       const depositBatchId = `DEP-${Date.now()}`;
-      const allItemsForDeposit = Object.values(forDepositItems).flat();
 
       const paymentsToDeposit = allItemsForDeposit.filter(item => item.source_type === 'payment');
       const adjustmentsToDeposit = allItemsForDeposit.filter(item => item.source_type === 'adjustment');
@@ -358,13 +368,16 @@ export default function CashDrawerPage() {
       }
 
       // GL Transactions
+      const isNegativeDeposit = totalAmount < 0;
+      const absTotal = Math.abs(totalAmount);
+
       await createGLTransaction({
         account_number: String(CASH_DRAWER_GL_ACCOUNT),
         transaction_date: depositData.depositDate,
         description: `Cash Drawer Deposit`,
         reference: depositBatchId,
-        debit_amount: 0,
-        credit_amount: totalAmount,
+        debit_amount: isNegativeDeposit ? absTotal : 0,
+        credit_amount: isNegativeDeposit ? 0 : absTotal,
         source_type: 'deposit',
         source_id: null
       });
@@ -374,8 +387,8 @@ export default function CashDrawerPage() {
         transaction_date: depositData.depositDate,
         description: `Cash Drawer Deposit`,
         reference: depositBatchId,
-        debit_amount: totalAmount,
-        credit_amount: 0,
+        debit_amount: isNegativeDeposit ? 0 : absTotal,
+        credit_amount: isNegativeDeposit ? absTotal : 0,
         source_type: 'deposit',
         source_id: selectedBankAccount.id
       });
@@ -409,8 +422,8 @@ export default function CashDrawerPage() {
           transaction_date: depositData.depositDate,
           description: depositDescription,
           reference: '',
-          credit_amount: totalAmount,
-          debit_amount: 0,
+          credit_amount: isNegativeDeposit ? 0 : absTotal,
+          debit_amount: isNegativeDeposit ? absTotal : 0,
           source_type: 'deposit',
           source_id: depositBatchId,
           created_date: new Date().toISOString(),
@@ -863,9 +876,9 @@ export default function CashDrawerPage() {
                   disabled={!depositBatchStatus.valid}
                 >
                   <Upload className="w-6 h-6 mr-2" />
-                  Make Deposit (${getTotalForDeposit().toFixed(2)})
+                  Make Deposit ({formatAmount(getTotalForDeposit())})
                 </Button>
-                {!depositBatchStatus.valid && getTotalForDeposit() > 0 && (
+                {!depositBatchStatus.valid && Object.values(forDepositItems).flat().length > 0 && (
                   <p className="text-xs font-medium text-red-800 dark:text-red-300 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-md px-2 py-1 max-w-xs text-right">
                     {depositBatchStatus.message}
                   </p>
@@ -895,7 +908,7 @@ export default function CashDrawerPage() {
                       const fdTotal = getDisplayGroupForDepositTotal(displayGroup);
                       const cdCount = getDisplayGroupItemCount(displayGroup, 'cash_drawer');
                       const fdCount = getDisplayGroupItemCount(displayGroup, 'for_deposit');
- 
+
                       return (
                         <tr key={displayGroup.id} className="border-b dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40">
                           <td className="p-4">
@@ -905,24 +918,32 @@ export default function CashDrawerPage() {
                             </div>
                           </td>
                           <td 
-                            className="p-4 text-center cursor-pointer bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/20 dark:hover:bg-blue-950/40 transition-colors border-r border-blue-100 dark:border-blue-900/40"
-                            onClick={() => cdTotal > 0 && handleOpenPaymentModal(displayGroup.id, 'cash_drawer', displayGroup.methods)}
+                            className={`p-4 text-center transition-colors border-r border-blue-100 dark:border-blue-900/40 ${
+                              cdCount > 0 
+                                ? 'cursor-pointer bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/20 dark:hover:bg-blue-950/40' 
+                                : 'cursor-default bg-blue-50/40 dark:bg-blue-950/10'
+                            }`}
+                            onClick={() => cdCount > 0 && handleOpenPaymentModal(displayGroup.id, 'cash_drawer', displayGroup.methods)}
                           >
-                            <div className={`${cdTotal > 0 ? 'text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300' : 'text-slate-400 dark:text-slate-600'} font-semibold`}>
-                              ${cdTotal.toFixed(2)}
+                            <div className={`${cdCount > 0 ? 'text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300' : 'text-slate-400 dark:text-slate-600'} font-semibold`}>
+                              {formatAmount(cdTotal)}
                               <div className="text-xs text-gray-500 dark:text-gray-400">
-                                ({cdCount} items)
+                                ({cdCount} {cdCount === 1 ? 'item' : 'items'})
                               </div>
                             </div>
                           </td>
                           <td 
-                            className="p-4 text-center cursor-pointer bg-green-50 hover:bg-green-100 dark:bg-green-950/20 dark:hover:bg-green-950/40 transition-colors"
-                            onClick={() => fdTotal > 0 && handleOpenPaymentModal(displayGroup.id, 'for_deposit', displayGroup.methods)}
+                            className={`p-4 text-center transition-colors ${
+                              fdCount > 0 
+                                ? 'cursor-pointer bg-green-50 hover:bg-green-100 dark:bg-green-950/20 dark:hover:bg-green-950/40' 
+                                : 'cursor-default bg-green-50/40 dark:bg-green-950/10'
+                            }`}
+                            onClick={() => fdCount > 0 && handleOpenPaymentModal(displayGroup.id, 'for_deposit', displayGroup.methods)}
                           >
-                            <div className={`${fdTotal > 0 ? 'text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300' : 'text-slate-400 dark:text-slate-600'} font-semibold`}>
-                              ${fdTotal.toFixed(2)}
+                            <div className={`${fdCount > 0 ? 'text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300' : 'text-slate-400 dark:text-slate-600'} font-semibold`}>
+                              {formatAmount(fdTotal)}
                               <div className="text-xs text-gray-500 dark:text-gray-400">
-                                ({fdCount} items)
+                                ({fdCount} {fdCount === 1 ? 'item' : 'items'})
                               </div>
                             </div>
                           </td>
@@ -932,10 +953,10 @@ export default function CashDrawerPage() {
                     <tr className="border-t-2 font-semibold dark:border-slate-700">
                       <td className="p-4 bg-gray-50 dark:bg-slate-900 text-foreground">Total</td>
                       <td className="p-4 text-center text-lg bg-blue-100 dark:bg-blue-950/60 text-blue-900 dark:text-blue-200">
-                        ${paymentMethods.reduce((sum, method) => sum + getCashDrawerTotal(method), 0).toFixed(2)}
+                        {formatAmount(paymentMethods.reduce((sum, method) => sum + getCashDrawerTotal(method), 0))}
                       </td>
                       <td className="p-4 text-center text-lg text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-950/60">
-                        ${getTotalForDeposit().toFixed(2)}
+                        {formatAmount(getTotalForDeposit())}
                       </td>
                     </tr>
                   </tbody>
