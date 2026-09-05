@@ -20,8 +20,11 @@ export function createTwilioClient(): TwilioSetup | null {
   return { client: twilio(accountSid, authToken), fromNumber };
 }
 
-export async function sendViaTwilio(setup: TwilioSetup, to: string, body: string) {
-  return await setup.client.messages.create({ body, from: setup.fromNumber, to });
+export async function sendViaTwilio(setup: TwilioSetup, to: string, body: string, mediaUrl?: string[]) {
+  const options: any = { from: setup.fromNumber, to };
+  if (body) options.body = body;
+  if (mediaUrl && mediaUrl.length > 0) options.mediaUrl = mediaUrl;
+  return await setup.client.messages.create(options);
 }
 
 export interface LogAndSendSmsParams {

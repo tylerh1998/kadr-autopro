@@ -48,6 +48,53 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Process Media Attachments
+    const numMedia = parseInt(params.get('NumMedia') || '0', 10);
+    const attachments = [];
+
+    if (numMedia > 0) {
+      for (let i = 0; i < numMedia; i++) {
+        const mediaUrl = params.get(`MediaUrl${i}`);
+        const contentType = params.get(`MediaContentType${i}`);
+        
+        if (mediaUrl) {
+          try {
+            // Fetch media from Twilio
+            const mediaResponse = await fetch(mediaUrl);
+            const blob = await mediaResponse.blob();
+            
+            // Generate filename
+            const ext = contentType ? contentType.split('/')[1] : 'bin';
+            const fileName = `${twilio_message_sid}_${i}.${ext}`;
+            const filePath = `inbound/${fileName}`;
+            
+            // Upload to Supabase Storage
+            const { error: uploadError } = await supabase.storage
+              .from('sms-media')
+              .upload(filePath, blob, { contentType: contentType || undefined, upsert: true });
+              
+            if (!uploadError) {
+              const { data: publicUrlData } = supabase.storage
+                .from('sms-media')
+                .getPublicUrl(filePath);
+                
+              attachments.push({
+                url: publicUrlData.publicUrl,
+                type: contentType || 'unknown',
+                name: `Attachment ${i + 1}`
+              });
+            } else {
+              console.error('Failed to upload to storage:', uploadError);
+              attachments.push({ url: mediaUrl, type: contentType || 'unknown', name: `Attachment ${i + 1}` });
+            }
+          } catch (err) {
+            console.error('Error fetching media:', err);
+            attachments.push({ url: mediaUrl, type: contentType || 'unknown', name: `Attachment ${i + 1}` });
+          }
+        }
+      }
+    }
+
     const { data: smsRecord, error: insertError } = await supabase
       .from('SmsMessage')
       .insert({
@@ -58,7 +105,8 @@ Deno.serve(async (req) => {
         is_read: false,
         status: 'received',
         twilio_message_sid,
-        customer_id
+        customer_id,
+        attachments
       })
       .select()
       .single();
