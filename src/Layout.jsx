@@ -330,9 +330,18 @@ function LayoutContent({ children, currentPageName }) {
     fetchInitialUnread();
     startRealtime();
 
+    const handleRemoveUnread = (e) => {
+      const phone = e.detail?.phone;
+      if (phone) {
+        setSmsNotifications(prev => prev.filter(msg => msg.from_phone !== phone && msg.to_phone !== phone));
+      }
+    };
+    window.addEventListener('remove-unread-sms', handleRemoveUnread);
+
     return () => {
       isActive = false;
       realtimeChannel?.unsubscribe();
+      window.removeEventListener('remove-unread-sms', handleRemoveUnread);
     };
   }, [employee?.sms_enabled]);
 
