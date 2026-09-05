@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Edit, Paperclip, Send, Image as ImageIcon } from 'lucide-react';
+import { X, Edit, Paperclip, Send, Image as ImageIcon, MessageSquare } from 'lucide-react';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
