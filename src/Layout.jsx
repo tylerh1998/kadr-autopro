@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import moment from 'moment-timezone';
 import { supabase } from '@/lib/supabase';
+import { getSupabaseRealtimeClient } from '@/lib/supabaseRealtimeClient';
 import { useAuth } from '@/lib/AuthContext';
 import {
   FileText,
@@ -286,6 +287,69 @@ function LayoutContent({ children, currentPageName }) {
       supabase.removeChannel(channel);
     };
   }, [workProEmployee?.notify_for_projects]);
+
+  // Listen for SMS messages (Feature Flagged)
+  useEffect(() => {
+    if (!employee?.sms_enabled) return;
+
+    let isActive = true;
+    let realtimeChannel = null;
+
+    const fetchInitialUnread = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('SmsMessage')
+          .select('*')
+          .eq('is_read', false)
+          .order('created_at', { ascending: false });
+        if (error) throw error;
+        if (isActive) {
+          setSmsNotifications(data || []);
+        }
+      } catch (err) {
+        console.error('Error fetching unread SMS:', err);
+      }
+    };
+
+    const startRealtime = async () => {
+      const rtClient = await getSupabaseRealtimeClient();
+      if (!isActive) return;
+
+      realtimeChannel = rtClient
+        .channel('sms_refresh')
+        .on('broadcast', { event: 'new_sms' }, (message) => {
+          console.log('Live SMS received:', message.payload);
+          const newMsg = message.payload.record;
+          if (newMsg && !newMsg.is_read) {
+            setSmsNotifications(prev => [newMsg, ...prev]);
+          }
+        })
+        .subscribe((status) => {
+          console.log("SMS Badge: Subscription status:", status);
+        });
+    };
+
+    fetchInitialUnread();
+    startRealtime();
+
+    return () => {
+      isActive = false;
+      realtimeChannel?.unsubscribe();
+    };
+  }, [employee?.sms_enabled]);
+
+  const markSmsAsRead = async (msgId) => {
+    try {
+      const { error } = await supabase
+        .from('SmsMessage')
+        .update({ is_read: true })
+        .eq('id', msgId);
+      if (error) throw error;
+      setSmsNotifications(prev => prev.filter(m => m.id !== msgId));
+    } catch (err) {
+      console.error('Error marking SMS as read:', err);
+    }
+  };
 
   const handlePayrollClick = (e) => {
     // If paypro_user is true, allow default navigation to /Payroll
@@ -885,50 +949,60 @@ function LayoutContent({ children, currentPageName }) {
             {/* Right: Time Clock and User actions */}
             <div className="flex items-center gap-3">
               {/* SMS Messages Dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="relative p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none">
-                    <MessageSquare className="w-5 h-5 text-slate-700 dark:text-slate-300" />
-                    {smsNotifications.length > 0 && (
-                      <span className="absolute top-0 right-0 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full border-2 border-white dark:border-slate-950">
-                        {smsNotifications.length}
-                      </span>
+              {employee?.sms_enabled === true && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="relative p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none">
+                      <MessageSquare className="w-5 h-5 text-slate-700 dark:text-slate-300" />
+                      {smsNotifications.length > 0 && (
+                        <span className="absolute top-0 right-0 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full border-2 border-white dark:border-slate-950">
+                          {smsNotifications.length}
+                        </span>
+                      )}
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-72">
+                    <DropdownMenuLabel>SMS Messages</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {smsNotifications.length === 0 ? (
+                      <DropdownMenuItem disabled className="text-center justify-center py-4 text-slate-500">
+                        No new messages
+                      </DropdownMenuItem>
+                    ) : (
+                      smsNotifications.map((msg, idx) => (
+                        <DropdownMenuItem 
+                          key={msg.id || idx} 
+                          className="flex flex-col items-start gap-1 p-3 cursor-pointer"
+                          onClick={() => {
+                            if (msg.id) markSmsAsRead(msg.id);
+                          }}
+                        >
+                          <div className="flex justify-between w-full">
+                            <span className="font-semibold text-sm">{msg.from_phone}</span>
+                            <span className="text-xs text-slate-500">{moment(msg.created_at).format('h:mm a')}</span>
+                          </div>
+                          <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 w-full whitespace-normal">
+                            {msg.body}
+                          </p>
+                        </DropdownMenuItem>
+                      ))
                     )}
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-72">
-                  <DropdownMenuLabel>SMS Messages</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {smsNotifications.length === 0 ? (
-                    <DropdownMenuItem disabled className="text-center justify-center py-4 text-slate-500">
-                      No new messages
-                    </DropdownMenuItem>
-                  ) : (
-                    smsNotifications.map((msg, idx) => (
-                      <DropdownMenuItem key={idx} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
-                        <div className="flex justify-between w-full">
-                          <span className="font-semibold text-sm">{msg.sender_name || msg.sender_phone}</span>
-                          <span className="text-xs text-slate-500">{moment(msg.created_at).format('h:mm a')}</span>
-                        </div>
-                        <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 w-full whitespace-normal">
-                          {msg.body}
-                        </p>
-                      </DropdownMenuItem>
-                    ))
-                  )}
-                  {smsNotifications.length > 0 && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem 
-                        onClick={() => setSmsNotifications([])}
-                        className="text-blue-600 font-semibold justify-center cursor-pointer"
-                      >
-                        View All Messages
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    {smsNotifications.length > 0 && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            smsNotifications.forEach(m => { if (m.id) markSmsAsRead(m.id); });
+                          }}
+                          className="text-blue-600 font-semibold justify-center cursor-pointer"
+                        >
+                          Mark All Read
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
 
               {/* Time Clock */}
               <button
