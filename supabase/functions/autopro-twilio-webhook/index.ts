@@ -21,26 +21,30 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
+    // Normalize phones to 10 digits
+    const normalizePhone = (phoneStr) => {
+      if (!phoneStr) return '';
+      const digitsOnly = phoneStr.replace(/\D/g, '');
+      return digitsOnly.length > 10 ? digitsOnly.slice(-10) : digitsOnly;
+    };
+
+    const normalized_from_phone = normalizePhone(from_phone);
+    const normalized_to_phone = normalizePhone(to_phone);
+
     // Try to find customer
     let customer_id = null;
     let sender_name = null;
-    if (from_phone) {
-      // Extract last 10 digits for lookup (ignoring +1 or formatting)
-      const digitsOnly = from_phone.replace(/\D/g, '');
-      const lookupPhone = digitsOnly.length > 10 ? digitsOnly.slice(-10) : digitsOnly;
-      
-      if (lookupPhone) {
-        const { data: cust } = await supabase
-          .from('Customer')
-          .select('id, first_name, last_name, org_name')
-          .or(`phone.eq.${lookupPhone},secondary_phone.eq.${lookupPhone}`)
-          .limit(1)
-          .maybeSingle();
-          
-        if (cust) {
-          customer_id = cust.id;
-          sender_name = cust.org_name || `${cust.first_name || ''} ${cust.last_name || ''}`.trim() || null;
-        }
+    if (normalized_from_phone) {
+      const { data: cust } = await supabase
+        .from('Customer')
+        .select('id, first_name, last_name, org_name')
+        .or(`phone.eq.${normalized_from_phone},secondary_phone.eq.${normalized_from_phone}`)
+        .limit(1)
+        .maybeSingle();
+        
+      if (cust) {
+        customer_id = cust.id;
+        sender_name = cust.org_name || `${cust.first_name || ''} ${cust.last_name || ''}`.trim() || null;
       }
     }
 
@@ -48,8 +52,8 @@ Deno.serve(async (req) => {
       .from('SmsMessage')
       .insert({
         direction: 'inbound',
-        from_phone,
-        to_phone,
+        from_phone: normalized_from_phone,
+        to_phone: normalized_to_phone,
         body,
         is_read: false,
         status: 'received',

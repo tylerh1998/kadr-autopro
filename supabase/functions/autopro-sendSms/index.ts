@@ -75,12 +75,18 @@ serve(async (req) => {
 
     // --- BEGIN NEW: Conversational SMS Logging ---
     try {
+      const normalizePhone = (phoneStr) => {
+        if (!phoneStr) return '';
+        const digitsOnly = phoneStr.replace(/\D/g, '');
+        return digitsOnly.length > 10 ? digitsOnly.slice(-10) : digitsOnly;
+      };
+      
       const { data: smsRecord, error: smsInsertError } = await supabaseAdmin
         .from('SmsMessage')
         .insert({
           direction: 'outbound',
           from_phone: 'system',
-          to_phone: to,
+          to_phone: normalizePhone(to),
           body: message,
           is_read: true,
           status: 'sent',

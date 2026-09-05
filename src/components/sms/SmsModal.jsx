@@ -49,12 +49,12 @@ export default function SmsModal({ isOpen, onClose }) {
       setIsLoadingHistory(true);
       try {
         const { data, error } = await supabase
-          .from('SmsMessage')
-          .select('*')
-          .or(`from_phone.eq.${encodeURIComponent(selectedChatPhone)},to_phone.eq.${encodeURIComponent(selectedChatPhone)}`)
-          .order('created_at', { ascending: true })
-          .limit(100); // Pagination could be added later
+          .rpc('get_sms_history', { p_phone: selectedChatPhone });
           
+        if (error) {
+          console.error('RPC Error:', error);
+          throw error;
+        }
         if (error) throw error;
         setChatHistory(data || []);
         
