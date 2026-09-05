@@ -52,7 +52,8 @@ import {
   Ticket,
   MoreHorizontal,
   Bell,
-  BellOff
+  BellOff,
+  MessageSquare
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -106,6 +107,7 @@ function LayoutContent({ children, currentPageName }) {
   const [projectNotifications, setProjectNotifications] = useState([]);
   const [selectedNotificationProject, setSelectedNotificationProject] = useState(null);
   const [clockLoading, setClockLoading] = useState(false);
+  const [smsNotifications, setSmsNotifications] = useState([]);
 
   const getCurrentMountainTimeISO = () => moment.tz('America/Edmonton').toISOString();
 
@@ -882,6 +884,52 @@ function LayoutContent({ children, currentPageName }) {
 
             {/* Right: Time Clock and User actions */}
             <div className="flex items-center gap-3">
+              {/* SMS Messages Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="relative p-2 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors focus:outline-none">
+                    <MessageSquare className="w-5 h-5 text-slate-700 dark:text-slate-300" />
+                    {smsNotifications.length > 0 && (
+                      <span className="absolute top-0 right-0 inline-flex items-center justify-center w-4 h-4 text-[10px] font-bold text-white bg-red-500 rounded-full border-2 border-white dark:border-slate-950">
+                        {smsNotifications.length}
+                      </span>
+                    )}
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-72">
+                  <DropdownMenuLabel>SMS Messages</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {smsNotifications.length === 0 ? (
+                    <DropdownMenuItem disabled className="text-center justify-center py-4 text-slate-500">
+                      No new messages
+                    </DropdownMenuItem>
+                  ) : (
+                    smsNotifications.map((msg, idx) => (
+                      <DropdownMenuItem key={idx} className="flex flex-col items-start gap-1 p-3 cursor-pointer">
+                        <div className="flex justify-between w-full">
+                          <span className="font-semibold text-sm">{msg.sender_name || msg.sender_phone}</span>
+                          <span className="text-xs text-slate-500">{moment(msg.created_at).format('h:mm a')}</span>
+                        </div>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 w-full whitespace-normal">
+                          {msg.body}
+                        </p>
+                      </DropdownMenuItem>
+                    ))
+                  )}
+                  {smsNotifications.length > 0 && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem 
+                        onClick={() => setSmsNotifications([])}
+                        className="text-blue-600 font-semibold justify-center cursor-pointer"
+                      >
+                        View All Messages
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
               {/* Time Clock */}
               <button
                 onClick={handleClockToggle}
