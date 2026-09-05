@@ -52,6 +52,14 @@ export default function SmsModal({ isOpen, onClose }) {
   }, [isOpen]);
 
   useEffect(() => {
+    const handleOpenChat = (e) => {
+      setSelectedChatPhone(e.detail.phone);
+    };
+    window.addEventListener('open-sms-chat', handleOpenChat);
+    return () => window.removeEventListener('open-sms-chat', handleOpenChat);
+  }, []);
+
+  useEffect(() => {
     if (!selectedChatPhone) {
       setChatHistory([]);
       return;
@@ -72,6 +80,7 @@ export default function SmsModal({ isOpen, onClose }) {
           setConversations(prev => prev.map(c => 
             c.external_phone === selectedChatPhone ? { ...c, is_unread: false } : c
           ));
+          window.dispatchEvent(new CustomEvent('remove-unread-sms', { detail: { phone: selectedChatPhone } }));
         }
       } catch (err) {
         console.error('Error fetching chat history:', err);

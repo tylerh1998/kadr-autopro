@@ -53,14 +53,29 @@ Deno.serve(async (req) => {
     const attachments = [];
 
     if (numMedia > 0) {
+      const twilioSid = Deno.env.get('TWILIO_ACCOUNT_SID') || '';
+      const twilioToken = Deno.env.get('TWILIO_AUTH_TOKEN') || '';
+      const authHeader = 'Basic ' + btoa(`${twilioSid}:${twilioToken}`);
+
       for (let i = 0; i < numMedia; i++) {
         const mediaUrl = params.get(`MediaUrl${i}`);
         const contentType = params.get(`MediaContentType${i}`);
         
         if (mediaUrl) {
           try {
-            // Fetch media from Twilio
-            const mediaResponse = await fetch(mediaUrl);
+            // Fetch media from Twilio with Auth
+            const mediaResponse = await fetch(mediaUrl, {
+              headers: {
+                'Authorization': authHeader
+              }
+            });
+            
+            if (!mediaResponse.ok) {
+              const text = await mediaResponse.text();
+              console.error(`Twilio fetch failed (${mediaResponse.status}):`, text);
+              throw new Error(`Failed to fetch from Twilio: ${mediaResponse.status}`);
+            }
+
             const blob = await mediaResponse.blob();
             
             // Generate filename
