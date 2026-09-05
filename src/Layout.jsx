@@ -81,6 +81,7 @@ import { SupplierLockProvider, useSupplierLock } from './components/context/Supp
 import ReportIssueModal from './components/layout/ReportIssueModal';
 import PayrollMoreModal from './components/paypro/PayrollMoreModal';
 import WorkPROModal from './components/work-orders/WorkPROModal';
+import SmsModal from './components/sms/SmsModal';
 
 function LayoutContent({ children, currentPageName }) {
   const [showFindPartModal, setShowFindPartModal] = useState(false);
@@ -94,6 +95,7 @@ function LayoutContent({ children, currentPageName }) {
   const [showGlobalClockInModal, setShowGlobalClockInModal] = useState(false);
   const [showReportIssueModal, setShowReportIssueModal] = useState(false);
   const [showPayrollMoreModal, setShowPayrollMoreModal] = useState(false);
+  const [showSmsModal, setShowSmsModal] = useState(false);
   const [hoveredItem, setHoveredItem] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -1004,6 +1006,13 @@ function LayoutContent({ children, currentPageName }) {
                         </DropdownMenuItem>
                       </>
                     )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      onClick={() => setShowSmsModal(true)}
+                      className="text-blue-600 font-semibold justify-center cursor-pointer"
+                    >
+                      Open Messages
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
@@ -1320,6 +1329,11 @@ function LayoutContent({ children, currentPageName }) {
           // We pass minimal props. The modal will fetch by initialWorkPROProject.id
         />
       )}
+
+      <SmsModal 
+        isOpen={showSmsModal} 
+        onClose={() => setShowSmsModal(false)} 
+      />
     </div>
   );
 }
