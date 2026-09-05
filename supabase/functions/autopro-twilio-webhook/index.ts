@@ -23,15 +23,24 @@ Deno.serve(async (req) => {
 
     // Try to find customer
     let customer_id = null;
+    let sender_name = null;
     if (from_phone) {
-      const { data: cust } = await supabase
-        .from('Customer')
-        .select('id')
-        .or(`phone.ilike.%${from_phone.replace('+1', '')}%,phone_mobile.ilike.%${from_phone.replace('+1', '')}%`)
-        .limit(1)
-        .maybeSingle();
-      if (cust) {
-        customer_id = cust.id;
+      // Extract last 10 digits for lookup (ignoring +1 or formatting)
+      const digitsOnly = from_phone.replace(/\D/g, '');
+      const lookupPhone = digitsOnly.length > 10 ? digitsOnly.slice(-10) : digitsOnly;
+      
+      if (lookupPhone) {
+        const { data: cust } = await supabase
+          .from('Customer')
+          .select('id, first_name, last_name, org_name')
+          .or(`phone.eq.${lookupPhone},secondary_phone.eq.${lookupPhone}`)
+          .limit(1)
+          .maybeSingle();
+          
+        if (cust) {
+          customer_id = cust.id;
+          sender_name = cust.org_name || `${cust.first_name || ''} ${cust.last_name || ''}`.trim() || null;
+        }
       }
     }
 
@@ -64,7 +73,7 @@ Deno.serve(async (req) => {
               type: 'broadcast',
               event: 'new_sms',
               payload: {
-                record: smsRecord || { body, from_phone }
+                record: smsRecord ? { ...smsRecord, sender_name } : { body, from_phone, sender_name }
               }
             });
             resolve(true);

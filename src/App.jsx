@@ -42,7 +42,7 @@ const RedirectToEnrollment = () => (
       continue. Head to your myKADR account settings to add one, then come back and reload this page.
     </p>
     <a
-      href="https://my.kensauto.ca"
+      href="https://my.kensauto.ca/settings"
       className="text-sm font-medium text-slate-800 underline underline-offset-2"
     >
       Go to myKADR account settings

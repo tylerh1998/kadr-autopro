@@ -978,8 +978,12 @@ function LayoutContent({ children, currentPageName }) {
                           }}
                         >
                           <div className="flex justify-between w-full">
-                            <span className="font-semibold text-sm">{msg.from_phone}</span>
-                            <span className="text-xs text-slate-500">{moment(msg.created_at).format('h:mm a')}</span>
+                            <span className="font-semibold text-sm truncate pr-2">
+                              {msg.sender_name || msg.from_phone}
+                            </span>
+                            <span className="text-xs text-slate-500 whitespace-nowrap">
+                              {moment(msg.created_at).format('h:mm a')}
+                            </span>
                           </div>
                           <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 w-full whitespace-normal">
                             {msg.body}
