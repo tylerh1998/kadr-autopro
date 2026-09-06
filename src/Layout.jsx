@@ -961,81 +961,24 @@ function LayoutContent({ children, currentPageName }) {
 
             {/* Right: Time Clock and User actions */}
             <div className="flex items-center gap-3">
-              {/* SMS Messages Dropdown */}
+              {/* SMS Messages Dropdown Removed - Direct Modal Open */}
               {employee?.sms_enabled === true && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <button 
-                      className={`relative flex flex-col justify-center px-3 py-2 rounded-lg transition-all duration-300 cursor-pointer focus:outline-none ${
-                        smsNotifications.length > 0 
-                          ? 'bg-blue-600 text-white shadow-md' 
-                          : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
-                      }`}
-                      style={smsNotifications.length > 0 ? { animation: 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite' } : {}}
-                    >
-                      <MessageSquare className={`w-5 h-5 ${smsNotifications.length > 0 ? 'text-white' : 'text-slate-700 dark:text-slate-300'}`} />
-                      {smsNotifications.length > 0 && (
-                        <span className="absolute -top-1 -right-1 inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold text-white bg-red-500 rounded-full border-2 border-white dark:border-slate-950 shadow-sm">
-                          {smsNotifications.length}
-                        </span>
-                      )}
-                    </button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-72">
-                    <DropdownMenuLabel>SMS Messages</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {smsNotifications.length === 0 ? (
-                      <DropdownMenuItem disabled className="text-center justify-center py-4 text-slate-500">
-                        No new messages
-                      </DropdownMenuItem>
-                    ) : (
-                      smsNotifications.map((msg, idx) => (
-                        <DropdownMenuItem 
-                          key={msg.id || idx} 
-                          className="flex flex-col items-start gap-1 p-3 cursor-pointer"
-                          onClick={() => {
-                            // Open modal and set phone
-                            setShowSmsModal(true);
-                            // Needs a way to tell SmsModal to select this chat!
-                            window.dispatchEvent(new CustomEvent('open-sms-chat', { detail: { phone: msg.from_phone } }));
-                          }}
-                        >
-                          <div className="flex justify-between w-full items-center">
-                            <span className="font-semibold text-sm truncate pr-2">
-                              {msg.sender_name || msg.from_phone}
-                            </span>
-                            <span className="text-xs text-slate-500 whitespace-nowrap shrink-0">
-                              {moment(msg.created_at).format('h:mm a')}
-                            </span>
-                          </div>
-                          <p className="text-xs text-slate-500 mt-1 line-clamp-2 w-full break-words">
-                            {msg.body || (msg.attachments?.length > 0 ? (msg.attachments[0].type.includes('pdf') ? '📄 PDF document' : '📎 Image attachment') : 'Attachment received')}
-                          </p>
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                    {smsNotifications.length > 0 && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem 
-                          onClick={() => {
-                            smsNotifications.forEach(m => { if (m.id) markSmsAsRead(m.id); });
-                          }}
-                          className="text-blue-600 font-semibold justify-center cursor-pointer"
-                        >
-                          Mark All Read
-                        </DropdownMenuItem>
-                      </>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem 
-                      onClick={() => setShowSmsModal(true)}
-                      className="text-blue-600 font-semibold justify-center cursor-pointer"
-                    >
-                      Open Messages
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <button 
+                  onClick={() => setShowSmsModal(true)}
+                  className={`relative flex flex-col justify-center px-3 py-2 rounded-lg transition-all duration-300 cursor-pointer focus:outline-none ${
+                    smsNotifications.length > 0 
+                      ? 'bg-blue-600 text-white shadow-md' 
+                      : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                  }`}
+                  title="Open Messages"
+                >
+                  <MessageSquare className={`w-5 h-5 ${smsNotifications.length > 0 ? 'text-white' : 'text-slate-700 dark:text-slate-300'}`} />
+                  {smsNotifications.length > 0 && (
+                    <span className="absolute -top-1 -right-1 inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold text-white bg-red-500 rounded-full border-2 border-white dark:border-slate-950 shadow-sm">
+                      {smsNotifications.length}
+                    </span>
+                  )}
+                </button>
               )}
 
               {/* Time Clock */}

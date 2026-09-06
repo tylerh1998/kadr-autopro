@@ -79,69 +79,30 @@ BEGIN
   SELECT json_agg(row_to_json(t)) INTO stage4_orphans FROM (SELECT transaction_date AS date, reference, account_number, debit_amount, credit_amount, description FROM CleanedGL WHERE (reference IS NULL OR reference = '') AND transaction_date >= start_date AND transaction_date <= end_date AND account_number NOT IN ('1001', '1002', '1100', '2006', '3001', '4010')) t;
 
   -- Stage 5: Accounts Receivable (Account 1100) vs Sub-Ledger
-  WITH WO_Agg AS (
-    SELECT 'INV' || inv_number::text AS target_ref, MAX(invoice_date::DATE) AS last_date, SUM(COALESCE(total_amount, 0)) AS expected_ar_debit
-    FROM "WorkOrder" WHERE invoice_date::DATE >= (start_date - INTERVAL '60 days') AND invoice_date::DATE <= end_date AND inv_number IS NOT NULL GROUP BY inv_number
-  ),
-  GL_AR_Debit AS (
-    SELECT base_ref, SUM(COALESCE(debit_amount, 0)) AS gl_ar_debit
-    FROM CleanedGL WHERE account_number = '1100' GROUP BY base_ref
-  )
-  SELECT json_agg(row_to_json(t)) INTO stage5_ar
-  FROM (
-    SELECT COALESCE(w.target_ref, g.base_ref) AS target_ref, w.last_date AS activity_date,
-           ROUND(COALESCE(w.expected_ar_debit, 0)::numeric, 2) AS expected_ar_debit, ROUND(COALESCE(g.gl_ar_debit, 0)::numeric, 2) AS ledger_ar_debit
-    FROM WO_Agg w FULL OUTER JOIN GL_AR_Debit g ON w.target_ref = g.base_ref
-    WHERE ABS(ROUND(COALESCE(w.expected_ar_debit, 0)::numeric, 2) - ROUND(COALESCE(g.gl_ar_debit, 0)::numeric, 2)) > 0.001
-  ) t;
-
-  -- Stage 6: GST Collected (Account 2002)
-  WITH WO_GST AS (
-    SELECT 'INV' || inv_number::text AS target_ref, MAX(invoice_date::DATE) AS last_date, SUM(COALESCE(tax_amount, 0)) AS expected_gst
-    FROM "WorkOrder" WHERE invoice_date::DATE >= (start_date - INTERVAL '60 days') AND invoice_date::DATE <= end_date AND inv_number IS NOT NULL GROUP BY inv_number
-  ),
-  GL_GST_Col AS (
-    SELECT base_ref, SUM(COALESCE(credit_amount, 0)) AS gl_gst_collected
-    FROM CleanedGL WHERE account_number = '2002' GROUP BY base_ref
-  )
-  SELECT json_agg(row_to_json(t)) INTO stage6_gst_collected
-  FROM (
-    SELECT COALESCE(w.target_ref, g.base_ref) AS target_ref, w.last_date AS activity_date,
-           ROUND(COALESCE(w.expected_gst, 0)::numeric, 2) AS expected_gst, ROUND(COALESCE(g.gl_gst_collected, 0)::numeric, 2) AS ledger_gst_collected
-    FROM WO_GST w FULL OUTER JOIN GL_GST_Col g ON w.target_ref = g.base_ref
-    WHERE ABS(ROUND(COALESCE(w.expected_gst, 0)::numeric, 2) - ROUND(COALESCE(g.gl_gst_collected, 0)::numeric, 2)) > 0.001
-  ) t;
-
-  -- Stage 7: Total Inventory Valuation
-  SELECT SUM(COALESCE(quantity_on_hand::numeric, 0) * COALESCE(cost::numeric, 0)) INTO total_inventory_value 
-  FROM "InventoryItem" WHERE is_active = true AND quantity_on_hand ~ '^[0-9\.\-]+$';
-  
-  SELECT SUM(COALESCE(debit_amount, 0) - COALESCE(credit_amount, 0)) INTO gl_inventory_value
-  FROM "GLTransaction" WHERE account_number = '1200';
-  
-  stage7_inventory := json_build_object(
-    'physical_value', ROUND(COALESCE(total_inventory_value, 0)::numeric, 2),
-    'gl_value', ROUND(COALESCE(gl_inventory_value, 0)::numeric, 2),
-    'discrepancy', ROUND(COALESCE(total_inventory_value, 0)::numeric - COALESCE(gl_inventory_value, 0)::numeric, 2)
-  );
-
-  -- Stage 8: Bank Feeds (Account 1001)
-  WITH BankFeed AS (
-    SELECT SUM(COALESCE(debit_amount, 0)) AS total_bank_debit, SUM(COALESCE(credit_amount, 0)) AS total_bank_credit
-    FROM "BankTransaction" WHERE transaction_date::DATE >= start_date AND transaction_date::DATE <= end_date
-  ),
-  GLBank AS (
-    SELECT SUM(COALESCE(debit_amount, 0)) AS total_gl_debit, SUM(COALESCE(credit_amount, 0)) AS total_gl_credit
-    FROM CleanedGL WHERE account_number = '1001' AND transaction_date >= start_date AND transaction_date <= end_date
-  )
-  SELECT json_agg(row_to_json(t)) INTO stage8_bank
-  FROM (
-    SELECT ROUND(b.total_bank_debit::numeric, 2) AS feed_debit, ROUND(b.total_bank_credit::numeric, 2) AS feed_credit,
-           ROUND(g.total_gl_debit::numeric, 2) AS gl_debit, ROUND(g.total_gl_credit::numeric, 2) AS gl_credit
-    FROM BankFeed b, GLBank g
-    WHERE ABS(ROUND(b.total_bank_debit::numeric, 2) - ROUND(g.total_gl_debit::numeric, 2)) > 0.001
-       OR ABS(ROUND(b.total_bank_credit::numeric, 2) - ROUND(g.total_gl_credit::numeric, 2)) > 0.001
-  ) t;
+  -- AR is defined as on_account payments (debt) minus ar_paid, plus manual AR adjustments.
+  DECLARE
+    ar_cp numeric;
+    ar_adj numeric;
+    total_sub_ar numeric;
+    total_gl_ar numeric;
+  BEGIN
+    SELECT SUM(COALESCE(amount, 0) - COALESCE(ar_paid, 0)) INTO ar_cp
+    FROM "CustomerPayments" WHERE payment_method = 'on_account';
+    
+    SELECT SUM(COALESCE(amount, 0) - COALESCE(ar_paid, 0)) INTO ar_adj
+    FROM "CustomerARAdjustment";
+    
+    total_sub_ar := COALESCE(ar_cp, 0) + COALESCE(ar_adj, 0);
+    
+    SELECT SUM(COALESCE(debit_amount, 0) - COALESCE(credit_amount, 0)) INTO total_gl_ar
+    FROM "GLTransaction" WHERE account_number = '1100';
+    
+    stage5_ar := json_build_object(
+      'sub_ledger_ar', ROUND(total_sub_ar, 2),
+      'gl_ar', ROUND(total_gl_ar, 2),
+      'discrepancy', ROUND(total_sub_ar - total_gl_ar, 2)
+    );
+  END;
 
   DROP TABLE IF EXISTS CleanedGL;
 
@@ -151,10 +112,7 @@ BEGIN
     'stage3_discrepancies', COALESCE(stage3_discrepancies, '[]'::json),
     'stage4_negatives', COALESCE(stage4_negatives, '[]'::json),
     'stage4_orphans', COALESCE(stage4_orphans, '[]'::json),
-    'stage5_ar', COALESCE(stage5_ar, '[]'::json),
-    'stage6_gst', COALESCE(stage6_gst_collected, '[]'::json),
-    'stage7_inventory', COALESCE(stage7_inventory, '{}'::json),
-    'stage8_bank', COALESCE(stage8_bank, '[]'::json)
+    'stage5_ar', COALESCE(stage5_ar, '{}'::json)
   );
 END;
 $$;

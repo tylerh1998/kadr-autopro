@@ -104,36 +104,15 @@ serve(async (req) => {
     { key: 'description', label: 'Description' }
   ]);
 
-  const stage5Html = generateTableHtml(auditData.stage5_ar, [
-    { key: 'activity_date', label: 'Activity Date' },
-    { key: 'target_ref', label: 'Invoice / Reference' },
-    { key: 'expected_ar_debit', label: 'Expected AR (Work Orders)' },
-    { key: 'ledger_ar_debit', label: 'Posted AR (GL Account 1100)' }
-  ]);
-
-  const stage6Html = generateTableHtml(auditData.stage6_gst, [
-    { key: 'activity_date', label: 'Activity Date' },
-    { key: 'target_ref', label: 'Invoice / Reference' },
-    { key: 'expected_gst', label: 'Expected GST Collected (Work Orders)' },
-    { key: 'ledger_gst_collected', label: 'Posted GST (GL Account 2002)' }
-  ]);
-
-  let stage7Html = '';
-  if (auditData.stage7_inventory) {
-    const inv = auditData.stage7_inventory;
-    stage7Html = `<ul style="list-style-type: none; padding-left: 0; font-size: 15px; color: #374151;">
-      <li><strong>Physical Sub-Ledger Value:</strong> $${inv.physical_value?.toFixed(2) || '0.00'}</li>
-      <li><strong>GL Account 1200 Value:</strong> $${inv.gl_value?.toFixed(2) || '0.00'}</li>
-      <li style="color: ${Math.abs(inv.discrepancy) > 0.01 ? '#dc2626' : '#16a34a'};"><strong>Discrepancy:</strong> $${inv.discrepancy?.toFixed(2) || '0.00'}</li>
+  const stage5_ar = auditData.stage5_ar || {};
+  let stage5Html = '';
+  if (stage5_ar) {
+    stage5Html = `<ul style="list-style-type: none; padding-left: 0; font-size: 15px; color: #374151;">
+      <li><strong>Total Customer AR (Sub-Ledger):</strong> $${stage5_ar.sub_ledger_ar?.toFixed(2) || '0.00'}</li>
+      <li><strong>Posted AR (GL Account 1100):</strong> $${stage5_ar.gl_ar?.toFixed(2) || '0.00'}</li>
+      <li style="color: ${Math.abs(stage5_ar.discrepancy) > 0.01 ? '#dc2626' : '#16a34a'};"><strong>Discrepancy:</strong> $${stage5_ar.discrepancy?.toFixed(2) || '0.00'}</li>
     </ul>`;
   }
-
-  const stage8Html = generateTableHtml(auditData.stage8_bank, [
-    { key: 'feed_debit', label: 'Expected Debit (Bank Feeds)' },
-    { key: 'feed_credit', label: 'Expected Credit (Bank Feeds)' },
-    { key: 'gl_debit', label: 'Posted Debit (GL Account 1001)' },
-    { key: 'gl_credit', label: 'Posted Credit (GL Account 1001)' }
-  ]);
 
   const htmlBody = `
     <div style="font-family: sans-serif; color: #1f2937;">
@@ -155,18 +134,9 @@ serve(async (req) => {
       <h4 style="color: #4b5563; margin-bottom: 5px;">Orphaned Records (Missing References)</h4>
       ${stage4OrphansHtml}
 
-      <h3 style="color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">Stage 5: Accounts Receivable vs. Work Orders</h3>
+      <h3 style="color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">Stage 5: Accounts Receivable vs. GL Account 1100</h3>
+      <p style="font-size: 14px; color: #4b5563;"><em>Note: Checks the total historical balance calculated per the CustomerARSummary formula against the total 1100 GL balance.</em></p>
       ${stage5Html}
-
-      <h3 style="color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">Stage 6: GST Collected vs. Work Orders</h3>
-      ${stage6Html}
-
-      <h3 style="color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">Stage 7: Live Inventory Valuation vs. Account 1200</h3>
-      ${stage7Html}
-
-      <h3 style="color: #374151; border-bottom: 2px solid #e5e7eb; padding-bottom: 5px;">Stage 8: Primary Bank Feed vs. Account 1001</h3>
-      <p style="font-size: 14px; color: #4b5563;"><em>Note: Compares the total aggregate movement for the 7-day window.</em></p>
-      ${stage8Html}
     </div>
   `;
 
