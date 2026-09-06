@@ -31,7 +31,8 @@ import {
   ExternalLink,
   ArrowRightCircle,
   FolderPlus,
-  SquarePen
+  SquarePen,
+  MessageSquare
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -148,6 +149,9 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   const [workPROComments, setWorkPROComments] = useState([]);
   const [loadingWorkPRO, setLoadingWorkPRO] = useState(false);
   const [workPROTimeTotal, setWorkPROTimeTotal] = useState(0);
+
+  // Add state for SMS unread status
+  const [smsStatus, setSmsStatus] = useState({ has_messages: false, unread_count: 0 });
 
   // NEW: State to manage the invoice conversion flow
   const [invoiceConversionPhase, setInvoiceConversionPhase] = useState(0);
@@ -460,6 +464,51 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
   const handleWorkPROConnectionChange = useCallback(() => {
     fetchWorkPROData();
   }, [fetchWorkPROData]);
+
+  const fetchSmsStatus = useCallback(async () => {
+    if (!customer?.id && !customer?.phone) {
+      setSmsStatus({ has_messages: false, unread_count: 0 });
+      return;
+    }
+    
+    try {
+      const { data, error } = await supabase.rpc('get_customer_sms_status', {
+        p_customer_id: customer.id || null,
+        p_phone: customer.phone || null
+      });
+      if (error) throw error;
+      setSmsStatus(data || { has_messages: false, unread_count: 0 });
+    } catch (err) {
+      console.error('Error fetching SMS status:', err);
+    }
+  }, [customer?.id, customer?.phone]);
+
+  useEffect(() => {
+    fetchSmsStatus();
+  }, [fetchSmsStatus]);
+
+  useEffect(() => {
+    const handleNewSms = (e) => {
+      const newMsg = e.detail?.record;
+      if (newMsg && customer?.phone && (newMsg.from_phone === customer.phone || newMsg.to_phone === customer.phone)) {
+        fetchSmsStatus();
+      }
+    };
+    
+    const handleRemoveUnread = (e) => {
+      if (e.detail?.phone === customer?.phone) {
+        fetchSmsStatus();
+      }
+    };
+
+    window.addEventListener('new-sms-received', handleNewSms);
+    window.addEventListener('remove-unread-sms', handleRemoveUnread);
+    
+    return () => {
+      window.removeEventListener('new-sms-received', handleNewSms);
+      window.removeEventListener('remove-unread-sms', handleRemoveUnread);
+    };
+  }, [fetchSmsStatus, customer?.phone]);
 
   // Current user, sourced from Employee via AuthContext
   useEffect(() => {
@@ -1833,6 +1882,27 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                             {workPROProject.status?.replace(/_/g, ' ')}
                           </span>
                         </div>
+                      )}
+                    </div>
+                  )}
+
+                  {employee?.sms_enabled && customer?.phone && (
+                    <div 
+                      onClick={() => window.dispatchEvent(new CustomEvent('open-sms-chat', { detail: { phone: customer.phone } }))}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded transition-all duration-200 text-sm font-bold shadow-sm cursor-pointer select-none ml-2 border ${
+                        !smsStatus.has_messages 
+                          ? 'opacity-50 hover:opacity-100 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                          : smsStatus.unread_count > 0
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white border-transparent animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]'
+                            : 'bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-900 dark:text-white border-slate-300 dark:border-slate-600'
+                      }`}
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      <span>SMS</span>
+                      {smsStatus.unread_count > 0 && (
+                        <span className="flex items-center justify-center bg-white text-blue-600 rounded-full h-5 w-5 text-[11px] font-black ml-1">
+                          {smsStatus.unread_count > 99 ? '99+' : smsStatus.unread_count}
+                        </span>
                       )}
                     </div>
                   )}

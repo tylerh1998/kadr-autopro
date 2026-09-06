@@ -121,6 +121,14 @@ function LayoutContent({ children, currentPageName }) {
   // Dropdown hover timeout
   const [hoverTimeout, setHoverTimeout] = useState(null);
 
+  useEffect(() => {
+    const handleOpenSmsChat = () => {
+      setShowSmsModal(true);
+    };
+    window.addEventListener('open-sms-chat', handleOpenSmsChat);
+    return () => window.removeEventListener('open-sms-chat', handleOpenSmsChat);
+  }, []);
+
   // Dark mode state
   const [darkMode, setDarkMode] = useState(false);
   const [isTraining, setIsTraining] = useState(false);
