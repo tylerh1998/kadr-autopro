@@ -1893,7 +1893,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                         !smsStatus.has_messages 
                           ? 'opacity-50 hover:opacity-100 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
                           : smsStatus.unread_count > 0
-                            ? 'bg-blue-600 hover:bg-blue-700 text-white border-transparent animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite]'
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white border-transparent'
                             : 'bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-900 dark:text-white border-slate-300 dark:border-slate-600'
                       }`}
                     >

@@ -95,7 +95,7 @@ function LayoutContent({ children, currentPageName }) {
   const [showGlobalClockInModal, setShowGlobalClockInModal] = useState(false);
   const [showReportIssueModal, setShowReportIssueModal] = useState(false);
   const [showPayrollMoreModal, setShowPayrollMoreModal] = useState(false);
-  const [showSmsModal, setShowSmsModal] = useState(false);
+  const [showSmsModal, setShowSmsModal] = useState(true); // TEMP: Test if modal is visible
   const [hoveredItem, setHoveredItem] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
