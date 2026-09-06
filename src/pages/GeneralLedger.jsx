@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, BookOpen, Loader2, FileText, ArrowLeft } from 'lucide-react';
+import { Search, BookOpen, Loader2, FileText, ArrowLeft, Mail } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import { format, subDays } from 'date-fns';
 import { Link, useNavigate } from 'react-router-dom';
@@ -14,9 +14,32 @@ export default function GeneralLedgerPage({ isEmbedded = false }) {
   const navigate = useNavigate();
   const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isAuditing, setIsAuditing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [startDate, setStartDate] = useState(format(subDays(new Date(), 365), 'yyyy-MM-dd'));
   const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+
+  const handleEmailAuditReport = async () => {
+    const confirm = window.confirm("This report will run based on the start date and end date already selected. Continue?");
+    if (!confirm) return;
+
+    setIsAuditing(true);
+    try {
+      const response = await supabase.functions.invoke('autopro-generateGLAuditReport', {
+        body: {
+          start_date: startDate,
+          end_date: endDate
+        }
+      });
+      if (response.error) throw response.error;
+      alert("GL Audit Report has been successfully generated and emailed.");
+    } catch (error) {
+      console.error('Error generating GL Audit Report:', error);
+      alert("Failed to email GL Audit Report.");
+    } finally {
+      setIsAuditing(false);
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -218,16 +241,26 @@ export default function GeneralLedgerPage({ isEmbedded = false }) {
     <div className="p-6 min-h-screen">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center gap-4">
-          {!isEmbedded && (
-            <Link to={createPageUrl('ChartOfAccounts')}>
-              <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
-            </Link>
-          )}
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">General Ledger</h1>
-            <p className="text-muted-foreground mt-1">View all account balances and transactions</p>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            {!isEmbedded && (
+              <Link to={createPageUrl('ChartOfAccounts')}>
+                <Button variant="ghost" size="icon"><ArrowLeft className="w-5 h-5" /></Button>
+              </Link>
+            )}
+            <div>
+              <h1 className="text-3xl font-bold text-foreground">General Ledger</h1>
+              <p className="text-muted-foreground mt-1">View all account balances and transactions</p>
+            </div>
           </div>
+          <Button 
+            variant="outline" 
+            onClick={handleEmailAuditReport} 
+            disabled={isAuditing}
+          >
+            {isAuditing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mail className="w-4 h-4 mr-2" />}
+            Email GL Audit Report
+          </Button>
         </div>
 
         {/* Filters */}
