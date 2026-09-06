@@ -122,6 +122,12 @@ function LayoutContent({ children, currentPageName }) {
   const [hoverTimeout, setHoverTimeout] = useState(null);
 
   useEffect(() => {
+    if (showSmsModal) {
+      alert('LayoutContent render pass: showSmsModal is TRUE!');
+    }
+  }, [showSmsModal]);
+
+  useEffect(() => {
     const handleOpenSmsChat = () => {
       alert('Layout received open-sms-chat event! Setting showSmsModal(true)');
       setShowSmsModal(true);

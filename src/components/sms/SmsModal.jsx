@@ -203,6 +203,9 @@ export default function SmsModal({ isOpen, onClose }) {
   };
 
   if (!isOpen) return null;
+  
+  // DEBUG ALERT
+  alert('SmsModal IS RENDERING! It passed the early return.');
 
   const selectedConversation = conversations.find(c => c.external_phone === selectedChatPhone);
 
