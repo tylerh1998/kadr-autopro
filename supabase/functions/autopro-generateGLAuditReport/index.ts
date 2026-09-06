@@ -5,6 +5,11 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
 
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-cron-secret',
+}
+
 function generateTableHtml(data: any[], columns: { key: string, label: string }[]) {
   if (!data || data.length === 0) return "<p><i>None</i></p>";
   
@@ -32,12 +37,16 @@ function generateTableHtml(data: any[], columns: { key: string, label: string }[
 }
 
 serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
+  }
+
   const cronSecret = Deno.env.get('AUTOPRO_CRON_SECRET');
   const providedSecret = req.headers.get('x-cron-secret');
   const authHeader = req.headers.get('Authorization');
   
   if ((!cronSecret || providedSecret !== cronSecret) && !authHeader) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 
   let body = {};
@@ -59,7 +68,7 @@ serve(async (req) => {
 
   if (error) {
     console.error("RPC Error:", error);
-    return new Response(JSON.stringify({ error }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 
   const stage1Html = generateTableHtml(auditData.stage1_imbalances, [
@@ -157,8 +166,8 @@ serve(async (req) => {
   if (!resendRes.ok) {
      const resendErr = await resendRes.text();
      console.error("Resend API Error:", resendErr);
-     return new Response(JSON.stringify({ error: "Failed to send email", details: resendErr }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+     return new Response(JSON.stringify({ error: "Failed to send email", details: resendErr }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 
-  return new Response(JSON.stringify({ success: true, startDate, endDate }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  return new Response(JSON.stringify({ success: true, startDate, endDate }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 });

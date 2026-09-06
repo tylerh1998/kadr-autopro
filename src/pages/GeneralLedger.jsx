@@ -25,17 +25,20 @@ export default function GeneralLedgerPage({ isEmbedded = false }) {
 
     setIsAuditing(true);
     try {
-      const response = await supabase.functions.invoke('autopro-generateGLAuditReport', {
+      const { data, error } = await supabase.functions.invoke('autopro-generateGLAuditReport', {
         body: {
           start_date: startDate,
           end_date: endDate
         }
       });
-      if (response.error) throw response.error;
+      
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      
       alert("GL Audit Report has been successfully generated and emailed.");
     } catch (error) {
       console.error('Error generating GL Audit Report:', error);
-      alert("Failed to email GL Audit Report.");
+      alert(`Failed to email GL Audit Report: ${error.message || error}`);
     } finally {
       setIsAuditing(false);
     }
