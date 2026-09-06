@@ -122,14 +122,7 @@ function LayoutContent({ children, currentPageName }) {
   const [hoverTimeout, setHoverTimeout] = useState(null);
 
   useEffect(() => {
-    if (showSmsModal) {
-      alert('LayoutContent render pass: showSmsModal is TRUE!');
-    }
-  }, [showSmsModal]);
-
-  useEffect(() => {
     const handleOpenSmsChat = () => {
-      alert('Layout received open-sms-chat event! Setting showSmsModal(true)');
       setShowSmsModal(true);
     };
     window.addEventListener('open-sms-chat', handleOpenSmsChat);
@@ -746,6 +739,10 @@ function LayoutContent({ children, currentPageName }) {
     return (
       <div className="min-h-screen bg-background">
         <main>{children}</main>
+        <SmsModal 
+          isOpen={showSmsModal} 
+          onClose={() => setShowSmsModal(false)} 
+        />
       </div>
     );
   }
@@ -971,10 +968,7 @@ function LayoutContent({ children, currentPageName }) {
               {/* SMS Messages Dropdown Removed - Direct Modal Open */}
               {employee?.sms_enabled === true && (
                 <button 
-                  onClick={() => {
-                    alert('Top Nav button clicked! Setting showSmsModal(true)');
-                    setShowSmsModal(true);
-                  }}
+                  onClick={() => setShowSmsModal(true)}
                   className={`relative flex flex-col justify-center px-3 py-2 rounded-lg transition-all duration-300 cursor-pointer focus:outline-none ${
                     smsNotifications.length > 0 
                       ? 'bg-blue-600 text-white shadow-md' 

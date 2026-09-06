@@ -1888,10 +1888,7 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
 
                   {employee?.sms_enabled && customer?.phone && (
                     <div 
-                      onClick={() => {
-                        alert('DocumentEditor button clicked! Dispatching event...');
-                        window.dispatchEvent(new CustomEvent('open-sms-chat', { detail: { phone: customer.phone } }));
-                      }}
+                      onClick={() => window.dispatchEvent(new CustomEvent('open-sms-chat', { detail: { phone: customer.phone } }))}
                       className={`flex items-center gap-2 px-3 py-1.5 rounded transition-all duration-200 text-sm font-bold shadow-sm cursor-pointer select-none ml-2 border ${
                         !smsStatus.has_messages 
                           ? 'opacity-50 hover:opacity-100 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'

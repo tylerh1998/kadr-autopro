@@ -203,9 +203,6 @@ export default function SmsModal({ isOpen, onClose }) {
   };
 
   if (!isOpen) return null;
-  
-  // DEBUG ALERT
-  alert('SmsModal IS RENDERING! It passed the early return.');
 
   const selectedConversation = conversations.find(c => c.external_phone === selectedChatPhone);
 
@@ -230,11 +227,7 @@ export default function SmsModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[99999] bg-white dark:bg-slate-950 flex flex-col overflow-hidden">
-      {/* DEBUG BANNER */}
-      <div className="bg-red-600 text-white p-2 text-center text-xs font-mono z-[100000]">
-        SMS MODAL IS RENDERED! OPEN: {isOpen ? 'YES' : 'NO'}, PHONE: {selectedChatPhone || 'NONE'}
-      </div>
+    <div className="fixed inset-0 z-50 bg-white dark:bg-slate-950 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
       
       <NewSmsDialog 
         isOpen={showNewDialog} 
