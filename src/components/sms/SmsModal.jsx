@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { X, Edit, MessageSquare, SquareArrowOutDownRight } from 'lucide-react';
+import { X, Edit, MessageSquare, SquareArrowOutDownRight, Check, CheckSquare } from 'lucide-react';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger, ContextMenuSeparator } from '@/components/ui/context-menu';
 import moment from 'moment-timezone';
 import { supabase } from '@/lib/supabase';
 
@@ -13,10 +16,22 @@ export default function SmsModal({ isOpen, onClose }) {
   const [conversations, setConversations] = useState([]);
   const [selectedChatPhone, setSelectedChatPhone] = useState(null);
   const [isLoadingList, setIsLoadingList] = useState(false);
+  const [statuses, setStatuses] = useState([]);
+  const [showArchived, setShowArchived] = useState(false);
 
   // New Dialog State
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
+
+  const fetchStatuses = async () => {
+    try {
+      const { data, error } = await supabase.from('WorkOrderStatus').select('*').order('display_order');
+      if (error) throw error;
+      setStatuses(data || []);
+    } catch (err) {
+      console.error('Error fetching statuses:', err);
+    }
+  };
 
   const fetchConversations = async () => {
     setIsLoadingList(true);
@@ -33,6 +48,8 @@ export default function SmsModal({ isOpen, onClose }) {
 
   useEffect(() => {
     if (isOpen) {
+      setShowArchived(false);
+      fetchStatuses();
       fetchConversations();
     }
   }, [isOpen]);
@@ -66,6 +83,23 @@ export default function SmsModal({ isOpen, onClose }) {
     return () => window.removeEventListener('new-sms-received', handleNewSms);
   }, []);
 
+  const handleUpdateMetadata = async (phone, updates) => {
+    try {
+      const { error } = await supabase
+        .from('SmsConversationMetadata')
+        .upsert({ external_phone: phone, ...updates });
+      
+      if (error) throw error;
+      
+      // Update local state immediately for snappy UI
+      setConversations(prev => prev.map(c => 
+        c.external_phone === phone ? { ...c, ...updates } : c
+      ));
+    } catch (err) {
+      console.error('Error updating SMS metadata:', err);
+    }
+  };
+
   if (!isOpen) return null;
 
   const selectedConversation = conversations.find(c => c.external_phone === selectedChatPhone);
@@ -86,6 +120,19 @@ export default function SmsModal({ isOpen, onClose }) {
             <Edit className="w-4 h-4" />
             New Message
           </Button>
+          <div className="flex items-center gap-2 ml-4">
+            <Checkbox 
+              id="showArchived" 
+              checked={showArchived} 
+              onCheckedChange={setShowArchived} 
+            />
+            <label 
+              htmlFor="showArchived" 
+              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+            >
+              Show Archived
+            </label>
+          </div>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full">
           <X className="w-5 h-5" />
@@ -107,20 +154,23 @@ export default function SmsModal({ isOpen, onClose }) {
               <div className="flex-1 overflow-y-auto relative">
                 {isLoadingList && conversations.length === 0 ? (
                   <div className="p-4 text-center text-slate-500 text-sm">Loading conversations...</div>
-                ) : conversations.length === 0 ? (
+                ) : conversations.filter(c => showArchived || !c.is_archived).length === 0 ? (
                   <div className="p-4 text-center text-slate-500 text-sm">No messages yet.</div>
                 ) : (
-                  conversations.map((chat) => {
+                  conversations.filter(c => showArchived || !c.is_archived).map((chat) => {
                     const isSelected = selectedChatPhone === chat.external_phone;
                     const previewText = chat.last_message || 'Attachment received';
+                    const categoryStatus = statuses.find(s => s.name === chat.category);
+                    
                     return (
-                      <div 
-                        key={chat.external_phone}
-                        onClick={() => setSelectedChatPhone(chat.external_phone)}
-                        className={`group relative p-4 border-b border-slate-100 dark:border-slate-800 cursor-pointer transition-colors ${
-                          isSelected ? 'bg-blue-600 text-white' : 'hover:bg-slate-50 dark:hover:bg-slate-900'
-                        }`}
-                      >
+                      <ContextMenu key={chat.external_phone}>
+                        <ContextMenuTrigger asChild>
+                          <div 
+                            onClick={() => setSelectedChatPhone(chat.external_phone)}
+                            className={`group relative p-4 border-b border-slate-100 dark:border-slate-800 cursor-pointer transition-colors ${
+                              isSelected ? 'bg-blue-600 text-white' : 'hover:bg-slate-50 dark:hover:bg-slate-900'
+                            }`}
+                          >
                         <div className="flex justify-between items-start mb-1">
                           <span className={`text-sm truncate pr-2 ${isSelected ? 'text-white' : 'text-slate-900 dark:text-slate-100'} ${(chat.is_unread && !isSelected) ? 'font-extrabold' : 'font-semibold'}`}>
                             {chat.customer_name || chat.external_phone}
@@ -133,24 +183,52 @@ export default function SmsModal({ isOpen, onClose }) {
                           {previewText}
                         </p>
                         
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            window.dispatchEvent(new CustomEvent('open-sms-panel', { 
-                              detail: { 
-                                phone: chat.external_phone, 
-                                customerName: chat.customer_name,
-                                customerId: chat.customer_id
-                              } 
-                            }));
-                            onClose(); 
-                          }}
-                          className={`absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-sm ${isSelected ? 'text-white hover:bg-blue-700' : 'text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800'}`}
-                          title="Pop out to mini player"
-                        >
-                          <SquareArrowOutDownRight className="w-4 h-4" />
-                        </button>
-                      </div>
+                        <div className="absolute bottom-2 right-2 flex items-center gap-2">
+                          {categoryStatus && (
+                            <div className={`w-3 h-3 rounded-full ${categoryStatus.color?.includes('bg-') ? categoryStatus.color.split(' ')[0] : 'bg-slate-400'}`} title={categoryStatus.name} />
+                          )}
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              window.dispatchEvent(new CustomEvent('open-sms-panel', { 
+                                detail: { 
+                                  phone: chat.external_phone, 
+                                  customerName: chat.customer_name,
+                                  customerId: chat.customer_id
+                                } 
+                              }));
+                              onClose(); 
+                            }}
+                            className={`opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded-sm ${isSelected ? 'text-white hover:bg-blue-700' : 'text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-slate-800'}`}
+                            title="Pop out to mini player"
+                          >
+                            <SquareArrowOutDownRight className="w-4 h-4" />
+                          </button>
+                        </div>
+                          </div>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent className="w-48">
+                          <ContextMenuItem onClick={() => handleUpdateMetadata(chat.external_phone, { is_archived: !chat.is_archived })}>
+                            {chat.is_archived ? 'Unarchive' : 'Archive'}
+                          </ContextMenuItem>
+                          <ContextMenuSeparator />
+                          <ContextMenuItem disabled className="font-semibold text-xs text-slate-500">Categories</ContextMenuItem>
+                          <ContextMenuItem onClick={() => handleUpdateMetadata(chat.external_phone, { category: null })}>
+                            {chat.category == null ? <Check className="w-4 h-4 mr-2" /> : <div className="w-4 h-4 mr-2" />}
+                            None
+                          </ContextMenuItem>
+                          {statuses.map(status => (
+                            <ContextMenuItem 
+                              key={status.id}
+                              onClick={() => handleUpdateMetadata(chat.external_phone, { category: status.name })}
+                            >
+                              {chat.category === status.name ? <Check className="w-4 h-4 mr-2" /> : <div className="w-4 h-4 mr-2" />}
+                              <div className={`w-3 h-3 rounded-full mr-2 ${status.color?.includes('bg-') ? status.color.split(' ')[0] : 'bg-slate-400'}`} />
+                              {status.name}
+                            </ContextMenuItem>
+                          ))}
+                        </ContextMenuContent>
+                      </ContextMenu>
                     );
                   })
                 )}

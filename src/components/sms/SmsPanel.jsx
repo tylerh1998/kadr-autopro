@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Minus, X, Maximize2, SquareArrowUp } from 'lucide-react';
+import { Minus, X, Maximize2, SquareArrowUp, MoreHorizontal, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { supabase } from '@/lib/supabase';
 import SmsThread from './SmsThread';
 import SmsCustomerModal from './SmsCustomerModal';
 
@@ -10,6 +12,40 @@ export default function SmsPanel({ phone, customerName, customerId, isMinimized,
   const [size, setSize] = useState({ width: 350, height: 450 });
   const [isResizing, setIsResizing] = useState(false);
   const [hasUnread, setHasUnread] = useState(false);
+  
+  const [metadata, setMetadata] = useState({ category: null, is_archived: false });
+  const [statuses, setStatuses] = useState([]);
+
+  // Fetch initial metadata and statuses
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [metaRes, statRes] = await Promise.all([
+          supabase.from('SmsConversationMetadata').select('*').eq('external_phone', phone).single(),
+          supabase.from('WorkOrderStatus').select('*').order('display_order')
+        ]);
+        
+        if (metaRes.data) setMetadata(metaRes.data);
+        if (statRes.data) setStatuses(statRes.data);
+      } catch (err) {
+        console.error('Error fetching SMS panel data:', err);
+      }
+    };
+    if (phone) fetchData();
+  }, [phone]);
+
+  const handleUpdateMetadata = async (updates) => {
+    try {
+      const { error } = await supabase
+        .from('SmsConversationMetadata')
+        .upsert({ external_phone: phone, ...updates });
+      
+      if (error) throw error;
+      setMetadata(prev => ({ ...prev, ...updates }));
+    } catch (err) {
+      console.error('Error updating SMS metadata:', err);
+    }
+  };
 
   // Keep local name in sync if parent updates it
   useEffect(() => {
@@ -160,6 +196,39 @@ export default function SmsPanel({ phone, customerName, customerId, isMinimized,
           >
             <Maximize2 className="w-3 h-3" />
           </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="w-6 h-6 rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 text-white cursor-pointer pointer-events-auto"
+                title="More Options"
+              >
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => handleUpdateMetadata({ is_archived: !metadata.is_archived })}>
+                {metadata.is_archived ? 'Unarchive' : 'Archive'}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem disabled className="font-semibold text-xs text-slate-500">Categories</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleUpdateMetadata({ category: null })}>
+                {metadata.category == null ? <Check className="w-4 h-4 mr-2" /> : <div className="w-4 h-4 mr-2" />}
+                None
+              </DropdownMenuItem>
+              {statuses.map(status => (
+                <DropdownMenuItem 
+                  key={status.id}
+                  onClick={() => handleUpdateMetadata({ category: status.name })}
+                >
+                  {metadata.category === status.name ? <Check className="w-4 h-4 mr-2" /> : <div className="w-4 h-4 mr-2" />}
+                  <div className={`w-3 h-3 rounded-full mr-2 ${status.color?.includes('bg-') ? status.color.split(' ')[0] : 'bg-slate-400'}`} />
+                  {status.name}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button 
             variant="ghost" 
             size="icon" 
