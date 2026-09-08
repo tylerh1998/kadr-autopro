@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Send, X, FileText, Download } from "lucide-react";
+import { Loader2, Send, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import RemittanceReportPDF from "./RemittanceReportPDF";
 
@@ -24,8 +24,6 @@ export default function RemittanceDialog({ selectedStubs, totals, onComplete, on
   const [remittanceDate, setRemittanceDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState('');
-  const [showPreview, setShowPreview] = useState(false);
-  const [previewText, setPreviewText] = useState('');
   const [employees, setEmployees] = useState([]);
   const [bankAccounts, setBankAccounts] = useState([]);
   const [selectedBankAccountId, setSelectedBankAccountId] = useState("");
@@ -39,14 +37,15 @@ export default function RemittanceDialog({ selectedStubs, totals, onComplete, on
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [accountsResult, constants] = await Promise.all([
-          // getBankAccounts-equivalent - read BankAccount natively (D4 precedent, Phase 6).
+        const [accountsResult, constants, employeeList] = await Promise.all([
           supabase.from('BankAccount').select('*').eq('is_active', true),
           TaxYearConstant.list(),
+          Employee.list(),
         ]);
         if (accountsResult.error) throw accountsResult.error;
         setBankAccounts(accountsResult.data || []);
         setTaxYearConstants(constants);
+        setEmployees(employeeList);
       } catch (err) {
         console.error("Error loading bank accounts:", err);
       }
@@ -58,102 +57,6 @@ export default function RemittanceDialog({ selectedStubs, totals, onComplete, on
   const getEmployerMultiplier = (year) => {
     const row = taxYearConstants.find((c) => c.year === year);
     return row?.ei_rate_employer_multiplier ?? 1.4;
-  };
-
-  const generateRemittanceText = async () => {
-    const employeeIds = [...new Set(selectedStubs.map(s => s.employee_id))];
-    const employeeList = await Employee.list();
-    const employeeMap = employeeList.filter(e => employeeIds.includes(e.employee_id));
-    setEmployees(employeeMap);
-
-    const cppTotal = totals.cppEmployee + totals.cppEmployer;
-    const eiTotal = totals.eiEmployee + totals.eiEmployer;
-
-    const formatDateLocal = (date) => date;
-
-    const header = `KADR PayPRO - Government Remittance Statement
-${'='.repeat(80)}
-
-Generated: ${new Date().toLocaleString('en-CA')}
-Remittance Date: ${formatDateLocal(remittanceDate)}
-Remittance Period: ${formatDateLocal(periodStart)} to ${formatDateLocal(periodEnd)}
-Number of Paycheques: ${selectedStubs.length}
-
-${'='.repeat(80)}
-REMITTANCE BREAKDOWN
-${'='.repeat(80)}
-
-Total Gross Pay:${' '.repeat(51)} $${totals.grossPay.toFixed(2).padStart(10)}
-
-Deduction Type${' '.repeat(32)} Employee${' '.repeat(5)} Employer${' '.repeat(5)} Line Total
-${'-'.repeat(80)}
-Income Tax (Federal & Provincial)${' '.repeat(17)} $${totals.incomeTax.toFixed(2).padStart(8)} ${' '.repeat(6)} N/A${' '.repeat(7)} $${totals.incomeTax.toFixed(2).padStart(10)}
-Canada Pension Plan (CPP)${' '.repeat(24)} $${totals.cppEmployee.toFixed(2).padStart(8)} ${' '.repeat(2)} $${totals.cppEmployer.toFixed(2).padStart(8)} ${' '.repeat(2)} $${cppTotal.toFixed(2).padStart(10)}
-Employment Insurance (EI)${' '.repeat(24)} $${totals.eiEmployee.toFixed(2).padStart(8)} ${' '.repeat(2)} $${totals.eiEmployer.toFixed(2).padStart(8)} ${' '.repeat(2)} $${eiTotal.toFixed(2).padStart(10)}
-
-${'-'.repeat(80)}
-TOTAL REMITTANCE:${' '.repeat(52)} $${totals.totalRemittance.toFixed(2).padStart(10)}
-${'='.repeat(80)}
-
-`;
-
-    const paychequeDetails = `
-${'='.repeat(80)}
-INDIVIDUAL PAYCHEQUE DETAILS
-${'='.repeat(80)}
-
-Paycheque #${' '.repeat(4)} Employee Name${' '.repeat(14)} Pay Date${' '.repeat(5)} Gross${' '.repeat(7)} Income Tax${' '.repeat(3)} CPP (Emp)${' '.repeat(3)} CPP (Empr)${' '.repeat(2)} EI (Emp)${' '.repeat(4)} EI (Empr)${' '.repeat(4)} Net Pay
-${'-'.repeat(80)}
-${selectedStubs.map(stub => {
-  const employee = employeeMap.find(e => e.employee_id === stub.employee_id);
-  const employeeName = employee ? `${employee.first_name} ${employee.last_name}` : 'Unknown';
-  const incomeTax = (stub.federal_tax || 0) + (stub.provincial_tax || 0);
-  const eiEmployer = (stub.ei_deduction || 0) * getEmployerMultiplier(stub.year);
-  const paychequeNum = (stub.paycheque_number || 'N/A').padEnd(13);
-
-  return `${paychequeNum} ${employeeName.padEnd(28)} ${formatDateLocal(stub.pay_date).padEnd(12)} $${(stub.gross_pay || 0).toFixed(2).padStart(9)} $${incomeTax.toFixed(2).padStart(10)} $${(stub.cpp_deduction || 0).toFixed(2).padStart(9)} $${(stub.cpp_deduction || 0).toFixed(2).padStart(10)} $${(stub.ei_deduction || 0).toFixed(2).padStart(9)} $${eiEmployer.toFixed(2).padStart(10)} $${(stub.net_pay || 0).toFixed(2).padStart(9)}`;
-}).join('\n')}
-${'-'.repeat(80)}
-TOTALS:${' '.repeat(57)} $${totals.grossPay.toFixed(2).padStart(9)} $${totals.incomeTax.toFixed(2).padStart(10)} $${totals.cppEmployee.toFixed(2).padStart(9)} $${totals.cppEmployer.toFixed(2).padStart(10)} $${totals.eiEmployee.toFixed(2).padStart(9)} $${totals.eiEmployer.toFixed(2).padStart(10)} $${selectedStubs.reduce((sum, s) => sum + (s.net_pay || 0), 0).toFixed(2).padStart(9)}
-${'='.repeat(80)}
-
-`;
-
-    const footer = `
-This statement represents the government remittances due for the specified period.
-Please ensure this amount is paid to the Canada Revenue Agency (CRA) by the due date.
-
-Total Amount to Remit: $${totals.totalRemittance.toFixed(2)}
-`;
-
-    return header + paychequeDetails + footer;
-  };
-
-  const handleGeneratePreview = async () => {
-    setError('');
-    if (!remittanceDate) {
-      setError("Please select a remittance date.");
-      return;
-    }
-    if (!selectedBankAccountId) {
-      setError("Please select a bank account.");
-      return;
-    }
-    const text = await generateRemittanceText();
-    setPreviewText(text);
-    setShowPreview(true);
-  };
-
-  const handleDownloadPreview = () => {
-    const blob = new Blob([previewText], { type: 'text/plain' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `remittance_${remittanceDate}_${periodStart}_to_${periodEnd}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
   };
 
   const handleSubmit = async () => {
@@ -320,184 +223,132 @@ Total Amount to Remit: $${totals.totalRemittance.toFixed(2)}
         </DialogHeader>
 
         <div className="space-y-6">
-          {!showPreview ? (
-            <>
-              <Card className="dark:bg-slate-900 dark:border-slate-800">
-                <CardHeader>
-                  <CardTitle className="text-lg dark:text-slate-100">Remittance Information</CardTitle>
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="dark:text-slate-300">Remittance Date</Label>
-                    <Input
-                      type="date"
-                      value={remittanceDate}
-                      onChange={(e) => setRemittanceDate(e.target.value)}
-                      className="dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="dark:text-slate-300">Bank Account *</Label>
-                    <Select value={selectedBankAccountId} onValueChange={setSelectedBankAccountId}>
-                      <SelectTrigger className="dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100">
-                        <SelectValue placeholder="Select a bank account" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {bankAccounts.map((account) => (
-                          <SelectItem key={account.id} value={account.id}>
-                            {account.name} {account.account_number ? `(${account.account_number})` : ''}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="dark:text-slate-300">Period Start</Label>
-                    <Input
-                      type="date"
-                      value={periodStart}
-                      onChange={(e) => setPeriodStart(e.target.value)}
-                      className="dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="dark:text-slate-300">Period End</Label>
-                    <Input
-                      type="date"
-                      value={periodEnd}
-                      onChange={(e) => setPeriodEnd(e.target.value)}
-                      className="dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="dark:bg-slate-900 dark:border-slate-800">
-                <CardHeader>
-                  <CardTitle className="text-lg dark:text-slate-100">Remittance Breakdown</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
-                      <div>
-                        <p className="font-medium text-slate-900 dark:text-slate-100">Total Gross Pay</p>
-                        <p className="text-2xl font-bold dark:text-slate-100">${totals.grossPay.toFixed(2)}</p>
-                      </div>
-                      <div>
-                        <p className="font-medium text-slate-900 dark:text-slate-100">Number of Paycheques</p>
-                        <p className="text-2xl font-bold dark:text-slate-100">{selectedStubs.length}</p>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      <div className="text-center p-3 border dark:border-slate-700 rounded-lg">
-                        <p className="text-sm text-slate-600 dark:text-slate-400">Income Tax</p>
-                        <p className="text-xl font-semibold text-blue-600 dark:text-blue-400">${totals.incomeTax.toFixed(2)}</p>
-                      </div>
-                      <div className="text-center p-3 border dark:border-slate-700 rounded-lg">
-                        <p className="text-sm text-slate-600 dark:text-slate-400">CPP Employee</p>
-                        <p className="text-xl font-semibold text-purple-600 dark:text-purple-400">${totals.cppEmployee.toFixed(2)}</p>
-                      </div>
-                      <div className="text-center p-3 border dark:border-slate-700 rounded-lg">
-                        <p className="text-sm text-slate-600 dark:text-slate-400">CPP Employer</p>
-                        <p className="text-xl font-semibold text-purple-600 dark:text-purple-400">${totals.cppEmployer.toFixed(2)}</p>
-                      </div>
-                      <div className="text-center p-3 border dark:border-slate-700 rounded-lg">
-                        <p className="text-sm text-slate-600 dark:text-slate-400">EI Employee</p>
-                        <p className="text-xl font-semibold text-orange-600 dark:text-orange-400">${totals.eiEmployee.toFixed(2)}</p>
-                      </div>
-                      <div className="text-center p-3 border dark:border-slate-700 rounded-lg">
-                        <p className="text-sm text-slate-600 dark:text-slate-400">EI Employer</p>
-                        <p className="text-xl font-semibold text-orange-600 dark:text-orange-400">${totals.eiEmployer.toFixed(2)}</p>
-                      </div>
-                      <div className="text-center p-3 border dark:border-slate-700 rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
-                        <p className="text-sm text-slate-600 dark:text-slate-400">Total Remittance</p>
-                        <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">${totals.totalRemittance.toFixed(2)}</p>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-
-              <div className="flex justify-end gap-3 pt-4 border-t dark:border-slate-700">
-                <Button variant="outline" onClick={onCancel} disabled={processing} className="dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
-                  <X className="mr-2 h-4 w-4" />
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleGeneratePreview}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <FileText className="mr-2 h-4 w-4" />
-                  Generate Preview
-                </Button>
+          <Card className="dark:bg-slate-900 dark:border-slate-800">
+            <CardHeader>
+              <CardTitle className="text-lg dark:text-slate-100">Remittance Information</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="dark:text-slate-300">Remittance Date</Label>
+                <Input
+                  type="date"
+                  value={remittanceDate}
+                  onChange={(e) => setRemittanceDate(e.target.value)}
+                  className="dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
+                />
               </div>
-            </>
-          ) : (
-            <>
+              <div className="space-y-2">
+                <Label className="dark:text-slate-300">Bank Account *</Label>
+                <Select value={selectedBankAccountId} onValueChange={setSelectedBankAccountId}>
+                  <SelectTrigger className="dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100">
+                    <SelectValue placeholder="Select a bank account" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {bankAccounts.map((account) => (
+                      <SelectItem key={account.id} value={account.id}>
+                        {account.name} {account.account_number ? `(${account.account_number})` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="dark:text-slate-300">Period Start</Label>
+                <Input
+                  type="date"
+                  value={periodStart}
+                  onChange={(e) => setPeriodStart(e.target.value)}
+                  className="dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="dark:text-slate-300">Period End</Label>
+                <Input
+                  type="date"
+                  value={periodEnd}
+                  onChange={(e) => setPeriodEnd(e.target.value)}
+                  className="dark:bg-slate-800 dark:border-slate-700 dark:text-slate-100"
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="dark:bg-slate-900 dark:border-slate-800">
+            <CardHeader>
+              <CardTitle className="text-lg dark:text-slate-100">Remittance Breakdown</CardTitle>
+            </CardHeader>
+            <CardContent>
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-slate-900 dark:text-slate-100">Remittance File Ready</h3>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDownloadPreview}
-                    className="dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Download File
-                  </Button>
+                <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                  <div>
+                    <p className="font-medium text-slate-900 dark:text-slate-100">Total Gross Pay</p>
+                    <p className="text-2xl font-bold dark:text-slate-100">${totals.grossPay.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-slate-900 dark:text-slate-100">Number of Paycheques</p>
+                    <p className="text-2xl font-bold dark:text-slate-100">{selectedStubs.length}</p>
+                  </div>
                 </div>
 
-                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border dark:border-slate-700 max-h-96 overflow-y-auto">
-                  <pre className="text-xs font-mono whitespace-pre-wrap dark:text-slate-300">
-                    {previewText}
-                  </pre>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  <div className="text-center p-3 border dark:border-slate-700 rounded-lg">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">Income Tax</p>
+                    <p className="text-xl font-semibold text-blue-600 dark:text-blue-400">${totals.incomeTax.toFixed(2)}</p>
+                  </div>
+                  <div className="text-center p-3 border dark:border-slate-700 rounded-lg">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">CPP Employee</p>
+                    <p className="text-xl font-semibold text-purple-600 dark:text-purple-400">${totals.cppEmployee.toFixed(2)}</p>
+                  </div>
+                  <div className="text-center p-3 border dark:border-slate-700 rounded-lg">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">CPP Employer</p>
+                    <p className="text-xl font-semibold text-purple-600 dark:text-purple-400">${totals.cppEmployer.toFixed(2)}</p>
+                  </div>
+                  <div className="text-center p-3 border dark:border-slate-700 rounded-lg">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">EI Employee</p>
+                    <p className="text-xl font-semibold text-orange-600 dark:text-orange-400">${totals.eiEmployee.toFixed(2)}</p>
+                  </div>
+                  <div className="text-center p-3 border dark:border-slate-700 rounded-lg">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">EI Employer</p>
+                    <p className="text-xl font-semibold text-orange-600 dark:text-orange-400">${totals.eiEmployer.toFixed(2)}</p>
+                  </div>
+                  <div className="text-center p-3 border dark:border-slate-700 rounded-lg bg-emerald-50 dark:bg-emerald-900/20">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">Total Remittance</p>
+                    <p className="text-xl font-bold text-emerald-600 dark:text-emerald-400">${totals.totalRemittance.toFixed(2)}</p>
+                  </div>
                 </div>
               </div>
+            </CardContent>
+          </Card>
 
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
-
-              <div className="flex justify-end gap-3 pt-4 border-t dark:border-slate-700">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowPreview(false)}
-                  disabled={processing}
-                  className="dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Back
-                </Button>
-                <Button
-                  onClick={handleSubmit}
-                  disabled={processing}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white"
-                >
-                  {processing ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="mr-2 h-4 w-4" />
-                      Confirm &amp; Process Remittance
-                    </>
-                  )}
-                </Button>
-              </div>
-            </>
+          {error && (
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
+
+          <div className="flex justify-end gap-3 pt-4 border-t dark:border-slate-700">
+            <Button variant="outline" onClick={onCancel} disabled={processing} className="dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+              <X className="mr-2 h-4 w-4" />
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={processing}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              {processing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" />
+                  Confirm & Process Remittance
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

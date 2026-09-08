@@ -5,7 +5,6 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ArrowLeft, Printer, Loader2, AlertTriangle } from 'lucide-react';
-import { createPageUrl } from '@/utils';
 
 export default function StockReorderReport() {
   const [loading, setLoading] = useState(true);

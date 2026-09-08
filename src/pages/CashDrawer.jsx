@@ -1,21 +1,16 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   DollarSign,
   CreditCard,
   Banknote,
-  Calendar,
   Upload,
   RefreshCw,
   ArrowLeftRight,
   AlertCircle,
   History
 } from "lucide-react";
-import { format } from "date-fns";
 import PaymentSelectionModal from '../components/cash-drawer/PaymentSelectionModal';
 import DepositModal from '../components/cash-drawer/DepositModal';
 import CashDrawerAdjustmentModal from '../components/cash-drawer/CashDrawerAdjustmentModal';

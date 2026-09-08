@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Loader2, Edit3, CreditCard, AlertTriangle, Printer, X, Briefcase, Send, FileText, BarChart3, UserCheck } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import { checkFiscalPeriodStatus } from '../components/utils/fiscalPeriodUtils';
@@ -26,12 +25,8 @@ import VehicleDetails from '../components/vehicles/VehicleDetails';
 import WorkOrderHistoryModal from '../components/work-orders/history/WorkOrderHistoryModal';
 import ROApprovalsModal from '../components/work-orders/ROApprovalsModal';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
+
+
 
 export default function WorkOrderViewPage() {
   const { employee } = useAuth();

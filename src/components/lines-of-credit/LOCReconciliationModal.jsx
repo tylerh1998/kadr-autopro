@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabase';
-import { Upload, FileText, CheckCircle2, AlertCircle, ArrowRight, Printer, FileCheck } from 'lucide-react';
-import { format, parse, isValid, addDays, subDays, differenceInDays } from 'date-fns';
+import { AlertCircle, ArrowRight, Printer } from 'lucide-react';
+import { format, parse, isValid, subDays, differenceInDays } from 'date-fns';
 
 const SERVUS_ID = '68cbcdf3f171308eee277c73';
 const ATB_ID = '695c358b0d127adfb929951e';

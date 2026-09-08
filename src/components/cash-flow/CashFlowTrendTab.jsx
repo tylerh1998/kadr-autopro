@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import moment from 'moment';
 import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { RefreshCw, Calendar } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { format, subMonths, subDays, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, subQuarters, startOfYear, endOfYear, subYears } from 'date-fns';
 import {
   LineChart,

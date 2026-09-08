@@ -13,39 +13,24 @@ import {
   Save,
   Printer,
   Send,
-  Wrench,
   DollarSign,
   CalendarDays,
-  FileCheck,
-  ClipboardList,
-  Clock,
   BarChart3,
   Eye,
-  Briefcase,
-  ClipboardCheck,
-  UserCheck,
   Loader2,
   FileText,
   RefreshCw,
   X,
   ExternalLink,
-  ArrowRightCircle,
   FolderPlus,
   SquarePen,
   MessageSquare
 } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu';
-import { Skeleton } from '@/components/ui/skeleton';
+
+
 import { format } from 'date-fns';
-import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
-import { toMountainTime } from '@/components/utils/mountainTimeUtils';
 import useDocumentEditorSave from './hooks/useDocumentEditorSave';
 
 // Import all necessary modals

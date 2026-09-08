@@ -11,7 +11,6 @@ import {
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Button } from '@/components/ui/button';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -35,12 +34,8 @@ import {
   Shield
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+
+
 import SerialNumberModal from '../SerialNumberModal';
 import InventoryEditModal from '@/components/inventory/InventoryEditModal';
 

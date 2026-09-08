@@ -3,7 +3,6 @@ import { supabase } from '@/lib/supabase';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Copy, Printer, Mail, ExternalLink, Loader2, X, AlertTriangle, ChevronDown, ChevronRight } from 'lucide-react';
-import { format } from 'date-fns';
 import WorkOrderReport from '../components/work-orders/WorkOrderReport';
 import SESEmailModal from '../components/work-orders/SESEmailModal';
 import WorkOrderPdfModal from '../components/work-orders/WorkOrderPdfModal';

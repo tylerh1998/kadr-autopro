@@ -9,7 +9,6 @@ import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } 
 import { Plus, Search, BookOpen, Edit3, Eye, ArrowUp, ArrowDown } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 import AccountForm from '../components/accounts/AccountForm';
-import { Link } from 'react-router-dom';
 
 export default function ChartOfAccountsPage({ isEmbedded = false }) {
   const { employee } = useAuth();

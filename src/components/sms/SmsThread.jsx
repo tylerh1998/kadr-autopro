@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Paperclip, Send, Image as ImageIcon, MessageSquare, XCircle, FileText, Loader2 } from 'lucide-react';
+import { Paperclip, Send, XCircle, FileText, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import moment from 'moment-timezone';

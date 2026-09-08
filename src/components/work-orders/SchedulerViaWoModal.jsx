@@ -3,8 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { supabase } from '@/lib/supabase';
 import AppointmentForm from '../appointments/AppointmentForm';
 import CustomCalendar from '../appointments/CustomCalendar';
-import { Button } from '@/components/ui/button';
-import { Plus, X } from 'lucide-react';
+import { X } from 'lucide-react';
 
 const SchedulerViaWoModal = ({ open, onClose, workOrder, customer, vehicle, onAppointmentUpdated }) => {
   const [events, setEvents] = useState([]);

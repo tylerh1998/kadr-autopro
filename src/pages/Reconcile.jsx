@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import moment from 'moment-timezone';
 import { supabase } from '@/lib/supabase';
@@ -10,9 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import {
-  CheckCircle2,
   DollarSign,
-  Calendar,
   Save,
   ArrowLeft,
   Landmark,

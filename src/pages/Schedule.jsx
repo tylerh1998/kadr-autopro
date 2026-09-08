@@ -4,8 +4,6 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
 import AppointmentForm from '../components/appointments/AppointmentForm';
 import CustomCalendar from '../components/appointments/CustomCalendar';
-import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';
 

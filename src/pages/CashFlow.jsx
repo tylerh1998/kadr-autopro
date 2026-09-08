@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import moment from 'moment';
 import { debounce } from 'lodash';
 import { supabase } from '@/lib/supabase';
@@ -10,9 +10,6 @@ import APSummaryTable from '@/components/suppliers/APSummaryTable';
 import OverheadTable from '@/components/cash-flow/OverheadTable';
 import CashFlowTrendTab from '@/components/cash-flow/CashFlowTrendTab';
 import IssuedChequesTable from '@/components/cheques/IssuedChequesTable';
-import { Button } from "@/components/ui/button";
-import { ExternalLink } from "lucide-react";
-import { createPageUrl } from '@/utils';
 
 export default function CashFlow() {
   const [activeTab, setActiveTab] = useState("cashflow");

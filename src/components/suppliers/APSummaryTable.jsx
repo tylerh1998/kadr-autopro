@@ -9,7 +9,6 @@ import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } 
 import { Printer, Calendar as CalendarIcon, DollarSign, FileText, ArrowUpDown, ExternalLink } from 'lucide-react';
 import { format, subMonths, endOfMonth, differenceInDays, parseISO } from 'date-fns';
 import moment from 'moment';
-import { Badge } from '@/components/ui/badge';
 // Tooltip imports removed as we are switching to native title attribute
 import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '@/utils';

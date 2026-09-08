@@ -17,25 +17,16 @@ import {
   PlusCircle,
   List,
   Search,
-  History,
   Receipt,
   Plus,
   RotateCcw,
-  CalendarPlus,
   Truck,
   BookOpen,
   Wallet,
   Landmark,
   University,
-  BookCheck,
-  Percent,
-  BookCopy,
-  CalendarClock,
   Calculator,
   TrendingUp,
-  Network,
-  MailCheck,
-  Send,
   BarChart3,
   LogOut,
   Mail,
@@ -65,7 +56,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 
 import { createPageUrl } from './utils';

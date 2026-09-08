@@ -6,10 +6,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Eye, Loader2, Pencil, CheckCircle, Circle, Lock, Send, XCircle, Ban, ChevronDown, FileText, ChevronLeft, ChevronRight, Calculator, Landmark, History, Settings } from "lucide-react";
+import { Eye, Loader2, Pencil, CheckCircle, Circle, Lock, Send, XCircle, Ban, ChevronDown, FileText, ChevronLeft, Calculator, Landmark, History, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   DropdownMenu,
@@ -409,7 +408,7 @@ export default function PayStubs() {
                   className={`${showRemittanceSummary ? 'bg-emerald-700 hover:bg-emerald-800' : 'bg-emerald-600 hover:bg-emerald-700'} shadow-sm text-white`}
                 >
                   <Landmark className="mr-2 h-4 w-4" />
-                  Remittances
+                  New Remittance
                 </Button>
               )}
 

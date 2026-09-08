@@ -6,13 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import {
   Landmark,
   Edit3,
   DollarSign,
-  Calendar,
   Printer,
   History,
   CheckCircle2,
@@ -29,7 +27,7 @@ import BankTransactionModal from '../components/bank/BankTransactionModal';
 import DepositDetailsModal from '../components/cash-drawer/DepositDetailsModal';
 import ReconciliationHistoryModal from '../components/bank/ReconciliationHistoryModal';
 import BankTransferModal from '../components/bank/BankTransferModal';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { createPageUrl } from '../utils';
 import { checkBankAccountLock } from '../components/utils/mountainTimeUtils';
 
