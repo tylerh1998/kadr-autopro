@@ -54,7 +54,8 @@ import {
   MoreHorizontal,
   Bell,
   BellOff,
-  MessageSquare
+  MessageSquare,
+  SquareArrowOutDownRight
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -1044,7 +1045,7 @@ function LayoutContent({ children, currentPageName }) {
                       smsNotifications.map((msg, idx) => (
                         <DropdownMenuItem 
                           key={msg.id || idx} 
-                          className="flex flex-col items-start gap-1 p-3 cursor-pointer"
+                          className="flex flex-col items-start gap-1 p-3 cursor-pointer relative group"
                           onClick={() => {
                             // Open modal and set phone
                             setShowSmsModal(true);
@@ -1060,9 +1061,27 @@ function LayoutContent({ children, currentPageName }) {
                               {moment(msg.created_at).format('h:mm a')}
                             </span>
                           </div>
-                          <p className="text-xs text-slate-500 mt-1 line-clamp-2 w-full break-words">
-                            {msg.body || (msg.attachments?.length > 0 ? (msg.attachments[0].type.includes('pdf') ? '📄 PDF document' : '📎 Image attachment') : 'Attachment received')}
-                          </p>
+                          <div className="flex w-full items-end justify-between">
+                            <p className="text-xs text-slate-500 mt-1 line-clamp-2 w-full break-words pr-6">
+                              {msg.body || (msg.attachments?.length > 0 ? (msg.attachments[0].type.includes('pdf') ? '📄 PDF document' : '🖼️ Image attachment') : 'Attachment received')}
+                            </p>
+                            <button 
+                              className="h-6 w-6 opacity-0 group-hover:opacity-100 absolute bottom-2 right-2 flex items-center justify-center rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-all shrink-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.dispatchEvent(new CustomEvent('open-sms-panel', {
+                                  detail: {
+                                    phone: msg.from_phone,
+                                    customerName: msg.sender_name,
+                                    customerId: msg.customer_id
+                                  }
+                                }));
+                              }}
+                              title="Open in floating panel"
+                            >
+                              <SquareArrowOutDownRight className="w-4 h-4 text-slate-500 hover:text-blue-600" />
+                            </button>
+                          </div>
                         </DropdownMenuItem>
                       ))
                     )}
