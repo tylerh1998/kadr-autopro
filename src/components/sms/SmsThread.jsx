@@ -6,7 +6,10 @@ import moment from 'moment-timezone';
 import { supabase } from '@/lib/supabase';
 import MediaViewerModal from './MediaViewerModal';
 
+import { useAuth } from '@/lib/AuthContext';
+
 export default function SmsThread({ phone, customerName }) {
+  const { employee: user } = useAuth();
   const [chatHistory, setChatHistory] = useState([]);
   const [draftMessage, setDraftMessage] = useState('');
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
