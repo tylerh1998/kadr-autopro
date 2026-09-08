@@ -99,6 +99,7 @@ export default function SmsPanel({ phone, customerName, customerId, isMinimized,
           <div 
             className="absolute top-0 left-0 right-0 h-1.5 cursor-ns-resize z-50 hover:bg-blue-400/50" 
             onMouseDown={handleMouseDown('top')} 
+          />
           {/* Left Handle */}
           <div 
             className="absolute top-0 left-0 bottom-0 w-1.5 cursor-ew-resize z-50 hover:bg-blue-400/50" 
