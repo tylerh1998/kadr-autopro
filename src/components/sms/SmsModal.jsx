@@ -218,7 +218,7 @@ export default function SmsModal({ isOpen, onClose }) {
                         </div>
                           </div>
                         </ContextMenuTrigger>
-                        <ContextMenuContent className="w-48">
+                        <ContextMenuContent className="w-48 z-[10000]">
                           <ContextMenuItem onClick={() => handleUpdateMetadata(chat.external_phone, { is_archived: !chat.is_archived })}>
                             {chat.is_archived ? 'Unarchive' : 'Archive'}
                           </ContextMenuItem>
