@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Paperclip, Send, Image as ImageIcon, MessageSquare, XCircle, FileText } from 'lucide-react';
+import { Paperclip, Send, Image as ImageIcon, MessageSquare, XCircle, FileText, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import moment from 'moment-timezone';
@@ -85,13 +85,13 @@ export default function SmsThread({ phone, customerName }) {
     setPendingFiles(prev => prev.filter((_, i) => i !== idx));
   };
 
-  const uploadFiles = async () => {
-    if (!pendingFiles.length) return [];
+  const uploadFiles = async (files = pendingFiles) => {
+    if (!files.length) return [];
     setIsUploading(true);
     const mediaUrls = [];
     
     try {
-      for (const file of pendingFiles) {
+      for (const file of files) {
         const ext = file.name.split('.').pop();
         const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
         const filePath = `outbound/${fileName}`;
@@ -121,10 +121,42 @@ export default function SmsThread({ phone, customerName }) {
     if ((!draftMessage.trim() && !pendingFiles.length) || !phone) return;
     
     setIsSending(true);
+    
+    // Create optimistic message
+    const tempId = 'temp-' + Date.now();
+    const optimisticMsg = {
+      id: tempId,
+      body: draftMessage.trim(),
+      direction: 'outbound',
+      status: 'sending',
+      created_at: new Date().toISOString(),
+      created_by_name: user?.first_name ? `${user.first_name} ${user.last_name || ''}`.trim() : '',
+      attachments: pendingFiles.map(f => ({
+        name: f.name,
+        type: f.type,
+        url: URL.createObjectURL(f)
+      }))
+    };
+    
+    // Append to UI immediately
+    setChatHistory(prev => [...prev, optimisticMsg]);
+    setDraftMessage('');
+    const filesToUpload = [...pendingFiles];
+    setPendingFiles([]);
+    
+    setTimeout(scrollToBottom, 50);
+
     try {
       let uploadedMediaUrls = [];
-      if (pendingFiles.length > 0) {
-        uploadedMediaUrls = await uploadFiles();
+      if (filesToUpload.length > 0) {
+        setIsUploading(true);
+        // Upload logic needs the actual files, so we pass filesToUpload if uploadFiles takes them,
+        // Wait, uploadFiles uses pendingFiles state. Let's adapt uploadFiles to take an argument, or inline it.
+        // To be safe without modifying uploadFiles too much, let's pass files to a helper or just inline the upload.
+        // Actually, uploadFiles relies on pendingFiles state. 
+        // Let's modify uploadFiles to accept an optional array.
+        uploadedMediaUrls = await uploadFiles(filesToUpload);
+        setIsUploading(false);
       }
 
       const { data: sessionData } = await supabase.auth.getSession();
@@ -141,7 +173,7 @@ export default function SmsThread({ phone, customerName }) {
           },
           body: JSON.stringify({
             to: phone,
-            message: draftMessage.trim(),
+            message: optimisticMsg.body,
             subject: 'Chat Message',
             mediaUrls: uploadedMediaUrls
           })
@@ -151,11 +183,17 @@ export default function SmsThread({ phone, customerName }) {
       const result = await response.json();
       if (!result.success && result.error) throw new Error(result.error);
       
-      setDraftMessage('');
-      setPendingFiles([]);
+      // Update optimistic message status
+      setChatHistory(prev => prev.map(msg => 
+        msg.id === tempId ? { ...msg, status: 'sent', id: result.data?.id || tempId } : msg
+      ));
+      
     } catch (err) {
       console.error('Error sending message:', err);
-      alert('Failed to send message: ' + err.message);
+      // Mark as failed
+      setChatHistory(prev => prev.map(msg => 
+        msg.id === tempId ? { ...msg, status: 'failed' } : msg
+      ));
     } finally {
       setIsSending(false);
     }
@@ -233,9 +271,18 @@ export default function SmsThread({ phone, customerName }) {
                         </div>
                       )}
                     </div>
-                    <span className="text-[10px] text-slate-400 mt-1 px-1">
-                      {moment(msg.created_at).format('MMM D, h:mm a')}
-                    </span>
+                      <span className="text-[10px] text-slate-400 mt-1 px-1 flex items-center gap-1">
+                        {msg.status === 'sending' ? (
+                          <>
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                            Sending...
+                          </>
+                        ) : msg.status === 'failed' ? (
+                          <span className="text-red-500 font-medium">Failed to send</span>
+                        ) : (
+                          moment(msg.created_at).format('MMM D, h:mm a')
+                        )}
+                      </span>
                   </div>
                 </div>
               </div>
