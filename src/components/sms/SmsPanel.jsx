@@ -55,10 +55,10 @@ export default function SmsPanel({ phone, customerName, isMinimized, onClose, on
 
   return (
     <div 
-      className={`relative flex flex-col bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-xl rounded-t-xl overflow-hidden transition-colors ${!isResizing && 'duration-300 ease-in-out'}`}
+      className={`relative flex flex-col bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-xl rounded-t-xl overflow-hidden ${!isResizing ? 'transition-all duration-300 ease-in-out' : ''}`}
       style={{ 
         width: `${size.width}px`, 
-        height: isMinimized ? '40px' : `${size.height}px` 
+        height: isMinimized ? '42px' : `${size.height}px` 
       }}
     >
       
@@ -92,7 +92,7 @@ export default function SmsPanel({ phone, customerName, isMinimized, onClose, on
           <span className="font-semibold text-sm truncate">{customerName || phone}</span>
         </div>
         
-        <div className="flex items-center gap-1 shrink-0 ml-2" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center gap-1 shrink-0 ml-2">
           <Button 
             variant="ghost" 
             size="icon" 
