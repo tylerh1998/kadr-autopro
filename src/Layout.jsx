@@ -134,10 +134,10 @@ function LayoutContent({ children, currentPageName }) {
 
   useEffect(() => {
     const handleOpenPanel = (e) => {
-      const { phone, customerName } = e.detail;
+      const { phone, customerName, customerId } = e.detail;
       setActivePanels(prev => {
         if (prev.find(p => p.phone === phone)) return prev;
-        return [...prev, { phone, customerName, isMinimized: false }];
+        return [...prev, { phone, customerName, customerId, isMinimized: false }];
       });
     };
     window.addEventListener('open-sms-panel', handleOpenPanel);
@@ -772,6 +772,7 @@ function LayoutContent({ children, currentPageName }) {
                     <SmsPanel 
                       phone={panel.phone} 
                       customerName={panel.customerName}
+                      customerId={panel.customerId}
                       isMinimized={panel.isMinimized}
                       onMinimize={(minimized) => {
                         setActivePanels(prev => prev.map(p => p.phone === panel.phone ? { ...p, isMinimized: minimized } : p));
@@ -1420,6 +1421,7 @@ function LayoutContent({ children, currentPageName }) {
                   <SmsPanel 
                     phone={panel.phone} 
                     customerName={panel.customerName}
+                    customerId={panel.customerId}
                     isMinimized={panel.isMinimized}
                     onMinimize={(minimized) => {
                       setActivePanels(prev => prev.map(p => p.phone === panel.phone ? { ...p, isMinimized: minimized } : p));

@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 
 import NewSmsDialog from './NewSmsDialog';
 import SmsThread from './SmsThread';
+import SmsCustomerModal from './SmsCustomerModal';
 
 export default function SmsModal({ isOpen, onClose }) {
   const [conversations, setConversations] = useState([]);
@@ -15,6 +16,7 @@ export default function SmsModal({ isOpen, onClose }) {
 
   // New Dialog State
   const [showNewDialog, setShowNewDialog] = useState(false);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
 
   const fetchConversations = async () => {
     setIsLoadingList(true);
@@ -135,7 +137,11 @@ export default function SmsModal({ isOpen, onClose }) {
                           onClick={(e) => {
                             e.stopPropagation();
                             window.dispatchEvent(new CustomEvent('open-sms-panel', { 
-                              detail: { phone: chat.external_phone, customerName: chat.customer_name } 
+                              detail: { 
+                                phone: chat.external_phone, 
+                                customerName: chat.customer_name,
+                                customerId: chat.customer_id
+                              } 
                             }));
                             onClose(); 
                           }}
@@ -157,11 +163,19 @@ export default function SmsModal({ isOpen, onClose }) {
           <Panel>
             {selectedChatPhone ? (
               <div className="h-full flex flex-col bg-slate-50 dark:bg-slate-900 relative">
-                <div className="h-14 border-b border-slate-200 dark:border-slate-800 flex items-center px-6 shrink-0 bg-white dark:bg-slate-950 shadow-sm z-10">
-                  <h3 className="font-bold text-lg">{selectedConversation?.customer_name || selectedChatPhone}</h3>
-                  {selectedConversation?.customer_name && (
-                    <span className="ml-2 text-sm text-slate-500">{selectedChatPhone}</span>
-                  )}
+                <div className="p-4 border-b border-slate-200 dark:border-slate-800 shrink-0 flex items-center justify-between bg-white dark:bg-slate-950">
+                  <div 
+                    className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 p-2 -ml-2 rounded-md transition-colors"
+                    onClick={() => setShowCustomerModal(true)}
+                  >
+                    <h3 className="font-bold text-lg hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                      {selectedConversation?.customer_name || selectedChatPhone}
+                    </h3>
+                    {selectedConversation?.customer_name && (
+                      <span className="text-sm text-slate-500">{selectedChatPhone}</span>
+                    )}
+                  </div>
+
                 </div>
 
                 <div className="flex-1 overflow-hidden">
@@ -182,6 +196,21 @@ export default function SmsModal({ isOpen, onClose }) {
           </Panel>
         </PanelGroup>
       </div>
+
+      <SmsCustomerModal
+        open={showCustomerModal}
+        onClose={() => setShowCustomerModal(false)}
+        phone={selectedChatPhone}
+        customerId={selectedConversation?.customer_id}
+        onCustomerSaved={(newCustomer) => {
+          // Update local state so it immediately reflects
+          setConversations(prev => prev.map(c => 
+            c.external_phone === selectedChatPhone 
+              ? { ...c, customer_id: newCustomer.id, customer_name: `${newCustomer.first_name || ''} ${newCustomer.last_name || ''}`.trim() || newCustomer.org_name }
+              : c
+          ));
+        }}
+      />
     </div>
   );
 }

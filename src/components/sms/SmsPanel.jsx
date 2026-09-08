@@ -1,11 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Minus, X, Maximize2, SquareArrowUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import SmsThread from './SmsThread';
+import SmsCustomerModal from './SmsCustomerModal';
 
-export default function SmsPanel({ phone, customerName, isMinimized, onClose, onMinimize, onMaximize }) {
+export default function SmsPanel({ phone, customerName, customerId, isMinimized, onMinimize, onClose, onMaximize }) {
+  const [localCustomerName, setLocalCustomerName] = useState(customerName);
+  const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [size, setSize] = useState({ width: 350, height: 450 });
   const [isResizing, setIsResizing] = useState(false);
+
+  // Keep local name in sync if parent updates it
+  useEffect(() => {
+    setLocalCustomerName(customerName);
+  }, [customerName]);
 
   if (!phone) return null;
 
@@ -87,8 +95,11 @@ export default function SmsPanel({ phone, customerName, isMinimized, onClose, on
       <div 
         className="h-10 bg-blue-600 dark:bg-blue-700 flex items-center justify-between px-3 shrink-0 text-white select-none"
       >
-        <div className="flex items-center gap-2 overflow-hidden flex-1">
-          <span className="font-semibold text-sm truncate">{customerName || phone}</span>
+        <div 
+          className="flex items-center gap-2 overflow-hidden flex-1 cursor-pointer hover:bg-blue-700 dark:hover:bg-blue-600 px-1 -ml-1 rounded transition-colors"
+          onClick={() => setShowCustomerModal(true)}
+        >
+          <span className="font-semibold text-sm truncate">{localCustomerName || phone}</span>
         </div>
         
         <div className="flex items-center gap-1 shrink-0 ml-2 relative z-50">
@@ -133,6 +144,16 @@ export default function SmsPanel({ phone, customerName, isMinimized, onClose, on
       {isResizing && (
         <div className="fixed inset-0 z-[100] cursor-grabbing" />
       )}
+
+      <SmsCustomerModal
+        open={showCustomerModal}
+        onClose={() => setShowCustomerModal(false)}
+        phone={phone}
+        customerId={customerId}
+        onCustomerSaved={(newCustomer) => {
+          setLocalCustomerName(`${newCustomer.first_name || ''} ${newCustomer.last_name || ''}`.trim() || newCustomer.org_name);
+        }}
+      />
     </div>
   );
 }
