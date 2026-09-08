@@ -120,6 +120,24 @@ export default function SmsThread({ phone, customerName }) {
     }
   };
 
+  const handlePaste = (e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    const pastedFiles = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.indexOf('image') !== -1) {
+        const file = item.getAsFile();
+        if (file) pastedFiles.push(file);
+      }
+    }
+
+    if (pastedFiles.length > 0) {
+      setPendingFiles(prev => [...prev, ...pastedFiles]);
+    }
+  };
+
   const handleSend = async () => {
     if ((!draftMessage.trim() && !pendingFiles.length) || !phone) return;
     
@@ -345,6 +363,7 @@ export default function SmsThread({ phone, customerName }) {
           <textarea 
             value={draftMessage}
             onChange={(e) => setDraftMessage(e.target.value)}
+            onPaste={handlePaste}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
