@@ -19,6 +19,15 @@ export default function SmsModal({ isOpen, onClose }) {
   const [statuses, setStatuses] = useState([]);
   const [showArchived, setShowArchived] = useState(false);
 
+  const getColorClass = (color) => {
+    const map = {
+      slate: 'bg-slate-500', blue: 'bg-blue-500', green: 'bg-green-500', 
+      yellow: 'bg-yellow-500', orange: 'bg-orange-500', red: 'bg-red-500', 
+      purple: 'bg-purple-500', pink: 'bg-pink-500'
+    };
+    return map[color] || 'bg-slate-500';
+  };
+
   // New Dialog State
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
@@ -185,7 +194,7 @@ export default function SmsModal({ isOpen, onClose }) {
                         
                         <div className="absolute bottom-2 right-2 flex items-center gap-2">
                           {categoryStatus && (
-                            <div className={`w-3 h-3 rounded-full ${categoryStatus.color?.includes('bg-') ? categoryStatus.color.split(' ')[0] : 'bg-slate-400'}`} title={categoryStatus.name} />
+                            <div className={`w-3 h-3 rounded-full ${getColorClass(categoryStatus.color)}`} title={categoryStatus.name} />
                           )}
                           <button 
                             onClick={(e) => {
@@ -223,7 +232,7 @@ export default function SmsModal({ isOpen, onClose }) {
                               onClick={() => handleUpdateMetadata(chat.external_phone, { category: status.name })}
                             >
                               {chat.category === status.name ? <Check className="w-4 h-4 mr-2" /> : <div className="w-4 h-4 mr-2" />}
-                              <div className={`w-3 h-3 rounded-full mr-2 ${status.color?.includes('bg-') ? status.color.split(' ')[0] : 'bg-slate-400'}`} />
+                              <div className={`w-3 h-3 rounded-full mr-2 ${getColorClass(status.color)}`} />
                               {status.name}
                             </ContextMenuItem>
                           ))}

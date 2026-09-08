@@ -16,6 +16,15 @@ export default function SmsPanel({ phone, customerName, customerId, isMinimized,
   const [metadata, setMetadata] = useState({ category: null, is_archived: false });
   const [statuses, setStatuses] = useState([]);
 
+  const getColorClass = (color) => {
+    const map = {
+      slate: 'bg-slate-500', blue: 'bg-blue-500', green: 'bg-green-500', 
+      yellow: 'bg-yellow-500', orange: 'bg-orange-500', red: 'bg-red-500', 
+      purple: 'bg-purple-500', pink: 'bg-pink-500'
+    };
+    return map[color] || 'bg-slate-500';
+  };
+
   // Fetch initial metadata and statuses
   useEffect(() => {
     const fetchData = async () => {
@@ -223,7 +232,7 @@ export default function SmsPanel({ phone, customerName, customerId, isMinimized,
                   onClick={() => handleUpdateMetadata({ category: status.name })}
                 >
                   {metadata.category === status.name ? <Check className="w-4 h-4 mr-2" /> : <div className="w-4 h-4 mr-2" />}
-                  <div className={`w-3 h-3 rounded-full mr-2 ${status.color?.includes('bg-') ? status.color.split(' ')[0] : 'bg-slate-400'}`} />
+                  <div className={`w-3 h-3 rounded-full mr-2 ${getColorClass(status.color)}`} />
                   {status.name}
                 </DropdownMenuItem>
               ))}
