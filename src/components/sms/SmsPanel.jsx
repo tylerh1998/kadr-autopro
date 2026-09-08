@@ -9,11 +9,33 @@ export default function SmsPanel({ phone, customerName, customerId, isMinimized,
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [size, setSize] = useState({ width: 350, height: 450 });
   const [isResizing, setIsResizing] = useState(false);
+  const [hasUnread, setHasUnread] = useState(false);
 
   // Keep local name in sync if parent updates it
   useEffect(() => {
     setLocalCustomerName(customerName);
   }, [customerName]);
+
+  // Listen for new messages to trigger unread flash
+  useEffect(() => {
+    const handleNewSms = (e) => {
+      const newMsg = e.detail?.record;
+      if (newMsg && (newMsg.from_phone === phone || newMsg.to_phone === phone)) {
+        if (isMinimized) {
+          setHasUnread(true);
+        }
+      }
+    };
+    window.addEventListener('new-sms-received', handleNewSms);
+    return () => window.removeEventListener('new-sms-received', handleNewSms);
+  }, [phone, isMinimized]);
+
+  // Clear unread when expanded
+  useEffect(() => {
+    if (!isMinimized) {
+      setHasUnread(false);
+    }
+  }, [isMinimized]);
 
   if (!phone) return null;
 
@@ -77,11 +99,15 @@ export default function SmsPanel({ phone, customerName, customerId, isMinimized,
           <div 
             className="absolute top-0 left-0 right-0 h-1.5 cursor-ns-resize z-50 hover:bg-blue-400/50" 
             onMouseDown={handleMouseDown('top')} 
-          />
           {/* Left Handle */}
           <div 
             className="absolute top-0 left-0 bottom-0 w-1.5 cursor-ew-resize z-50 hover:bg-blue-400/50" 
             onMouseDown={handleMouseDown('left')} 
+          />
+          {/* Top Handle */}
+          <div 
+            className="absolute top-0 left-0 right-0 h-1.5 cursor-ns-resize z-50 hover:bg-blue-400/50" 
+            onMouseDown={handleMouseDown('top')} 
           />
           {/* Top-Left Corner Handle */}
           <div 
@@ -91,9 +117,21 @@ export default function SmsPanel({ phone, customerName, customerId, isMinimized,
         </>
       )}
 
+      <style>{`
+        @keyframes pulse-red-blue {
+          0%, 100% { background-color: #2563eb; } /* blue-600 */
+          50% { background-color: #ef4444; } /* red-500 */
+        }
+        .animate-pulse-red-blue {
+          animation: pulse-red-blue 2s infinite;
+        }
+      `}</style>
+
       {/* Header */}
       <div 
-        className="h-10 bg-blue-600 dark:bg-blue-700 flex items-center justify-between px-3 shrink-0 text-white select-none"
+        className={`h-10 flex items-center justify-between px-3 shrink-0 text-white select-none transition-colors ${
+          hasUnread ? 'animate-pulse-red-blue' : 'bg-blue-600 dark:bg-blue-700'
+        }`}
       >
         <div 
           className="flex items-center gap-2 overflow-hidden flex-1 cursor-pointer hover:bg-blue-700 dark:hover:bg-blue-600 px-1 -ml-1 rounded transition-colors"
