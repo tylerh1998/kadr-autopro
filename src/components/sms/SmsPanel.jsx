@@ -51,6 +51,9 @@ export default function SmsPanel({ phone, customerName, customerId, isMinimized,
       
       if (error) throw error;
       setMetadata(prev => ({ ...prev, ...updates }));
+      
+      // Dispatch an event to force SmsModal to refresh its list
+      window.dispatchEvent(new CustomEvent('new-sms-received', { detail: { record: { from_phone: phone } } }));
     } catch (err) {
       console.error('Error updating SMS metadata:', err);
     }
@@ -206,15 +209,8 @@ export default function SmsPanel({ phone, customerName, customerId, isMinimized,
             <Maximize2 className="w-3 h-3" />
           </Button>
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="w-6 h-6 rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 text-white cursor-pointer pointer-events-auto"
-                title="More Options"
-              >
-                <MoreHorizontal className="w-4 h-4" />
-              </Button>
+            <DropdownMenuTrigger className="w-6 h-6 flex items-center justify-center rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 text-white cursor-pointer pointer-events-auto outline-none transition-colors" title="More Options">
+              <MoreHorizontal className="w-4 h-4" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem onClick={() => handleUpdateMetadata({ is_archived: !metadata.is_archived })}>

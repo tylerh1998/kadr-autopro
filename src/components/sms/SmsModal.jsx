@@ -194,7 +194,9 @@ export default function SmsModal({ isOpen, onClose }) {
                         
                         <div className="absolute bottom-2 right-2 flex items-center gap-2">
                           {categoryStatus && (
-                            <div className={`w-3 h-3 rounded-full ${getColorClass(categoryStatus.color)}`} title={categoryStatus.name} />
+                            <Badge className={`${getColorClass(categoryStatus.color)} text-white border-none hover:opacity-90`}>
+                              {categoryStatus.name}
+                            </Badge>
                           )}
                           <button 
                             onClick={(e) => {
