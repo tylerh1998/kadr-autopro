@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { supabase } from '@/lib/supabase';
-import { Save, Loader2, Search, Check, AlertCircle, Merge } from "lucide-react";
+import { Save, Loader2, Search, Check, Merge } from "lucide-react";
 import MergeInventoryModal from './MergeInventoryModal';
 
 export default function InventoryEditModal({ open, onClose, item, onUpdate, suppliers, salesClasses, inventoryLocations, inventoryCategories: propInventoryCategories }) {

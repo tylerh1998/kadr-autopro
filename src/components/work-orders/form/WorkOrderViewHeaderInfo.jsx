@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { User, Car, Calendar, Phone, Mail, MapPin, Copy } from 'lucide-react';
 import { format } from 'date-fns';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
+import { formatAuditUserDisplay } from '@/utils/userDisplayUtils';
 
 export default function WorkOrderViewHeaderInfo({
   workOrder,
@@ -23,22 +24,8 @@ export default function WorkOrderViewHeaderInfo({
   const [lastUpdatedByName, setLastUpdatedByName] = useState('');
   const [completedByName, setCompletedByName] = useState('');
 
-  const getUserDisplayName = async (email) => {
-    if (!email) return '';
-    
-    if (email.endsWith('@no-reply.base44.com')) {
-      return 'System';
-    }
-
-    // Check employees list first (available to all users)
-    if (employees && employees.length > 0) {
-      const employee = employees.find(e => e.email === email);
-      if (employee) {
-        return employee.full_name || `${employee.first_name} ${employee.last_name}`;
-      }
-    }
-
-    return email;
+  const getUserDisplayName = (email) => {
+    return formatAuditUserDisplay(email, employees);
   };
 
   useEffect(() => {

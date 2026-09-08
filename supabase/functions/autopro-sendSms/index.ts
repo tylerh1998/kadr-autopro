@@ -31,10 +31,10 @@ serve(async (req) => {
     }
     const userEmail = authData.user.email || null;
 
-    const { to, message, subject, customer_id, work_order_id, portal_url } = await req.json();
+    const { to, message, subject, customer_id, work_order_id, portal_url, mediaUrls } = await req.json();
 
-    if (!to || !message) {
-      return new Response(JSON.stringify({ error: 'Missing "to" or "message" parameter' }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!to || (!message && !(mediaUrls && mediaUrls.length > 0))) {
+      return new Response(JSON.stringify({ error: 'Missing "to" or content parameter' }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const twilioSetup = createTwilioClient();
@@ -73,7 +73,65 @@ serve(async (req) => {
     }
     logId = logInsert.data.id;
 
-    const result = await sendViaTwilio(twilioSetup, to, message);
+    // --- BEGIN NEW: Conversational SMS Logging ---
+    try {
+      const normalizePhone = (phoneStr) => {
+        if (!phoneStr) return '';
+        const digitsOnly = phoneStr.replace(/\D/g, '');
+        return digitsOnly.length > 10 ? digitsOnly.slice(-10) : digitsOnly;
+      };
+      
+      const formattedAttachments = (mediaUrls || []).map((url, i) => ({
+        url,
+        type: url.toLowerCase().includes('.pdf') ? 'application/pdf' : 'image/jpeg',
+        name: `Attachment ${i + 1}`
+      }));
+      
+      const { data: smsRecord, error: smsInsertError } = await supabaseAdmin
+        .from('SmsMessage')
+        .insert({
+          direction: 'outbound',
+          from_phone: 'system',
+          to_phone: normalizePhone(to),
+          body: message || '',
+          is_read: true,
+          status: 'sent',
+          customer_id: customer_id || null,
+          work_order_id: work_order_id || null,
+          created_by_id: authData?.user?.id || null,
+          created_by_name: userEmail || 'System',
+          attachments: formattedAttachments
+        })
+        .select()
+        .single();
+        
+      if (!smsInsertError && smsRecord) {
+        const channel = supabaseAdmin.channel('sms_refresh');
+        await new Promise((resolve) => {
+          channel.subscribe(async (status) => {
+            if (status === 'SUBSCRIBED') {
+              try {
+                await channel.send({
+                  type: 'broadcast',
+                  event: 'new_sms',
+                  payload: { record: { ...smsRecord, sender_name: userEmail || 'System' } }
+                });
+              } catch (e) { /* ignore */ }
+              resolve(true);
+            } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+              resolve(false);
+            }
+          });
+        });
+        await new Promise((r) => setTimeout(r, 250));
+        await supabaseAdmin.removeChannel(channel);
+      }
+    } catch (chatLogError) {
+      console.warn('Failed to log to SmsMessage dev table, continuing...', chatLogError);
+    }
+    // --- END NEW ---
+
+    const result = await sendViaTwilio(twilioSetup, to, message || '', mediaUrls);
 
     await supabaseAdmin
       .from('SentEmailLog')

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, DollarSign, Package, Clock, FileText, PieChart as PieIcon, RefreshCw } from 'lucide-react';
+import { Loader2, DollarSign, Package, Clock, FileText, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import {
   BarChart,

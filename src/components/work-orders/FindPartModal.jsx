@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { createPageUrl } from '@/utils';
-import { Link } from 'react-router-dom';
 import { supabase } from '@/lib/supabase';
 import { format, parseISO } from 'date-fns';
 import { Loader2 } from 'lucide-react';

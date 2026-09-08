@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { format } from 'date-fns';
-import { Mail, Search, CheckCircle, XCircle, AlertTriangle, Clock, Ban, RefreshCw, Eye, MousePointerClick, ChevronLeft, ChevronRight, Filter, X } from 'lucide-react';
+import { Search, CheckCircle, XCircle, AlertTriangle, Clock, Ban, RefreshCw, Eye, MousePointerClick, ChevronLeft, ChevronRight, Filter, X } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { useSearchParams } from 'react-router-dom';

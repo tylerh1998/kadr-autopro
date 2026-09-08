@@ -107,8 +107,8 @@ BEGIN
       l.invoiceid AS inv_number,
       NULL::TEXT AS crinv_number,
       COALESCE(
-        CAST(NULLIF(TRIM(l.invoicedate), '') AS TIMESTAMP WITH TIME ZONE),
-        CAST(NULLIF(TRIM(l.wodate), '') AS TIMESTAMP WITH TIME ZONE)
+        CAST(NULLIF(NULLIF(TRIM(l.invoicedate), ''), '12:00:00 a.m.') AS TIMESTAMP WITH TIME ZONE),
+        CAST(NULLIF(NULLIF(TRIM(l.wodate), ''), '12:00:00 a.m.') AS TIMESTAMP WITH TIME ZONE)
       ) AS created_date,
       CAST(NULLIF(TRIM(l.totalinvoiceamt), '') AS NUMERIC) AS total_amount,
       CAST(NULLIF(TRIM(l."txtOdometer"), '') AS INTEGER) AS odometer,

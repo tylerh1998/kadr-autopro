@@ -7,11 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { CalendarIcon, Loader2, X } from 'lucide-react';
-import { format, parseISO, differenceInDays, parse, endOfMonth, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
+import { format, parseISO, differenceInDays, endOfMonth, startOfDay, endOfDay } from 'date-fns';
 import { cn } from "@/lib/utils";
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';

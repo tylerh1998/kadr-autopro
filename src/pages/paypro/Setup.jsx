@@ -5,11 +5,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Save, Calendar, Settings as SettingsIcon, Plus } from "lucide-react";
+import { Loader2, Save, Calendar, Settings as SettingsIcon, Plus, ChevronLeft, ChevronRight, TrendingUp, Users } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import ConstantEditor from "@/components/paypro/setup/ConstantEditor";
 
 export default function Setup() {
+  const navigate = useNavigate();
   const [constants, setConstants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -85,8 +87,20 @@ export default function Setup() {
 
   return (
     <div className="max-w-5xl mx-auto p-6 space-y-6">
-      <div>
+      <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
         <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Payroll Setup & Configuration</h1>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate('/paypro/Trends')} className="flex items-center gap-1">
+            <ChevronLeft className="w-4 h-4" />
+            <TrendingUp className="w-4 h-4 mr-1" />
+            Trends
+          </Button>
+          <Button variant="outline" onClick={() => navigate('/paypro/Employees')} className="flex items-center gap-1">
+            <Users className="w-4 h-4 mr-1" />
+            Employees
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
 
       <Tabs defaultValue="constants" className="w-full">

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import moment from 'moment-timezone';
 import { supabase } from '@/lib/supabase';
+import { getSupabaseRealtimeClient } from '@/lib/supabaseRealtimeClient';
 import { useAuth } from '@/lib/AuthContext';
 import {
   FileText,
@@ -16,25 +17,16 @@ import {
   PlusCircle,
   List,
   Search,
-  History,
   Receipt,
   Plus,
   RotateCcw,
-  CalendarPlus,
   Truck,
   BookOpen,
   Wallet,
   Landmark,
   University,
-  BookCheck,
-  Percent,
-  BookCopy,
-  CalendarClock,
   Calculator,
   TrendingUp,
-  Network,
-  MailCheck,
-  Send,
   BarChart3,
   LogOut,
   Mail,
@@ -52,7 +44,9 @@ import {
   Ticket,
   MoreHorizontal,
   Bell,
-  BellOff
+  BellOff,
+  MessageSquare,
+  SquareArrowOutDownRight
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -62,7 +56,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 
 import { createPageUrl } from './utils';
 import ReportModal from './components/reports/ReportModal';
@@ -79,6 +74,8 @@ import { SupplierLockProvider, useSupplierLock } from './components/context/Supp
 import ReportIssueModal from './components/layout/ReportIssueModal';
 import PayrollMoreModal from './components/paypro/PayrollMoreModal';
 import WorkPROModal from './components/work-orders/WorkPROModal';
+import SmsModal from './components/sms/SmsModal';
+import SmsPanel from './components/sms/SmsPanel';
 
 function LayoutContent({ children, currentPageName }) {
   const [showFindPartModal, setShowFindPartModal] = useState(false);
@@ -92,6 +89,8 @@ function LayoutContent({ children, currentPageName }) {
   const [showGlobalClockInModal, setShowGlobalClockInModal] = useState(false);
   const [showReportIssueModal, setShowReportIssueModal] = useState(false);
   const [showPayrollMoreModal, setShowPayrollMoreModal] = useState(false);
+  const [showSmsModal, setShowSmsModal] = useState(false);
+  const [activePanels, setActivePanels] = useState([]);
   const [hoveredItem, setHoveredItem] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -106,6 +105,7 @@ function LayoutContent({ children, currentPageName }) {
   const [projectNotifications, setProjectNotifications] = useState([]);
   const [selectedNotificationProject, setSelectedNotificationProject] = useState(null);
   const [clockLoading, setClockLoading] = useState(false);
+  const [smsNotifications, setSmsNotifications] = useState([]);
 
   const getCurrentMountainTimeISO = () => moment.tz('America/Edmonton').toISOString();
 
@@ -115,6 +115,26 @@ function LayoutContent({ children, currentPageName }) {
 
   // Dropdown hover timeout
   const [hoverTimeout, setHoverTimeout] = useState(null);
+
+  useEffect(() => {
+    const handleOpenSmsChat = (e) => {
+      setShowSmsModal(true);
+    };
+    window.addEventListener('open-sms-chat', handleOpenSmsChat);
+    return () => window.removeEventListener('open-sms-chat', handleOpenSmsChat);
+  }, []);
+
+  useEffect(() => {
+    const handleOpenPanel = (e) => {
+      const { phone, customerName, customerId } = e.detail;
+      setActivePanels(prev => {
+        if (prev.find(p => p.phone === phone)) return prev;
+        return [...prev, { phone, customerName, customerId, isMinimized: false }];
+      });
+    };
+    window.addEventListener('open-sms-panel', handleOpenPanel);
+    return () => window.removeEventListener('open-sms-panel', handleOpenPanel);
+  }, []);
 
   // Dark mode state
   const [darkMode, setDarkMode] = useState(false);
@@ -284,6 +304,72 @@ function LayoutContent({ children, currentPageName }) {
       supabase.removeChannel(channel);
     };
   }, [workProEmployee?.notify_for_projects]);
+
+  // Listen for SMS messages (Feature Flagged)
+  useEffect(() => {
+    if (!employee?.sms_enabled) return;
+
+    let isActive = true;
+    let realtimeChannel = null;
+
+    const fetchInitialUnread = async () => {
+      try {
+        const { data, error } = await supabase.rpc('get_unread_sms');
+        if (error) throw error;
+        if (isActive) {
+          setSmsNotifications(data || []);
+        }
+      } catch (err) {
+        console.error('Error fetching unread SMS:', err);
+      }
+    };
+
+    const startRealtime = async () => {
+      const rtClient = await getSupabaseRealtimeClient();
+      if (!isActive) return;
+
+      realtimeChannel = rtClient
+        .channel('sms_refresh')
+        .on('broadcast', { event: 'new_sms' }, (message) => {
+          console.log('Live SMS broadcast received in Layout:', message.payload);
+          fetchInitialUnread();
+          window.dispatchEvent(new CustomEvent('new-sms-received', { detail: message.payload }));
+        })
+        .subscribe((status) => {
+          console.log("SMS Layout broadcast status:", status);
+        });
+    };
+
+    fetchInitialUnread();
+    startRealtime();
+
+    const handleRemoveUnread = (e) => {
+      const phone = e.detail?.phone;
+      if (phone) {
+        setSmsNotifications(prev => prev.filter(msg => msg.from_phone !== phone && msg.to_phone !== phone));
+      }
+    };
+    window.addEventListener('remove-unread-sms', handleRemoveUnread);
+
+    return () => {
+      isActive = false;
+      realtimeChannel?.unsubscribe();
+      window.removeEventListener('remove-unread-sms', handleRemoveUnread);
+    };
+  }, [employee?.sms_enabled]);
+
+  const markSmsAsRead = async (msgId) => {
+    try {
+      const { error } = await supabase
+        .from('SmsMessage')
+        .update({ is_read: true })
+        .eq('id', msgId);
+      if (error) throw error;
+      setSmsNotifications(prev => prev.filter(m => m.id !== msgId));
+    } catch (err) {
+      console.error('Error marking SMS as read:', err);
+    }
+  };
 
   const handlePayrollClick = (e) => {
     // If paypro_user is true, allow default navigation to /Payroll
@@ -660,6 +746,43 @@ function LayoutContent({ children, currentPageName }) {
     return (
       <div className="min-h-screen bg-background">
         <main>{children}</main>
+        <SmsModal 
+          isOpen={showSmsModal} 
+          onClose={() => setShowSmsModal(false)} 
+        />
+        
+        {activePanels.length > 0 && (
+          <DialogPrimitive.Root open={true} modal={false}>
+            <DialogPrimitive.Portal>
+              <DialogPrimitive.Content 
+                className="fixed bottom-0 right-4 flex items-end gap-3 z-[9999] pointer-events-none focus:outline-none"
+                onInteractOutside={(e) => {}}
+                onEscapeKeyDown={(e) => e.preventDefault()}
+              >
+                {activePanels.map((panel) => (
+                  <div key={panel.phone} className="pointer-events-auto">
+                    <SmsPanel 
+                      phone={panel.phone} 
+                      customerName={panel.customerName}
+                      customerId={panel.customerId}
+                      isMinimized={panel.isMinimized}
+                      onMinimize={(minimized) => {
+                        setActivePanels(prev => prev.map(p => p.phone === panel.phone ? { ...p, isMinimized: minimized } : p));
+                      }}
+                      onClose={() => {
+                        setActivePanels(prev => prev.filter(p => p.phone !== panel.phone));
+                      }}
+                      onMaximize={() => {
+                        setActivePanels(prev => prev.filter(p => p.phone !== panel.phone));
+                        window.dispatchEvent(new CustomEvent('open-sms-chat', { detail: { phone: panel.phone } }));
+                      }}
+                    />
+                  </div>
+                ))}
+              </DialogPrimitive.Content>
+            </DialogPrimitive.Portal>
+          </DialogPrimitive.Root>
+        )}
       </div>
     );
   }
@@ -882,6 +1005,101 @@ function LayoutContent({ children, currentPageName }) {
 
             {/* Right: Time Clock and User actions */}
             <div className="flex items-center gap-3">
+              {/* SMS Messages Dropdown */}
+              {employee?.sms_enabled === true && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button 
+                      className={`relative flex flex-col justify-center px-3 py-2 rounded-lg transition-all duration-300 cursor-pointer focus:outline-none ${
+                        smsNotifications.length > 0 
+                          ? 'bg-blue-600 text-white shadow-md' 
+                          : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      }`}
+                      title="Open Messages"
+                    >
+                      <MessageSquare className={`w-5 h-5 ${smsNotifications.length > 0 ? 'text-white' : 'text-slate-700 dark:text-slate-300'}`} />
+                      {smsNotifications.length > 0 && (
+                        <span className="absolute -top-1 -right-1 inline-flex items-center justify-center w-5 h-5 text-[10px] font-bold text-white bg-red-500 rounded-full border-2 border-white dark:border-slate-950 shadow-sm">
+                          {smsNotifications.length}
+                        </span>
+                      )}
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-72">
+                    <DropdownMenuLabel>SMS Messages</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {smsNotifications.length === 0 ? (
+                      <DropdownMenuItem disabled className="text-center justify-center py-4 text-slate-500">
+                        No new messages
+                      </DropdownMenuItem>
+                    ) : (
+                      smsNotifications.map((msg, idx) => (
+                        <DropdownMenuItem 
+                          key={msg.id || idx} 
+                          className="flex flex-col items-start gap-1 p-3 cursor-pointer relative group"
+                          onClick={() => {
+                            // Open modal and set phone
+                            setShowSmsModal(true);
+                            // Needs a way to tell SmsModal to select this chat!
+                            window.dispatchEvent(new CustomEvent('open-sms-chat', { detail: { phone: msg.from_phone } }));
+                          }}
+                        >
+                          <div className="flex justify-between w-full items-center">
+                            <span className="font-semibold text-sm truncate pr-2">
+                              {msg.sender_name || msg.from_phone}
+                            </span>
+                            <span className="text-xs text-slate-500 whitespace-nowrap shrink-0">
+                              {moment(msg.created_at).format('h:mm a')}
+                            </span>
+                          </div>
+                          <div className="flex w-full items-end justify-between">
+                            <p className="text-xs text-slate-500 mt-1 line-clamp-2 w-full break-words pr-6">
+                              {msg.body || (msg.attachments?.length > 0 ? (msg.attachments[0].type.includes('pdf') ? '📄 PDF document' : '🖼️ Image attachment') : 'Attachment received')}
+                            </p>
+                            <button 
+                              className="h-6 w-6 opacity-0 group-hover:opacity-100 absolute bottom-2 right-2 flex items-center justify-center rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-all shrink-0"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                window.dispatchEvent(new CustomEvent('open-sms-panel', {
+                                  detail: {
+                                    phone: msg.from_phone,
+                                    customerName: msg.sender_name,
+                                    customerId: msg.customer_id
+                                  }
+                                }));
+                              }}
+                              title="Open in floating panel"
+                            >
+                              <SquareArrowOutDownRight className="w-4 h-4 text-slate-500 hover:text-blue-600" />
+                            </button>
+                          </div>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                    {smsNotifications.length > 0 && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={() => {
+                            smsNotifications.forEach(m => { if (m.id) markSmsAsRead(m.id); });
+                          }}
+                          className="text-blue-600 font-semibold justify-center cursor-pointer"
+                        >
+                          Mark All Read
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem 
+                      onClick={() => setShowSmsModal(true)}
+                      className="text-blue-600 font-semibold justify-center cursor-pointer"
+                    >
+                      Open Messages
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+
               {/* Time Clock */}
               <button
                 onClick={handleClockToggle}
@@ -936,7 +1154,8 @@ function LayoutContent({ children, currentPageName }) {
                           {employee?.admin === true ? "Program Administrator" :
                             employee?.autopro_access_lvl === 'lvl3_user' ? "Executive Access" :
                               employee?.autopro_access_lvl === 'lvl2_user' ? "Supervisor Access" :
-                                "Standard Access"}
+                                employee?.autopro_access_lvl === 'no_access' ? "Access Disabled" :
+                                  "Standard Access"}
                         </span>
                         <span className="text-[11px] font-medium text-[#1fa291] leading-none mt-0.5">
                           Manage Account &rarr;
@@ -1192,6 +1411,44 @@ function LayoutContent({ children, currentPageName }) {
           initialWorkPROProject={selectedNotificationProject}
           // We pass minimal props. The modal will fetch by initialWorkPROProject.id
         />
+      )}
+
+      <SmsModal 
+        isOpen={showSmsModal} 
+        onClose={() => setShowSmsModal(false)} 
+      />
+
+      {activePanels.length > 0 && (
+        <DialogPrimitive.Root open={true} modal={false}>
+          <DialogPrimitive.Portal>
+            <DialogPrimitive.Content 
+              className="fixed bottom-0 right-4 flex items-end gap-3 z-[9999] pointer-events-none focus:outline-none"
+              onInteractOutside={(e) => {}}
+              onEscapeKeyDown={(e) => e.preventDefault()}
+            >
+              {activePanels.map((panel) => (
+                <div key={panel.phone} className="pointer-events-auto">
+                  <SmsPanel 
+                    phone={panel.phone} 
+                    customerName={panel.customerName}
+                    customerId={panel.customerId}
+                    isMinimized={panel.isMinimized}
+                    onMinimize={(minimized) => {
+                      setActivePanels(prev => prev.map(p => p.phone === panel.phone ? { ...p, isMinimized: minimized } : p));
+                    }}
+                    onClose={() => {
+                      setActivePanels(prev => prev.filter(p => p.phone !== panel.phone));
+                    }}
+                    onMaximize={() => {
+                      setActivePanels(prev => prev.filter(p => p.phone !== panel.phone));
+                      window.dispatchEvent(new CustomEvent('open-sms-chat', { detail: { phone: panel.phone } }));
+                    }}
+                  />
+                </div>
+              ))}
+            </DialogPrimitive.Content>
+          </DialogPrimitive.Portal>
+        </DialogPrimitive.Root>
       )}
     </div>
   );

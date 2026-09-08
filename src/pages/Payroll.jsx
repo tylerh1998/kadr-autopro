@@ -9,10 +9,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Calendar as CalendarIcon, Plus, CheckCircle, FileText, DollarSign, AlertCircle, Trash2, RefreshCw, Printer, Briefcase } from 'lucide-react';
-import { format, subDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { Calendar as CalendarIcon, Plus, CheckCircle, FileText, DollarSign, Trash2, RefreshCw, Printer } from 'lucide-react';
+import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { createPageUrl } from '@/utils';
 
 // Import new modal components
 import AddPaychequeModal from '../components/payroll/AddPaychequeModal';

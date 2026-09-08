@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from '@/lib/supabase';
 import { Package, RotateCcw } from 'lucide-react';
 import { format } from 'date-fns';
-import { getMountainTimeNow } from '@/components/utils/mountainTimeUtils';
 
 export default function InventoryPartsReturnModal({ open, onClose, item, onUpdate, source, onReturnWorkOrderPart, workOrderNumber, workOrderId }) {
   const [returnQuantity, setReturnQuantity] = useState('1');

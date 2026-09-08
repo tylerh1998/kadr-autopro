@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, AlertTriangle, Printer, X, Download } from "lucide-react";
+import { Loader2, AlertTriangle, Printer, Download } from "lucide-react";
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 

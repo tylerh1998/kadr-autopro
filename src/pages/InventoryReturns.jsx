@@ -23,7 +23,7 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@/components/ui/tooltip';
-import { getMountainTimeNow, toMountainTime } from '@/components/utils/mountainTimeUtils';
+import { toMountainTime } from '@/components/utils/mountainTimeUtils';
 import {
   RotateCcw,
   Search,

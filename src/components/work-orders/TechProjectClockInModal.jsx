@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, Loader2, Briefcase, Clock, AlertTriangle, LogOut } from 'lucide-react';
+import { Search, Loader2, Clock, LogOut } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
 export default function TechProjectClockInModal({ open, onClose, tech, initialProjectId, onSuccess }) {

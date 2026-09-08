@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Calendar, FileText, Users, Download } from "lucide-react";
+import { Loader2, Calendar, FileText, Users, Download, ChevronLeft, ChevronRight, BarChart3, TrendingUp } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import T4_PDF from "@/components/paypro/t4/T4_PDF";
 import T4A_PDF from "@/components/paypro/t4/T4A_PDF";
 import { calculateT4Totals } from "@/components/paypro/t4/calculateT4Totals";
@@ -13,6 +14,7 @@ import { downloadT4Xml } from "@/components/paypro/t4/craT4Xml";
 import CraXmlExportModal from "@/components/paypro/t4/CraXmlExportModal";
 
 export default function T4s() {
+  const navigate = useNavigate();
   const [employees, setEmployees] = useState([]);
   const [taxConstants, setTaxConstants] = useState({});
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState([]);
@@ -162,8 +164,20 @@ export default function T4s() {
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
-      <div className="mb-8">
+      <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
         <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Generate T4 & T4A Slips</h1>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate('/paypro/Reports')} className="flex items-center gap-1">
+            <ChevronLeft className="w-4 h-4" />
+            <BarChart3 className="w-4 h-4 mr-1" />
+            Reports
+          </Button>
+          <Button variant="outline" onClick={() => navigate('/paypro/Trends')} className="flex items-center gap-1">
+            <TrendingUp className="w-4 h-4 mr-1" />
+            Trends
+            <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
 
       <Card className="border-0 shadow-sm dark:bg-slate-900 dark:border-slate-800">

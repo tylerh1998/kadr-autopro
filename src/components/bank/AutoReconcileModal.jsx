@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabase';
 import { format, parseISO } from 'date-fns';
-import { Upload, FileText, CheckCircle2, AlertCircle, AlertTriangle, ArrowRight, Printer } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, ArrowRight, Printer } from 'lucide-react';
 
 // Dates coming back from the backend can be plain CSV strings (e.g. "01/15/2026") or full
 // ISO timestamps from the BankTransaction table (e.g. "2026-01-15T00:00:00.000Z") — strip

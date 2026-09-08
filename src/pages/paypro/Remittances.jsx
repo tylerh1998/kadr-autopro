@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Send, History, CheckCircle, Settings } from "lucide-react";
+import { Loader2, Send, History, CheckCircle, Settings, ChevronLeft, ChevronRight, Receipt, BarChart3 } from "lucide-react";
 import RemittanceDialog from "@/components/paypro/remittances/RemittanceDialog";
 import RemittanceHistory from "@/components/paypro/remittances/RemittanceHistory";
 
@@ -108,11 +108,29 @@ export default function Remittances() {
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap justify-between items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Government Remittances</h1>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => navigate('/paypro/PayStubs')}
+            className="flex items-center gap-1"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <Receipt className="w-4 h-4 mr-1" />
+            Pay Stubs
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => navigate('/paypro/Reports')}
+            className="flex items-center gap-1"
+          >
+            <BarChart3 className="w-4 h-4 mr-1" />
+            Reports
+            <ChevronRight className="w-4 h-4" />
+          </Button>
           <Button
             variant="outline"
             onClick={() => navigate(createPageUrl("paypro/Setup"))}

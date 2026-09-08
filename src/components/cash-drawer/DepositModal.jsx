@@ -4,12 +4,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, DollarSign } from 'lucide-react';
+import { Upload } from 'lucide-react';
 import { format } from 'date-fns';
 
 import { checkBankAccountLock } from '../utils/mountainTimeUtils';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
+
+const formatAmount = (amount) => {
+  const isNegative = (amount || 0) < 0;
+  return `${isNegative ? '-' : ''}$${Math.abs(amount || 0).toFixed(2)}`;
+};
 
 export default function DepositModal({ open, onClose, bankAccounts, totalAmount, forDepositItems, onSubmit }) {
   const { employee } = useAuth();
@@ -125,12 +130,12 @@ export default function DepositModal({ open, onClose, bankAccounts, totalAmount,
                       <span className="text-slate-600 dark:text-slate-400">
                         {item.displayName} ({item.count} {item.count === 1 ? 'item' : 'items'})
                       </span>
-                      <span className="font-medium text-slate-900 dark:text-slate-100">${item.total.toFixed(2)}</span>
+                      <span className="font-medium text-slate-900 dark:text-slate-100">{formatAmount(item.total)}</span>
                     </div>
                   ))}
                   <div className="border-t border-slate-200 dark:border-slate-700 mt-2 pt-2 flex justify-between items-center">
                     <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">Total</span>
-                    <span className="text-lg font-bold text-slate-900 dark:text-slate-100">${totalAmount.toFixed(2)}</span>
+                    <span className="text-lg font-bold text-slate-900 dark:text-slate-100">{formatAmount(totalAmount)}</span>
                   </div>
                 </>
               ) : (
@@ -139,7 +144,7 @@ export default function DepositModal({ open, onClose, bankAccounts, totalAmount,
                     <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{breakdown[0].displayName}</p>
                     <p className="text-xs text-slate-600 dark:text-slate-400">{breakdown[0].count} {breakdown[0].count === 1 ? 'item' : 'items'}</p>
                   </div>
-                  <span className="text-lg font-bold text-slate-900 dark:text-slate-100">${totalAmount.toFixed(2)}</span>
+                  <span className="text-lg font-bold text-slate-900 dark:text-slate-100">{formatAmount(totalAmount)}</span>
                 </div>
               )}
             </div>

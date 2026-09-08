@@ -1,15 +1,9 @@
 import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ChevronRight, MoreHorizontal, Landmark, FileText, BarChart3, TrendingUp, Settings } from 'lucide-react';
+import { ChevronRight, MoreHorizontal, FileText, BarChart3, TrendingUp, Settings } from 'lucide-react';
 import { createPageUrl } from '@/utils';
 
 const MORE_OPTIONS = [
-  {
-    name: 'Remittances',
-    description: 'Generate and review payroll remittances',
-    icon: Landmark,
-    path: 'paypro/Remittances',
-  },
   {
     name: 'T4s',
     description: 'Generate T4s and CRA XML files',

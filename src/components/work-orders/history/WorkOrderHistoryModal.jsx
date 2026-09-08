@@ -8,6 +8,7 @@ import { format } from 'date-fns';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
 import HistoryCard from './HistoryCard';
 import WorkOrderHistoryDetailModal from './WorkOrderHistoryDetailModal';
+import { formatAuditUserDisplay } from '@/utils/userDisplayUtils';
 
 const PAGE_SIZE = 50;
 
@@ -18,15 +19,10 @@ function formatMountainDateTimeSafe(value) {
     if (!rawValue) return '';
     let normalizedValue = rawValue.replace(' ', 'T');
     if (/([+-]\d{2})$/.test(normalizedValue)) {
-      normalizedValue = normalizedValue.replace(/([+-]\d{2})$/, '$1:00');
+      normalizedValue += ':00';
     }
-    if (!normalizedValue.endsWith('Z') && !/[+-]\d{2}:\d{2}$/.test(normalizedValue) && !/^[\d-]+$/.test(normalizedValue)) {
-      normalizedValue = `${normalizedValue}Z`;
-    }
-    const dateObj = /^[\d-]+$/.test(normalizedValue)
-      ? new Date(...normalizedValue.split('-').map((v, i) => i === 1 ? Number(v) - 1 : Number(v)))
-      : new Date(normalizedValue);
-    if (Number.isNaN(dateObj.getTime())) return rawValue;
+    const dateObj = new Date(normalizedValue);
+    if (Number.isNaN(dateObj.getTime())) return String(value);
     return format(toMountainTime(dateObj), 'MMM d, yyyy h:mm a');
   } catch {
     return String(value);
@@ -34,10 +30,8 @@ function formatMountainDateTimeSafe(value) {
 }
 
 async function resolveUserName(email, employees) {
-  if (!email) return 'System';
-  if (email.endsWith('@no-reply.base44.com')) return 'System';
-  const employee = (employees || []).find((item) => item.email === email);
-  if (employee) return employee.full_name || `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || email;
+  const display = formatAuditUserDisplay(email, employees);
+  if (display !== email || !email) return display;
   const { data: matchedEmployees } = await supabase.from('Employee').select('full_name').eq('email', email);
   const matched = matchedEmployees?.[0];
   return matched?.full_name || email;

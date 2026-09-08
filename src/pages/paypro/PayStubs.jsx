@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { PayStub, Employee, Remittance } from "@/components/paypro/lib/payrollEntities";
+import { PayStub, Employee, Remittance, TaxYearConstant } from "@/components/paypro/lib/payrollEntities";
 import { supabase } from "@/lib/supabase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Eye, Loader2, Pencil, CheckCircle, Circle, Lock, Send, XCircle, Ban, ChevronDown, FileText } from "lucide-react";
+import { Eye, Loader2, Pencil, CheckCircle, Circle, Lock, Send, XCircle, Ban, ChevronDown, FileText, ChevronLeft, Calculator, Landmark, History, Settings } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,12 +22,19 @@ import BatchPaymentModal from "@/components/paypro/paystubs/BatchPaymentModal";
 import CancelPaymentModal from "@/components/paypro/paystubs/CancelPaymentModal";
 import EmailPaystubsModal from "@/components/paypro/paystubs/EmailPaystubsModal";
 import PayStubViewerModal from "@/components/paypro/paystubs/PayStubViewerModal";
+import RemittanceDialog from "@/components/paypro/remittances/RemittanceDialog";
+import RemittanceHistory from "@/components/paypro/remittances/RemittanceHistory";
 
 export default function PayStubs() {
+  const navigate = useNavigate();
   const [payStubs, setPayStubs] = useState([]);
   const [employees, setEmployees] = useState([]);
+  const [taxYearConstants, setTaxYearConstants] = useState([]);
   const [remittedStubIds, setRemittedStubIds] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showRemittanceSummary, setShowRemittanceSummary] = useState(false);
+  const [showRemittanceDialog, setShowRemittanceDialog] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [editingStub, setEditingStub] = useState(null);
   const [cancellingStub, setCancellingStub] = useState(null);
   const [selectedStubs, setSelectedStubs] = useState([]);
@@ -62,21 +69,65 @@ export default function PayStubs() {
 
   const loadPayStubs = async () => {
     setLoading(true);
-    const [stubs, emps, remittances] = await Promise.all([
+    const [stubs, emps, remittances, constants] = await Promise.all([
       PayStub.list('-paycheque_number'),
       Employee.list(),
       Remittance.list(),
+      TaxYearConstant.list(),
     ]);
     setPayStubs(stubs);
     setEmployees(emps);
     // Phase 7 D2: a cancelled remittance must un-lock its stubs - only non-cancelled
     // remittances count toward the "already remitted" lock.
     setRemittedStubIds(remittances.filter((r) => r.status !== 'cancelled').flatMap((r) => r.pay_stub_ids || []));
+    setTaxYearConstants(constants);
     setLoading(false);
   };
 
   const getEmployee = (employeeId) => {
     return employees.find((e) => e.employee_id === employeeId);
+  };
+
+  const getEmployerMultiplier = (year) => {
+    const row = taxYearConstants.find((c) => c.year === year);
+    return row?.ei_rate_employer_multiplier ?? 1.4;
+  };
+
+  const calculateTotals = () => {
+    const selected = payStubs.filter((stub) => selectedStubs.includes(stub.id));
+
+    const totals = selected.reduce((acc, stub) => {
+      acc.grossPay += stub.gross_pay || 0;
+      acc.incomeTax += (stub.federal_tax || 0) + (stub.provincial_tax || 0);
+      acc.cppEmployee += stub.cpp_deduction || 0;
+      acc.cppEmployer += stub.cpp_deduction || 0; // Employer matches employee
+
+      acc.eiEmployee += stub.ei_deduction || 0;
+
+      const eiEmp = (stub.ei_deduction || 0) * getEmployerMultiplier(stub.year);
+      acc.eiEmployer += Math.round(eiEmp * 100) / 100;
+
+      return acc;
+    }, {
+      grossPay: 0,
+      incomeTax: 0,
+      cppEmployee: 0,
+      cppEmployer: 0,
+      eiEmployee: 0,
+      eiEmployer: 0,
+    });
+
+    totals.totalRemittance = totals.incomeTax + totals.cppEmployee + totals.cppEmployer + totals.eiEmployee + totals.eiEmployer;
+
+    return totals;
+  };
+
+  const handleRemittanceComplete = () => {
+    setShowRemittanceDialog(false);
+    setSelectedStubs([]);
+    setSelectionType(null);
+    setShowRemittanceSummary(false);
+    loadPayStubs();
   };
 
   const generatePayStubPDF = async (stub, type) => {
@@ -307,77 +358,167 @@ export default function PayStubs() {
 
   const isAllSelected = relevantStubs.length > 0 && relevantStubs.every((s) => selectedStubs.includes(s.id));
 
+  const totals = calculateTotals();
+
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-start">
+      <div className="flex flex-wrap justify-between items-start gap-4">
         <div>
           <h1 className="text-3xl font-bold text-slate-900 dark:text-slate-100">Pay Stubs</h1>
         </div>
-        <div className="flex gap-2">
-          {selectionType === 'unpaid' && selectedStubs.length > 0 && !hasRemittedOrCancelledSelected && (
-            <Button
-              onClick={() => setShowPaymentModal(true)}
-              className="bg-emerald-600 hover:bg-emerald-700 shadow-sm"
-            >
-              <Send className="mr-2 h-4 w-4" />
-              Process Payment ({selectedStubs.length})
-            </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {(!selectionType || selectedStubs.length === 0) && (
+            <>
+              <Button variant="outline" onClick={() => navigate('/paypro/Payroll')} className="flex items-center gap-1">
+                <ChevronLeft className="w-4 h-4" />
+                <Calculator className="w-4 h-4 mr-1" />
+                Run Payroll
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => navigate('/paypro/Setup')}
+                className="flex items-center gap-2 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+                title="Manage the period close date in Setup > General Settings"
+              >
+                <Settings className="w-4 h-4" />
+                Manage Close Date
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowHistory(true)}
+                className="flex items-center gap-2 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                <History className="w-4 h-4" />
+                Remittance History
+              </Button>
+            </>
           )}
 
-          {selectionType === 'paid' && selectedStubs.length > 0 && !hasRemittedOrCancelledSelected && (
-            <Button
-              onClick={() => setShowCancelModal(true)}
-              variant="destructive"
-              className="shadow-sm"
-            >
-              <XCircle className="mr-2 h-4 w-4" />
-              Cancel Payment ({selectedStubs.length})
-            </Button>
-          )}
+          {(selectionType && selectedStubs.length > 0) && (
+            <>
+              <Button variant="outline" onClick={() => navigate('/paypro/Payroll')} className="flex items-center gap-1">
+                <ChevronLeft className="w-4 h-4" />
+                <Calculator className="w-4 h-4 mr-1" />
+                Run Payroll
+              </Button>
 
-          {selectionType === 'paid' && selectedStubs.length > 0 && (
-            <Button
-              onClick={() => handleBatchPayStubPDF('employer')}
-              disabled={generatingBatchPDF !== null}
-              variant="outline"
-              className="dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 shadow-sm"
-            >
-              {generatingBatchPDF === 'employer' ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <FileText className="mr-2 h-4 w-4" />
+              {selectionType === 'paid' && !hasRemittedOrCancelledSelected && (
+                <Button
+                  onClick={() => setShowRemittanceSummary(!showRemittanceSummary)}
+                  className={`${showRemittanceSummary ? 'bg-emerald-700 hover:bg-emerald-800' : 'bg-emerald-600 hover:bg-emerald-700'} shadow-sm text-white`}
+                >
+                  <Landmark className="mr-2 h-4 w-4" />
+                  New Remittance
+                </Button>
               )}
-              Employer ({selectedStubs.length})
-            </Button>
-          )}
 
-          {selectionType === 'paid' && selectedStubs.length > 0 && (
-            <Button
-              onClick={() => handleBatchPayStubPDF('employee')}
-              disabled={generatingBatchPDF !== null}
-              variant="outline"
-              className="dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 shadow-sm"
-            >
-              {generatingBatchPDF === 'employee' ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <FileText className="mr-2 h-4 w-4" />
+              {selectionType === 'unpaid' && !hasRemittedOrCancelledSelected && (
+                <Button
+                  onClick={() => setShowPaymentModal(true)}
+                  className="bg-emerald-600 hover:bg-emerald-700 shadow-sm"
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  Process Payment ({selectedStubs.length})
+                </Button>
               )}
-              Employee ({selectedStubs.length})
-            </Button>
-          )}
 
-          {selectionType === 'paid' && selectedStubs.length > 0 && (
-            <Button
-              onClick={() => setShowEmailModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 shadow-sm text-white"
-            >
-              <Send className="mr-2 h-4 w-4" />
-              Email ({selectedStubs.length})
-            </Button>
+              {selectionType === 'paid' && !hasRemittedOrCancelledSelected && (
+                <Button
+                  onClick={() => setShowCancelModal(true)}
+                  variant="destructive"
+                  className="shadow-sm"
+                >
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Cancel Payment ({selectedStubs.length})
+                </Button>
+              )}
+
+              {selectionType === 'paid' && (
+                <Button
+                  onClick={() => handleBatchPayStubPDF('employer')}
+                  disabled={generatingBatchPDF !== null}
+                  variant="outline"
+                  className="dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 shadow-sm"
+                >
+                  {generatingBatchPDF === 'employer' ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileText className="mr-2 h-4 w-4" />
+                  )}
+                  Employer ({selectedStubs.length})
+                </Button>
+              )}
+
+              {selectionType === 'paid' && (
+                <Button
+                  onClick={() => handleBatchPayStubPDF('employee')}
+                  disabled={generatingBatchPDF !== null}
+                  variant="outline"
+                  className="dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 shadow-sm"
+                >
+                  {generatingBatchPDF === 'employee' ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <FileText className="mr-2 h-4 w-4" />
+                  )}
+                  Employee ({selectedStubs.length})
+                </Button>
+              )}
+
+              {selectionType === 'paid' && (
+                <Button
+                  onClick={() => setShowEmailModal(true)}
+                  className="bg-blue-600 hover:bg-blue-700 shadow-sm text-white"
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  Email ({selectedStubs.length})
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>
+
+      {showRemittanceSummary && selectionType === 'paid' && selectedStubs.length > 0 && (
+        <Card className="border-0 shadow-sm dark:bg-slate-900 dark:border-slate-800">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between dark:text-slate-100">
+              <span>Remittance Summary ({selectedStubs.length} paycheques selected)</span>
+              <Button
+                onClick={() => setShowRemittanceDialog(true)}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                <Send className="w-4 h-4 mr-2" />
+                Process Remittance
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <div className="text-center">
+                <p className="text-sm text-slate-600 dark:text-slate-400">Total Gross Pay</p>
+                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">${totals.grossPay.toFixed(2)}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-slate-600 dark:text-slate-400">Income Tax</p>
+                <p className="text-xl font-semibold text-blue-600 dark:text-blue-400">${totals.incomeTax.toFixed(2)}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-slate-600 dark:text-slate-400">CPP (Employee + Employer)</p>
+                <p className="text-xl font-semibold text-purple-600 dark:text-purple-400">${(totals.cppEmployee + totals.cppEmployer).toFixed(2)}</p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-slate-600 dark:text-slate-400">EI (Employee + Employer)</p>
+                <p className="text-xl font-semibold text-orange-600 dark:text-orange-400">${(totals.eiEmployee + totals.eiEmployer).toFixed(2)}</p>
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t dark:border-slate-700 text-center">
+              <p className="text-sm text-slate-600 dark:text-slate-400">Total Remittance Amount</p>
+              <p className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">${totals.totalRemittance.toFixed(2)}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="border-0 shadow-sm dark:bg-slate-900 dark:border-slate-800">
         <CardHeader>
@@ -667,6 +808,22 @@ export default function PayStubs() {
           employee={getEmployee(cancellingStub.employee_id)}
           onComplete={handleCancelPaychequeComplete}
           onCancel={() => setCancellingStub(null)}
+        />
+      )}
+
+      {showRemittanceDialog && (
+        <RemittanceDialog
+          selectedStubs={payStubs.filter((stub) => selectedStubs.includes(stub.id))}
+          totals={totals}
+          onComplete={handleRemittanceComplete}
+          onCancel={() => setShowRemittanceDialog(false)}
+        />
+      )}
+
+      {showHistory && (
+        <RemittanceHistory
+          onClose={() => setShowHistory(false)}
+          onChanged={loadPayStubs}
         />
       )}
     </div>

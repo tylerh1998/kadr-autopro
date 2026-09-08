@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select';
-import { ArrowLeft, Calendar, RefreshCw, Printer } from 'lucide-react';
+import { Calendar, RefreshCw, Printer } from 'lucide-react';
 import { format, subMonths, subDays } from 'date-fns';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import CashFlowTrendReport from '@/components/financial-dashboard/CashFlowTrendReport';

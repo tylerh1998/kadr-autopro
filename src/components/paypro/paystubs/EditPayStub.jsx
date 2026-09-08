@@ -108,9 +108,14 @@ export default function EditPayStub({ payStub, employee, onComplete, onCancel })
     setAdditionalDeductions(prev => prev.filter((_, i) => i !== index));
   };
 
-  // Gross pay is derived from the income breakdown so the stub can never drift
-  // out of sync with the line items that actually print on it.
-  const grossPay = incomeBreakdown.reduce((sum, row) => sum + (row.amount || 0), 0);
+  // Taxable Gross pay is derived from income breakdown excluding non-taxable advance items.
+  const grossPay = incomeBreakdown
+    .filter(row => row.type !== 'Advance Issued' && !row.is_non_taxable)
+    .reduce((sum, row) => sum + (row.amount || 0), 0);
+
+  const nonTaxablePayments = incomeBreakdown
+    .filter(row => row.type === 'Advance Issued' || row.is_non_taxable)
+    .reduce((sum, row) => sum + (row.amount || 0), 0);
 
   const additionalDeductionsTotal = additionalDeductions.reduce((sum, d) => sum + (d.amount || 0), 0);
 
@@ -118,7 +123,7 @@ export default function EditPayStub({ payStub, employee, onComplete, onCancel })
                          editData.cpp_deduction + editData.cpp2_deduction + editData.ei_deduction +
                          additionalDeductionsTotal;
 
-  const calculatedNetPay = grossPay - totalDeductions;
+  const calculatedNetPay = grossPay - totalDeductions + nonTaxablePayments;
 
   const handleSave = async () => {
     setProcessing(true);

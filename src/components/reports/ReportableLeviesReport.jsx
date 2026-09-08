@@ -3,9 +3,9 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, Printer, Search, Send } from 'lucide-react';
-import { format, subDays, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter, subQuarters } from 'date-fns';
+import { format, startOfQuarter, endOfQuarter, subQuarters } from 'date-fns';
 
 export default function ReportableLeviesReport() {
   const [loading, setLoading] = useState(false);

@@ -5,6 +5,7 @@ import { User, Car, FileText, Copy, History, Pencil, Phone, Mail, MapPin, UserCh
 import { format } from 'date-fns';
 import { toMountainTime } from '@/components/utils/mountainTimeUtils';
 import ChangeCustomerModal from '../ChangeCustomerModal';
+import { formatAuditUserDisplay } from '@/utils/userDisplayUtils';
 
 export default function WorkOrderHeaderInfo({
   workOrder,
@@ -29,22 +30,8 @@ export default function WorkOrderHeaderInfo({
   const [completedByName, setCompletedByName] = useState('');
   const [showChangeCustomerModal, setShowChangeCustomerModal] = useState(false);
 
-  const getUserDisplayName = async (email) => {
-    if (!email) return '';
-    
-    if (email.endsWith('@no-reply.base44.com')) {
-      return 'System';
-    }
-
-    // Fallback to employees list
-    if (employees && employees.length > 0) {
-      const employee = employees.find(e => e.email === email);
-      if (employee) {
-        return employee.full_name || `${employee.first_name} ${employee.last_name}`;
-      }
-    }
-
-    return email;
+  const getUserDisplayName = (email) => {
+    return formatAuditUserDisplay(email, employees);
   };
 
   useEffect(() => {

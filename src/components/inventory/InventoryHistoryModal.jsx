@@ -11,12 +11,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import ModalCloseButton from '@/components/ui/modal-close-button';
 import { History, PackageX, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { format } from 'date-fns';
-
-function getCreatedByDisplay(createdBy) {
-  if (!createdBy) return 'Unknown';
-  if (createdBy.endsWith('@no-reply.base44.com')) return 'System';
-  return createdBy;
-}
+import { formatAuditUserDisplay } from '@/utils/userDisplayUtils';
 
 export default function InventoryHistoryModal({ open, onClose, partNumber, inventoryItemId }) {
   const [transactions, setTransactions] = useState([]);
@@ -260,7 +255,7 @@ export default function InventoryHistoryModal({ open, onClose, partNumber, inven
                               </div>
                             </TooltipTrigger>
                             <TooltipContent>
-                              {getCreatedByDisplay(tx.created_by)}
+                              {formatAuditUserDisplay(tx.created_by)}
                             </TooltipContent>
                           </Tooltip>
                         ) : 'N/A'}
