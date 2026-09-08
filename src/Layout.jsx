@@ -65,6 +65,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import * as DialogPrimitive from '@radix-ui/react-dialog';
 
 import { createPageUrl } from './utils';
 import ReportModal from './components/reports/ReportModal';
@@ -758,27 +759,37 @@ function LayoutContent({ children, currentPageName }) {
           onClose={() => setShowSmsModal(false)} 
         />
         
-        <div className="fixed bottom-0 right-4 flex items-end gap-3 z-40 pointer-events-none">
-          {activePanels.map((panel) => (
-            <div key={panel.phone} className="pointer-events-auto">
-              <SmsPanel 
-                phone={panel.phone} 
-                customerName={panel.customerName}
-                isMinimized={panel.isMinimized}
-                onMinimize={(minimized) => {
-                  setActivePanels(prev => prev.map(p => p.phone === panel.phone ? { ...p, isMinimized: minimized } : p));
-                }}
-                onClose={() => {
-                  setActivePanels(prev => prev.filter(p => p.phone !== panel.phone));
-                }}
-                onMaximize={() => {
-                  setActivePanels(prev => prev.filter(p => p.phone !== panel.phone));
-                  window.dispatchEvent(new CustomEvent('open-sms-chat', { detail: { phone: panel.phone } }));
-                }}
-              />
-            </div>
-          ))}
-        </div>
+        {activePanels.length > 0 && (
+          <DialogPrimitive.Root open={true} modal={false}>
+            <DialogPrimitive.Portal>
+              <DialogPrimitive.Content 
+                className="fixed bottom-0 right-4 flex items-end gap-3 z-[9999] pointer-events-none focus:outline-none"
+                onInteractOutside={(e) => {}}
+                onEscapeKeyDown={(e) => e.preventDefault()}
+              >
+                {activePanels.map((panel) => (
+                  <div key={panel.phone} className="pointer-events-auto">
+                    <SmsPanel 
+                      phone={panel.phone} 
+                      customerName={panel.customerName}
+                      isMinimized={panel.isMinimized}
+                      onMinimize={(minimized) => {
+                        setActivePanels(prev => prev.map(p => p.phone === panel.phone ? { ...p, isMinimized: minimized } : p));
+                      }}
+                      onClose={() => {
+                        setActivePanels(prev => prev.filter(p => p.phone !== panel.phone));
+                      }}
+                      onMaximize={() => {
+                        setActivePanels(prev => prev.filter(p => p.phone !== panel.phone));
+                        window.dispatchEvent(new CustomEvent('open-sms-chat', { detail: { phone: panel.phone } }));
+                      }}
+                    />
+                  </div>
+                ))}
+              </DialogPrimitive.Content>
+            </DialogPrimitive.Portal>
+          </DialogPrimitive.Root>
+        )}
       </div>
     );
   }
@@ -1396,27 +1407,37 @@ function LayoutContent({ children, currentPageName }) {
         onClose={() => setShowSmsModal(false)} 
       />
 
-      <div className="fixed bottom-0 right-4 flex items-end gap-3 z-40 pointer-events-none">
-        {activePanels.map((panel) => (
-          <div key={panel.phone} className="pointer-events-auto">
-            <SmsPanel 
-              phone={panel.phone} 
-              customerName={panel.customerName}
-              isMinimized={panel.isMinimized}
-              onMinimize={(minimized) => {
-                setActivePanels(prev => prev.map(p => p.phone === panel.phone ? { ...p, isMinimized: minimized } : p));
-              }}
-              onClose={() => {
-                setActivePanels(prev => prev.filter(p => p.phone !== panel.phone));
-              }}
-              onMaximize={() => {
-                setActivePanels(prev => prev.filter(p => p.phone !== panel.phone));
-                window.dispatchEvent(new CustomEvent('open-sms-chat', { detail: { phone: panel.phone } }));
-              }}
-            />
-          </div>
-        ))}
-      </div>
+      {activePanels.length > 0 && (
+        <DialogPrimitive.Root open={true} modal={false}>
+          <DialogPrimitive.Portal>
+            <DialogPrimitive.Content 
+              className="fixed bottom-0 right-4 flex items-end gap-3 z-[9999] pointer-events-none focus:outline-none"
+              onInteractOutside={(e) => {}}
+              onEscapeKeyDown={(e) => e.preventDefault()}
+            >
+              {activePanels.map((panel) => (
+                <div key={panel.phone} className="pointer-events-auto">
+                  <SmsPanel 
+                    phone={panel.phone} 
+                    customerName={panel.customerName}
+                    isMinimized={panel.isMinimized}
+                    onMinimize={(minimized) => {
+                      setActivePanels(prev => prev.map(p => p.phone === panel.phone ? { ...p, isMinimized: minimized } : p));
+                    }}
+                    onClose={() => {
+                      setActivePanels(prev => prev.filter(p => p.phone !== panel.phone));
+                    }}
+                    onMaximize={() => {
+                      setActivePanels(prev => prev.filter(p => p.phone !== panel.phone));
+                      window.dispatchEvent(new CustomEvent('open-sms-chat', { detail: { phone: panel.phone } }));
+                    }}
+                  />
+                </div>
+              ))}
+            </DialogPrimitive.Content>
+          </DialogPrimitive.Portal>
+        </DialogPrimitive.Root>
+      )}
     </div>
   );
 }

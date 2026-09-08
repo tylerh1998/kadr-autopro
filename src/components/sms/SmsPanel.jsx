@@ -85,22 +85,18 @@ export default function SmsPanel({ phone, customerName, isMinimized, onClose, on
 
       {/* Header */}
       <div 
-        className="h-10 bg-blue-600 dark:bg-blue-700 flex items-center justify-between px-3 shrink-0 cursor-pointer text-white select-none"
-        onClick={() => onMinimize(!isMinimized)}
+        className="h-10 bg-blue-600 dark:bg-blue-700 flex items-center justify-between px-3 shrink-0 text-white select-none"
       >
         <div className="flex items-center gap-2 overflow-hidden flex-1">
           <span className="font-semibold text-sm truncate">{customerName || phone}</span>
         </div>
         
-        <div className="flex items-center gap-1 shrink-0 ml-2">
+        <div className="flex items-center gap-1 shrink-0 ml-2 relative z-50">
           <Button 
             variant="ghost" 
             size="icon" 
-            className="w-6 h-6 rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 text-white"
-            onClick={(e) => {
-              e.stopPropagation();
-              onMinimize(!isMinimized);
-            }}
+            className="w-6 h-6 rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 text-white cursor-pointer pointer-events-auto"
+            onClick={() => onMinimize(!isMinimized)}
             title={isMinimized ? "Expand" : "Minimize"}
           >
             {isMinimized ? <SquareArrowUp className="w-4 h-4" /> : <Minus className="w-4 h-4" />}
@@ -108,11 +104,8 @@ export default function SmsPanel({ phone, customerName, isMinimized, onClose, on
           <Button 
             variant="ghost" 
             size="icon" 
-            className="w-6 h-6 rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 text-white"
-            onClick={(e) => {
-              e.stopPropagation();
-              onMaximize();
-            }}
+            className="w-6 h-6 rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 text-white cursor-pointer pointer-events-auto"
+            onClick={() => onMaximize()}
             title="Open in Full Window"
           >
             <Maximize2 className="w-3 h-3" />
@@ -120,11 +113,8 @@ export default function SmsPanel({ phone, customerName, isMinimized, onClose, on
           <Button 
             variant="ghost" 
             size="icon" 
-            className="w-6 h-6 rounded-md hover:bg-red-500 hover:text-white text-white"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose();
-            }}
+            className="w-6 h-6 rounded-md hover:bg-red-500 hover:text-white text-white cursor-pointer pointer-events-auto"
+            onClick={() => onClose()}
             title="Close"
           >
             <X className="w-4 h-4" />
