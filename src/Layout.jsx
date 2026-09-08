@@ -82,6 +82,7 @@ import ReportIssueModal from './components/layout/ReportIssueModal';
 import PayrollMoreModal from './components/paypro/PayrollMoreModal';
 import WorkPROModal from './components/work-orders/WorkPROModal';
 import SmsModal from './components/sms/SmsModal';
+import SmsPanel from './components/sms/SmsPanel';
 
 function LayoutContent({ children, currentPageName }) {
   const [showFindPartModal, setShowFindPartModal] = useState(false);
@@ -96,6 +97,7 @@ function LayoutContent({ children, currentPageName }) {
   const [showReportIssueModal, setShowReportIssueModal] = useState(false);
   const [showPayrollMoreModal, setShowPayrollMoreModal] = useState(false);
   const [showSmsModal, setShowSmsModal] = useState(false);
+  const [activePanels, setActivePanels] = useState([]);
   const [hoveredItem, setHoveredItem] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
@@ -122,11 +124,23 @@ function LayoutContent({ children, currentPageName }) {
   const [hoverTimeout, setHoverTimeout] = useState(null);
 
   useEffect(() => {
-    const handleOpenSmsChat = () => {
+    const handleOpenSmsChat = (e) => {
       setShowSmsModal(true);
     };
     window.addEventListener('open-sms-chat', handleOpenSmsChat);
     return () => window.removeEventListener('open-sms-chat', handleOpenSmsChat);
+  }, []);
+
+  useEffect(() => {
+    const handleOpenPanel = (e) => {
+      const { phone, customerName } = e.detail;
+      setActivePanels(prev => {
+        if (prev.find(p => p.phone === phone)) return prev;
+        return [...prev, { phone, customerName, isMinimized: false }];
+      });
+    };
+    window.addEventListener('open-sms-panel', handleOpenPanel);
+    return () => window.removeEventListener('open-sms-panel', handleOpenPanel);
   }, []);
 
   // Dark mode state
@@ -743,6 +757,28 @@ function LayoutContent({ children, currentPageName }) {
           isOpen={showSmsModal} 
           onClose={() => setShowSmsModal(false)} 
         />
+        
+        <div className="fixed bottom-0 right-4 flex items-end gap-3 z-40 pointer-events-none">
+          {activePanels.map((panel) => (
+            <div key={panel.phone} className="pointer-events-auto">
+              <SmsPanel 
+                phone={panel.phone} 
+                customerName={panel.customerName}
+                isMinimized={panel.isMinimized}
+                onMinimize={(minimized) => {
+                  setActivePanels(prev => prev.map(p => p.phone === panel.phone ? { ...p, isMinimized: minimized } : p));
+                }}
+                onClose={() => {
+                  setActivePanels(prev => prev.filter(p => p.phone !== panel.phone));
+                }}
+                onMaximize={() => {
+                  setActivePanels(prev => prev.filter(p => p.phone !== panel.phone));
+                  window.dispatchEvent(new CustomEvent('open-sms-chat', { detail: { phone: panel.phone } }));
+                }}
+              />
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -1359,6 +1395,28 @@ function LayoutContent({ children, currentPageName }) {
         isOpen={showSmsModal} 
         onClose={() => setShowSmsModal(false)} 
       />
+
+      <div className="fixed bottom-0 right-4 flex items-end gap-3 z-40 pointer-events-none">
+        {activePanels.map((panel) => (
+          <div key={panel.phone} className="pointer-events-auto">
+            <SmsPanel 
+              phone={panel.phone} 
+              customerName={panel.customerName}
+              isMinimized={panel.isMinimized}
+              onMinimize={(minimized) => {
+                setActivePanels(prev => prev.map(p => p.phone === panel.phone ? { ...p, isMinimized: minimized } : p));
+              }}
+              onClose={() => {
+                setActivePanels(prev => prev.filter(p => p.phone !== panel.phone));
+              }}
+              onMaximize={() => {
+                setActivePanels(prev => prev.filter(p => p.phone !== panel.phone));
+                window.dispatchEvent(new CustomEvent('open-sms-chat', { detail: { phone: panel.phone } }));
+              }}
+            />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
