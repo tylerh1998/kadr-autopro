@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Edit, MessageSquare, SquareArrowOutDownRight, Check, CheckSquare } from 'lucide-react';
+import { X, Edit, MessageSquare, SquareArrowOutDownRight, Check } from 'lucide-react';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';

@@ -94,7 +94,7 @@ export default function BatchPaymentModal({ stubs, onComplete, onCancel }) {
           )
         : null;
       const isAdvanceRepayment = (d.name || '').trim().toLowerCase() === 'advance repayment';
-      return { ...d, gl_account: record?.gl_account || (isAdvanceRepayment ? '1200' : null) };
+      return { ...d, gl_account: record?.gl_account || (isAdvanceRepayment ? '1100' : null) };
     });
   };
 
@@ -268,7 +268,7 @@ export default function BatchPaymentModal({ stubs, onComplete, onCancel }) {
           });
         }
 
-        // Debit Employee Advances Asset Account (1200) for advance issued
+        // Debit Employee Advances Asset Account (1100) for advance issued
         const advanceIssuedItem = (stub.income_breakdown || []).find(item => item.type === 'Advance Issued' || item.is_non_taxable);
         const advanceIssued = advanceIssuedItem
           ? (advanceIssuedItem.amount || 0)
@@ -276,7 +276,7 @@ export default function BatchPaymentModal({ stubs, onComplete, onCancel }) {
 
         if (advanceIssued > 0) {
           glRowsToInsert.push({
-            account_number: '1200',
+            account_number: '1100',
             transaction_date: payDate,
             description: `Employee advance issued ${stub.paycheque_number || ''}`,
             reference,
