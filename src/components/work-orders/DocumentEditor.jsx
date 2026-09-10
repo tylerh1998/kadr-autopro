@@ -1872,14 +1872,20 @@ export default function DocumentEditor({ mode = 'work_order', useFunctionData = 
                   )}
 
                   {employee?.sms_enabled && customer?.phone && (
-                    <div 
-                      onClick={() => window.dispatchEvent(new CustomEvent('open-sms-chat', { detail: { phone: customer.phone } }))}
+                    <div
+                      onClick={() => window.dispatchEvent(new CustomEvent('open-sms-panel', {
+                        detail: {
+                          phone: customer.phone,
+                          customerName: (`${customer.first_name || ''} ${customer.last_name || ''}`.trim()) || customer.org_name || '',
+                          customerId: customer.id
+                        }
+                      }))}
                       className={`flex items-center gap-2 px-3 py-1.5 rounded transition-all duration-200 text-sm font-bold shadow-sm cursor-pointer select-none ml-2 border ${
-                        !smsStatus.has_messages 
+                        !smsStatus.has_messages
                           ? 'opacity-50 hover:opacity-100 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
                           : smsStatus.unread_count > 0
                             ? 'bg-blue-600 hover:bg-blue-700 text-white border-transparent'
-                            : 'bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-900 dark:text-white border-slate-300 dark:border-slate-600'
+                            : 'bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800 text-white border-transparent'
                       }`}
                     >
                       <MessageSquare className="w-4 h-4" />
