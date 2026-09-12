@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Minus, X, Maximize2, SquareArrowUp, MoreHorizontal, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
@@ -6,11 +6,18 @@ import { supabase } from '@/lib/supabase';
 import SmsThread from './SmsThread';
 import SmsCustomerModal from './SmsCustomerModal';
 
-export default function SmsPanel({ phone, customerName, customerId, isMinimized, onMinimize, onClose, onMaximize }) {
+export default function SmsPanel({ phone, customerName, customerId, isMinimized, onMinimize, onClose, onMaximize, onResize }) {
   const [localCustomerName, setLocalCustomerName] = useState(customerName);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [size, setSize] = useState({ width: 350, height: 450 });
   const [isResizing, setIsResizing] = useState(false);
+
+  // Mirror the latest size into a ref so the resize-end handler (whose closure
+  // is captured on mouse-down) can report the final width to the parent dock.
+  const sizeRef = useRef(size);
+  useEffect(() => {
+    sizeRef.current = size;
+  }, [size]);
   const [hasUnread, setHasUnread] = useState(false);
   
   const [metadata, setMetadata] = useState({ category: null, is_archived: false });
@@ -124,6 +131,7 @@ export default function SmsPanel({ phone, customerName, customerId, isMinimized,
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
       setIsResizing(false);
+      onResize?.(sizeRef.current.width);
     };
 
     setIsResizing(true);

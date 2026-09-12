@@ -8,10 +8,44 @@ import MediaViewerModal from './MediaViewerModal';
 
 import { useAuth } from '@/lib/AuthContext';
 
+const draftStorageKey = (phone) => (phone ? `sms-draft:${phone}` : null);
+
+const readStoredDraft = (phone) => {
+  const key = draftStorageKey(phone);
+  if (!key) return '';
+  try {
+    return sessionStorage.getItem(key) || '';
+  } catch {
+    return '';
+  }
+};
+
 export default function SmsThread({ phone, customerName }) {
   const { employee: user } = useAuth();
   const [chatHistory, setChatHistory] = useState([]);
-  const [draftMessage, setDraftMessage] = useState('');
+  // Seed from sessionStorage so a conversation that gets pushed out of the
+  // panel dock (evicted past the total cap) keeps its unsent draft.
+  const [draftMessage, setDraftMessage] = useState(() => readStoredDraft(phone));
+
+  // Load the matching draft whenever the thread switches conversations
+  // (e.g. picking a different chat inside the full SMS modal).
+  useEffect(() => {
+    setDraftMessage(readStoredDraft(phone));
+  }, [phone]);
+
+  // Write-through on every edit so eviction/unmount never loses the draft.
+  const updateDraft = (value) => {
+    setDraftMessage(value);
+    const key = draftStorageKey(phone);
+    if (!key) return;
+    try {
+      if (value.trim()) sessionStorage.setItem(key, value);
+      else sessionStorage.removeItem(key);
+    } catch {
+      /* sessionStorage unavailable (private mode, blocked) - draft just isn't persisted */
+    }
+  };
+
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [isSending, setIsSending] = useState(false);
   
@@ -161,7 +195,7 @@ export default function SmsThread({ phone, customerName }) {
     
     // Append to UI immediately
     setChatHistory(prev => [...prev, optimisticMsg]);
-    setDraftMessage('');
+    updateDraft('');
     const filesToUpload = [...pendingFiles];
     setPendingFiles([]);
     
@@ -360,9 +394,9 @@ export default function SmsThread({ phone, customerName }) {
             </Button>
           </div>
           
-          <textarea 
+          <textarea
             value={draftMessage}
-            onChange={(e) => setDraftMessage(e.target.value)}
+            onChange={(e) => updateDraft(e.target.value)}
             onPaste={handlePaste}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {

@@ -57,7 +57,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import * as DialogPrimitive from '@radix-ui/react-dialog';
 
 import { createPageUrl } from './utils';
 import ReportModal from './components/reports/ReportModal';
@@ -75,7 +74,7 @@ import ReportIssueModal from './components/layout/ReportIssueModal';
 import PayrollMoreModal from './components/paypro/PayrollMoreModal';
 import WorkPROModal from './components/work-orders/WorkPROModal';
 import SmsModal from './components/sms/SmsModal';
-import SmsPanel from './components/sms/SmsPanel';
+import SmsPanelDock from './components/sms/SmsPanelDock';
 
 function LayoutContent({ children, currentPageName }) {
   const [showFindPartModal, setShowFindPartModal] = useState(false);
@@ -125,11 +124,16 @@ function LayoutContent({ children, currentPageName }) {
   }, []);
 
   useEffect(() => {
+    // Soft ceiling on total open conversations (visible row + overflow menu).
+    // Beyond this we evict the oldest; SmsThread persists its draft to
+    // sessionStorage so an evicted conversation loses nothing but its place.
+    const MAX_TOTAL_PANELS = 8;
     const handleOpenPanel = (e) => {
       const { phone, customerName, customerId } = e.detail;
       setActivePanels(prev => {
         if (prev.find(p => p.phone === phone)) return prev;
-        return [...prev, { phone, customerName, customerId, isMinimized: false }];
+        const trimmed = prev.length >= MAX_TOTAL_PANELS ? prev.slice(1) : prev;
+        return [...trimmed, { phone, customerName, customerId, isMinimized: false, width: 350 }];
       });
     };
     window.addEventListener('open-sms-panel', handleOpenPanel);
@@ -746,43 +750,12 @@ function LayoutContent({ children, currentPageName }) {
     return (
       <div className="min-h-screen bg-background">
         <main>{children}</main>
-        <SmsModal 
-          isOpen={showSmsModal} 
-          onClose={() => setShowSmsModal(false)} 
+        <SmsModal
+          isOpen={showSmsModal}
+          onClose={() => setShowSmsModal(false)}
         />
-        
-        {activePanels.length > 0 && (
-          <DialogPrimitive.Root open={true} modal={false}>
-            <DialogPrimitive.Portal>
-              <DialogPrimitive.Content 
-                className="fixed bottom-0 right-4 flex items-end gap-3 z-[9999] pointer-events-none focus:outline-none"
-                onInteractOutside={(e) => {}}
-                onEscapeKeyDown={(e) => e.preventDefault()}
-              >
-                {activePanels.map((panel) => (
-                  <div key={panel.phone} className="pointer-events-auto">
-                    <SmsPanel 
-                      phone={panel.phone} 
-                      customerName={panel.customerName}
-                      customerId={panel.customerId}
-                      isMinimized={panel.isMinimized}
-                      onMinimize={(minimized) => {
-                        setActivePanels(prev => prev.map(p => p.phone === panel.phone ? { ...p, isMinimized: minimized } : p));
-                      }}
-                      onClose={() => {
-                        setActivePanels(prev => prev.filter(p => p.phone !== panel.phone));
-                      }}
-                      onMaximize={() => {
-                        setActivePanels(prev => prev.filter(p => p.phone !== panel.phone));
-                        window.dispatchEvent(new CustomEvent('open-sms-chat', { detail: { phone: panel.phone } }));
-                      }}
-                    />
-                  </div>
-                ))}
-              </DialogPrimitive.Content>
-            </DialogPrimitive.Portal>
-          </DialogPrimitive.Root>
-        )}
+
+        <SmsPanelDock panels={activePanels} setPanels={setActivePanels} />
       </div>
     );
   }
@@ -1413,43 +1386,12 @@ function LayoutContent({ children, currentPageName }) {
         />
       )}
 
-      <SmsModal 
-        isOpen={showSmsModal} 
-        onClose={() => setShowSmsModal(false)} 
+      <SmsModal
+        isOpen={showSmsModal}
+        onClose={() => setShowSmsModal(false)}
       />
 
-      {activePanels.length > 0 && (
-        <DialogPrimitive.Root open={true} modal={false}>
-          <DialogPrimitive.Portal>
-            <DialogPrimitive.Content 
-              className="fixed bottom-0 right-4 flex items-end gap-3 z-[9999] pointer-events-none focus:outline-none"
-              onInteractOutside={(e) => {}}
-              onEscapeKeyDown={(e) => e.preventDefault()}
-            >
-              {activePanels.map((panel) => (
-                <div key={panel.phone} className="pointer-events-auto">
-                  <SmsPanel 
-                    phone={panel.phone} 
-                    customerName={panel.customerName}
-                    customerId={panel.customerId}
-                    isMinimized={panel.isMinimized}
-                    onMinimize={(minimized) => {
-                      setActivePanels(prev => prev.map(p => p.phone === panel.phone ? { ...p, isMinimized: minimized } : p));
-                    }}
-                    onClose={() => {
-                      setActivePanels(prev => prev.filter(p => p.phone !== panel.phone));
-                    }}
-                    onMaximize={() => {
-                      setActivePanels(prev => prev.filter(p => p.phone !== panel.phone));
-                      window.dispatchEvent(new CustomEvent('open-sms-chat', { detail: { phone: panel.phone } }));
-                    }}
-                  />
-                </div>
-              ))}
-            </DialogPrimitive.Content>
-          </DialogPrimitive.Portal>
-        </DialogPrimitive.Root>
-      )}
+      <SmsPanelDock panels={activePanels} setPanels={setActivePanels} />
     </div>
   );
 }
