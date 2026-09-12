@@ -17,7 +17,8 @@ const MAX_VISIBLE_PANELS = 4;
 
 const GAP_PX = 12; // matches the flex `gap-3` on the dock row
 const EDGE_MARGIN_PX = 24; // `right-4` (16px) + a little breathing room
-const OVERFLOW_BTN_PX = 44; // width reserved for the ▲ button + its gap
+const OVERFLOW_BTN_WIDTH_PX = 88; // the ▲ button is twice SmsPanel's header height-ish width
+const OVERFLOW_BTN_PX = OVERFLOW_BTN_WIDTH_PX + GAP_PX; // width reserved for the ▲ button + its gap
 const DEFAULT_PANEL_WIDTH = 350; // SmsPanel's own default width
 
 /**
@@ -165,10 +166,10 @@ export default function SmsPanelDock({ panels, setPanels }) {
                   <button
                     type="button"
                     title={`${overflow.length} more conversation${overflow.length > 1 ? 's' : ''}`}
-                    className={`flex flex-col items-center justify-center w-11 h-12 rounded-t-xl border border-b-0 border-slate-200 dark:border-slate-800 shadow-xl select-none transition-colors ${
+                    className={`flex flex-col items-center justify-center w-[88px] h-12 rounded-t-xl shadow-xl select-none transition-colors text-white ${
                       anyOverflowUnread
                         ? 'sms-dock-pulse'
-                        : 'bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-900'
+                        : 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800'
                     }`}
                   >
                     <ChevronUp className="w-4 h-4" />

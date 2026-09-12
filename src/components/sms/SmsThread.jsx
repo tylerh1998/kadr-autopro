@@ -8,6 +8,48 @@ import MediaViewerModal from './MediaViewerModal';
 
 import { useAuth } from '@/lib/AuthContext';
 
+// Matches http(s):// and bare www. links; split() with a single capturing
+// group returns [text, url, text, url, ...] so odd indices are always URLs.
+const URL_SPLIT_REGEX = /((?:https?:\/\/|www\.)[^\s]+)/gi;
+
+// Splits a message body into plain text and clickable links. Trailing
+// sentence punctuation (periods, commas, a closing paren that isn't part of
+// the URL, etc.) is peeled off so "check example.com." doesn't link the
+// period, while a URL with balanced internal parens (e.g. a Wikipedia link)
+// keeps them.
+function linkifyText(text, isOutbound) {
+  if (!text) return text;
+  const linkClass = isOutbound
+    ? 'underline break-all text-white decoration-white/70 hover:decoration-white'
+    : 'underline break-all text-blue-600 dark:text-blue-400 decoration-blue-600/50 dark:decoration-blue-400/50 hover:decoration-blue-600 dark:hover:decoration-blue-400';
+
+  return text.split(URL_SPLIT_REGEX).map((part, i) => {
+    if (!part) return null;
+    if (i % 2 === 0) return part; // plain text segment
+
+    const match = part.match(/^(.*?)([.,!?;:'")\]]*)$/s);
+    let core = match ? match[1] : part;
+    let trailing = match ? match[2] : '';
+    while (trailing.startsWith(')')) {
+      const opens = (core.match(/\(/g) || []).length;
+      const closes = (core.match(/\)/g) || []).length;
+      if (closes >= opens) break;
+      core += ')';
+      trailing = trailing.slice(1);
+    }
+
+    const href = /^https?:\/\//i.test(core) ? core : `https://${core}`;
+    return (
+      <React.Fragment key={i}>
+        <a href={href} target="_blank" rel="noopener noreferrer" className={linkClass}>
+          {core}
+        </a>
+        {trailing}
+      </React.Fragment>
+    );
+  });
+}
+
 const draftStorageKey = (phone) => (phone ? `sms-draft:${phone}` : null);
 
 const readStoredDraft = (phone) => {
@@ -318,7 +360,11 @@ export default function SmsThread({ phone, customerName }) {
                           : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-bl-sm shadow-sm'
                       }`}
                     >
-                      {msg.body && <p className="text-sm whitespace-pre-wrap px-3 py-1.5">{msg.body}</p>}
+                      {msg.body && (
+                        <p className="text-sm whitespace-pre-wrap px-3 py-1.5">
+                          {linkifyText(msg.body, isOutbound)}
+                        </p>
+                      )}
                       
                       {msg.attachments && msg.attachments.length > 0 && (
                         <div className="px-1 pb-1">

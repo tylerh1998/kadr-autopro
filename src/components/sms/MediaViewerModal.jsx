@@ -1,7 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import * as DialogPrimitive from '@radix-ui/react-dialog';
+import { Dialog, DialogPortal, DialogOverlay } from '@/components/ui/dialog';
 import { X, Download, ZoomIn, ZoomOut, RotateCw, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+
+// The SMS panel dock renders at z-[9999] (its overflow menu at z-[10000]), so
+// this viewer needs to clear both to truly sit "over everything" when an
+// attachment is opened from a floating SMS panel. DialogContent's shared
+// z-50 is bypassed here (rather than raised globally) so no other dialog in
+// the app is affected.
+const VIEWER_OVERLAY_Z = 'z-[10500]';
+const VIEWER_CONTENT_BASE = "fixed left-[50%] top-[50%] z-[10510] grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-card p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] sm:rounded-lg";
 
 export default function MediaViewerModal({ isOpen, onClose, mediaUrl, mediaType, mediaName }) {
   const isPdf = mediaType?.toLowerCase().includes('pdf') || mediaUrl?.toLowerCase().endsWith('.pdf');
@@ -131,7 +141,14 @@ export default function MediaViewerModal({ isOpen, onClose, mediaUrl, mediaType,
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[95vw] w-full h-[95vh] max-h-[95vh] p-0 flex flex-col overflow-hidden bg-black/95 border-none shadow-2xl select-none">
+      <DialogPortal>
+        <DialogOverlay className={VIEWER_OVERLAY_Z} />
+        <DialogPrimitive.Content
+          className={cn(
+            VIEWER_CONTENT_BASE,
+            "max-w-[95vw] w-full h-[95vh] max-h-[95vh] p-0 flex flex-col overflow-hidden bg-black/95 border-none shadow-2xl select-none"
+          )}
+        >
         {/* Header toolbar */}
         <div className="h-14 flex items-center justify-between px-4 bg-black/60 backdrop-blur-md text-white shrink-0 z-20 border-b border-white/10">
           <div className="font-medium truncate max-w-md text-sm flex items-center gap-2">
@@ -279,7 +296,13 @@ export default function MediaViewerModal({ isOpen, onClose, mediaUrl, mediaType,
             )}
           </div>
         )}
-      </DialogContent>
+
+        <DialogPrimitive.Close className="no-print absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+          <X className="h-4 w-4" />
+          <span className="sr-only">Close</span>
+        </DialogPrimitive.Close>
+        </DialogPrimitive.Content>
+      </DialogPortal>
     </Dialog>
   );
 }
