@@ -1144,7 +1144,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                   </Card>
 
                   {/* Inspection Results Table */}
-                  {project.inspection_results && Object.keys(getInspectionResultsObj()).length > 0 && (
+                  {( (project.inspection_results && Object.keys(getInspectionResultsObj()).length > 0) || (project.inspection_comments && Object.keys(getInspectionComments()).length > 0) ) && (
                     <Card className="bg-slate-50 border-slate-200 dark:bg-slate-800/50 dark:border-slate-700">
                       <CardContent className="p-4">
                         <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">Inspection Results</h3>

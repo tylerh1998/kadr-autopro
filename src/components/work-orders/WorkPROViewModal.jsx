@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Clock,
   AlertTriangle,
+  Droplet,
   X
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -40,6 +41,7 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
   const [dynamicInspectionSections, setDynamicInspectionSections] = useState([]);
   const [approvals, setApprovals] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [techTimeTotal, setTechTimeTotal] = useState(0);
 
   const fetchWorkPROData = useCallback(async () => {
     if (!workOrder?.wo_number) return;
@@ -55,6 +57,17 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
       if (projectError) console.error('Error fetching WorkPRO project:', projectError);
       const foundProject = (projects && projects.length > 0) ? projects[0] : null;
       setProject(foundProject);
+
+      if (foundProject) {
+        const { data: sessions } = await supabase
+          .from('ProjectTimeSession')
+          .select('total_hours')
+          .eq('project_id', foundProject.id);
+        if (sessions) {
+          const total = sessions.reduce((sum, session) => sum + (parseFloat(session.total_hours) || 0), 0);
+          setTechTimeTotal(total);
+        }
+      }
 
       // Fetch Inspection Sections based on project type
       const inspType = foundProject?.inspection_type || 'oil_change';
@@ -261,8 +274,12 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
                       <p>{getAssignedEmployeesDisplay()}</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-slate-600 dark:text-slate-400">Time Estimate</label>
-                      <p>{project.time_estimate ? `${project.time_estimate} hours` : 'Not set'}</p>
+                      <label className="text-sm font-medium text-slate-600 dark:text-slate-400">Odometer</label>
+                      <p>{project.odometer_reading ? `${parseInt(project.odometer_reading).toLocaleString()} km` : 'Not recorded'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-slate-600 dark:text-slate-400">Time Logged</label>
+                      <p>{techTimeTotal > 0 ? `${techTimeTotal.toFixed(1)} hours` : 'None'}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -294,28 +311,70 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
                 </CardContent>
               </Card>
 
-              {/* Tech Time */}
-              {project.time_estimate && (
+                            {/* Oil Change Details */}
+              {project.project_type === 'oil_change' && (
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Clock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                      Tech Time
+                      <Droplet className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      Oil Change Details
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex items-center gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div>
-                        <p className="text-sm text-slate-600 dark:text-slate-400">Estimated Time</p>
-                        <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{project.time_estimate} hours</p>
+                        <label className="text-xs font-medium text-slate-500">Filter</label>
+                        <p className="font-medium">{project.filter || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-slate-500">Oil Type</label>
+                        <p className="font-medium capitalize">{project.oil_type || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-slate-500">Oil (Viscosity)</label>
+                        <p className="font-medium capitalize">{project.oil || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-slate-500">Qty (Liters)</label>
+                        <p className="font-medium">{project.oil_qty || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-slate-500">Air Filter</label>
+                        <p className="font-medium capitalize">{project.air || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-slate-500">Cabin Filter</label>
+                        <p className="font-medium capitalize">{project.cabin || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-slate-500">Windshield Wash</label>
+                        <p className="font-medium capitalize">{project.wind_wash || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-slate-500">Tire Rotation</label>
+                        <p className="font-medium capitalize">{project.tire_rotation || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-slate-500">TPMS Reset</label>
+                        <p className="font-medium capitalize">{project.tpms_reset || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-slate-500">Reset Oil Light</label>
+                        <p className="font-medium capitalize">{project.reset_oil_light || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-slate-500">Next Oil Change</label>
+                        <p className="font-medium text-blue-600">{project.next_oil_change_odometer ? `${parseInt(project.next_oil_change_odometer).toLocaleString()} km` : 'N/A'}</p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               )}
 
+              
+
               {/* Inspection Results */}
-              {project.inspection_results && Object.keys(getInspectionResultsObj()).length > 0 && (
+              {( (project.inspection_results && Object.keys(getInspectionResultsObj()).length > 0) || (project.inspection_comments && Object.keys(getInspectionComments()).length > 0) ) && (
                 <Card className="bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700">
                   <CardContent className="p-4">
                     <h3 className="text-sm font-semibold text-slate-900 mb-3 dark:text-slate-100">Inspection Results</h3>
