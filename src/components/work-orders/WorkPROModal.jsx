@@ -138,6 +138,65 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
     next_oil_change_odometer: ''
   });
   const [hasChanges, setHasChanges] = useState(false);
+  const [dynamicInspectionSections, setDynamicInspectionSections] = useState([]);
+  
+  useEffect(() => {
+    if (!project) return;
+    const loadSections = async () => {
+      const inspType = project.inspection_type || 'oil_change';
+      const { data: dbSections, error } = await supabase
+        .from('InspectionSection')
+        .select('*')
+        .eq('insp_type', inspType)
+        .order('display_order', { ascending: true });
+        
+      if (!error && dbSections) {
+        // Build dynamic sections (include any orphaned keys from results)
+        let parsedResults = {};
+        if (project.inspection_results) {
+          try { 
+            parsedResults = typeof project.inspection_results === 'string' 
+              ? JSON.parse(project.inspection_results) 
+              : project.inspection_results; 
+          } catch (e) {}
+        }
+        
+        const sectionMap = {};
+        dbSections.forEach(s => sectionMap[s.section_name] = { ...s });
+        
+        Object.keys(parsedResults).forEach(key => {
+          let sectionName = null;
+          let itemName = null;
+          for (let s of dbSections) {
+            if (key.startsWith(s.section_name + '-')) {
+              sectionName = s.section_name;
+              itemName = key.substring(s.section_name.length + 1);
+              break;
+            }
+          }
+          if (!sectionName) {
+            const dashIdx = key.indexOf('-');
+            if (dashIdx > 0) {
+              sectionName = key.substring(0, dashIdx);
+              itemName = key.substring(dashIdx + 1);
+            } else {
+              sectionName = 'Other';
+              itemName = key;
+            }
+          }
+          if (!sectionMap[sectionName]) {
+            sectionMap[sectionName] = { section_name: sectionName, display_order: 999, inspection_items: [] };
+          }
+          if (!sectionMap[sectionName].inspection_items.includes(itemName)) {
+            sectionMap[sectionName].inspection_items.push(itemName);
+          }
+        });
+        
+        setDynamicInspectionSections(Object.values(sectionMap));
+      }
+    };
+    loadSections();
+  }, [project]);
 
   // Use wo_number or ro_number as work order identifier
   const workOrderIdentifier = workOrder?.wo_number || workOrder?.ro_number;
@@ -1079,7 +1138,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                         <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">Inspection Results</h3>
                         
                         <div className="space-y-4">
-                          {INSPECTION_SECTIONS.sort((a, b) => a.display_order - b.display_order).map((section) => {
+                          {dynamicInspectionSections.sort((a, b) => a.display_order - b.display_order).map((section) => {
                             const comments = getInspectionComments();
                             const sectionComment = comments[section.section_name];
                             

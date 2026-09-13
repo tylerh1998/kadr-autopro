@@ -37,6 +37,7 @@ const INSPECTION_SECTIONS = [
 
 export default function WorkPROViewModal({ open, onClose, workOrder }) {
   const [project, setProject] = useState(null);
+  const [dynamicInspectionSections, setDynamicInspectionSections] = useState([]);
   const [approvals, setApprovals] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -54,6 +55,59 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
       if (projectError) console.error('Error fetching WorkPRO project:', projectError);
       const foundProject = (projects && projects.length > 0) ? projects[0] : null;
       setProject(foundProject);
+
+      // Fetch Inspection Sections based on project type
+      const inspType = foundProject?.inspection_type || 'oil_change';
+      const { data: dbSections, error: secError } = await supabase
+        .from('InspectionSection')
+        .select('*')
+        .eq('insp_type', inspType)
+        .order('display_order', { ascending: true });
+        
+      if (!secError && dbSections) {
+        // Build dynamic sections (include any orphaned keys from results)
+        let parsedResults = {};
+        if (foundProject?.inspection_results) {
+          try { 
+            parsedResults = typeof foundProject.inspection_results === 'string' 
+              ? JSON.parse(foundProject.inspection_results) 
+              : foundProject.inspection_results; 
+          } catch (e) {}
+        }
+        
+        const sectionMap = {};
+        dbSections.forEach(s => sectionMap[s.section_name] = { ...s });
+        
+        Object.keys(parsedResults).forEach(key => {
+          let sectionName = null;
+          let itemName = null;
+          for (let s of dbSections) {
+            if (key.startsWith(s.section_name + '-')) {
+              sectionName = s.section_name;
+              itemName = key.substring(s.section_name.length + 1);
+              break;
+            }
+          }
+          if (!sectionName) {
+            const dashIdx = key.indexOf('-');
+            if (dashIdx > 0) {
+              sectionName = key.substring(0, dashIdx);
+              itemName = key.substring(dashIdx + 1);
+            } else {
+              sectionName = 'Other';
+              itemName = key;
+            }
+          }
+          if (!sectionMap[sectionName]) {
+            sectionMap[sectionName] = { section_name: sectionName, display_order: 999, inspection_items: [] };
+          }
+          if (!sectionMap[sectionName].inspection_items.includes(itemName)) {
+            sectionMap[sectionName].inspection_items.push(itemName);
+          }
+        });
+        
+        setDynamicInspectionSections(Object.values(sectionMap));
+      }
 
       // Fetch approvals (using cp_id)
       if (workOrder.cp_id) {
@@ -255,7 +309,7 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
                     <h3 className="text-sm font-semibold text-slate-900 mb-3 dark:text-slate-100">Inspection Results</h3>
 
                     <div className="space-y-4">
-                      {INSPECTION_SECTIONS.sort((a, b) => a.display_order - b.display_order).map((section) => {
+                      {dynamicInspectionSections.sort((a, b) => a.display_order - b.display_order).map((section) => {
                         const comments = getInspectionComments();
                         const sectionComment = comments[section.section_name];
 
