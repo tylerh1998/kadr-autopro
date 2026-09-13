@@ -983,8 +983,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
 
               {/* Oil Change Details Section */}
               {isOilChangeProject && (
-                <>
-                  <Card className="bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800">
+                <Card className="bg-blue-50 border-blue-200 dark:bg-blue-900/20 dark:border-blue-800">
                     <CardContent className="p-4">
                       <div className="flex items-center gap-2 mb-3">
                         <Droplet className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -1142,8 +1141,9 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                       </div>
                     </CardContent>
                   </Card>
+              )}
 
-                  {/* Inspection Results Table */}
+              {/* Inspection Results Table */}
                   {( (project.inspection_results && Object.keys(getInspectionResultsObj()).length > 0) || (project.inspection_comments && Object.keys(getInspectionComments()).length > 0) ) && (
                     <Card className="bg-slate-50 border-slate-200 dark:bg-slate-800/50 dark:border-slate-700">
                       <CardContent className="p-4">
@@ -1205,8 +1205,6 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                       </CardContent>
                     </Card>
                   )}
-                </>
-              )}
             </div>
           )}
 
