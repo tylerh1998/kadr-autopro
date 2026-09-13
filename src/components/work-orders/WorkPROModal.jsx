@@ -567,10 +567,22 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                              project?.oil;
 
   // Get inspection result for a specific item
+  const getInspectionResultsObj = () => {
+    if (!project?.inspection_results) return {};
+    try {
+      return typeof project.inspection_results === 'string'
+        ? JSON.parse(project.inspection_results)
+        : project.inspection_results;
+    } catch (error) {
+      return {};
+    }
+  };
+
+  // Get inspection result for a specific item
   const getInspectionResult = (sectionName, itemName) => {
-    if (!project?.inspection_results) return null;
+    const results = getInspectionResultsObj();
     const key = `${sectionName}-${itemName}`;
-    return project.inspection_results[key] || null;
+    return results[key] || null;
   };
 
   // Parse inspection comments from JSON string
@@ -1132,7 +1144,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
                   </Card>
 
                   {/* Inspection Results Table */}
-                  {project.inspection_results && Object.keys(project.inspection_results).length > 0 && (
+                  {project.inspection_results && Object.keys(getInspectionResultsObj()).length > 0 && (
                     <Card className="bg-slate-50 border-slate-200 dark:bg-slate-800/50 dark:border-slate-700">
                       <CardContent className="p-4">
                         <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">Inspection Results</h3>
