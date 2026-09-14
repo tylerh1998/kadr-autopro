@@ -1311,6 +1311,5 @@ This will update the project with customer, vehicle, and VIN information from th
         />
       )}
     </>
-    </>
       );
       }

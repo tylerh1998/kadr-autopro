@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { notifySubscribedDevices } from '../_shared/webpush.ts'
 
 Deno.serve(async (req) => {
   try {
