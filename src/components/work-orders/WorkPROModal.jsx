@@ -1155,6 +1155,43 @@ This will update the project with customer, vehicle, and VIN information from th
                   </Card>
               )}
 
+              
+            {/* Project Photos Form */}
+            {project?.id && (
+              <div className="pt-4 border-t mt-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold flex items-center">
+                    <Camera className="w-5 h-5 mr-2 text-gray-700" /> Project Photos
+                  </h3>
+                  <div>
+                    <input type="file" id="photo-upload" multiple accept="image/*,.heic" className="hidden" onChange={handlePhotoUpload} disabled={isUploadingPhotos} />
+                    <Label htmlFor="photo-upload" className={`cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 ${isUploadingPhotos ? 'opacity-50' : ''}`}>
+                      <Upload className="w-4 h-4 mr-2" />
+                      {isUploadingPhotos ? "Uploading..." : "Add Photos"}
+                    </Label>
+                  </div>
+                </div>
+                {projectPhotos.length > 0 ? (
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {projectPhotos.map(photo => (
+                      <div key={photo.id} className="relative group rounded-lg overflow-hidden border border-gray-200 cursor-pointer aspect-square bg-gray-100" onClick={() => setViewerPhoto(photo)}>
+                        {signedPhotoUrls[photo.id] ? (
+                          <img src={signedPhotoUrls[photo.id]} className="w-full h-full object-cover" alt="Project" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">...</div>
+                        )}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <Expand className="w-8 h-8 text-white" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-500 italic p-4 bg-gray-50 rounded-lg text-center">No photos attached to this project yet.</div>
+                )}
+              </div>
+            )}
+
               {/* Inspection Results Table */}
                   {( (project.inspection_results && Object.keys(getInspectionResultsObj()).length > 0) || (project.inspection_comments && Object.keys(getInspectionComments()).length > 0) ) && (
                     <Card className="bg-slate-50 border-slate-200 dark:bg-slate-800/50 dark:border-slate-700">
