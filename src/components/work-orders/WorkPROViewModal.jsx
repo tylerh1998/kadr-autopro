@@ -13,9 +13,14 @@ import {
   AlertTriangle,
   Droplet,
   X
-} from 'lucide-react';
+, Camera, Expand} from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
+
+import { uploadProjectPhoto, fetchProjectPhotos, getSignedProjectPhotoUrl, deleteProjectPhoto } from "@/lib/projectPhotos";
+import heic2any from "heic2any";
+import MediaViewerModal from "../sms/MediaViewerModal";
+
 
 // Inspection sections data (mirrors WorkPROModal.jsx's inline checklist)
 const INSPECTION_SECTIONS = [
@@ -43,6 +48,59 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
   const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
   const [signedPhotoUrls, setSignedPhotoUrls] = useState({});
   const [viewerPhoto, setViewerPhoto] = useState(null);
+
+  useEffect(() => {
+    if (project?.id) {
+      loadPhotos(project.id);
+    }
+  }, [project?.id]);
+
+  const loadPhotos = async (projectId) => {
+    try {
+      const photos = await fetchProjectPhotos(projectId);
+      setProjectPhotos(photos);
+      const urls = {};
+      for (const p of photos) {
+        urls[p.id] = await getSignedProjectPhotoUrl(p.storage_path);
+      }
+      setSignedPhotoUrls(urls);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handlePhotoUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length || !project?.id) return;
+    setIsUploadingPhotos(true);
+    try {
+      for (let file of files) {
+        if (file.type === "image/heic" || file.name.toLowerCase().endsWith(".heic")) {
+          const converted = await heic2any({ blob: file, toType: "image/jpeg" });
+          file = new File([converted], file.name.replace(/\.heic$/i, ".jpg"), { type: "image/jpeg" });
+        }
+        await uploadProjectPhoto(project.id, null, "Unknown", file);
+      }
+      await loadPhotos(project.id);
+    } catch (err) {
+      console.error("Upload failed", err);
+      alert("Failed to upload some photos");
+    } finally {
+      setIsUploadingPhotos(false);
+    }
+  };
+
+  const handleDeletePhoto = async (photo) => {
+    if (!window.confirm("Are you sure you want to delete this photo?")) return;
+    try {
+      await deleteProjectPhoto(photo);
+      setViewerPhoto(null);
+      await loadPhotos(project.id);
+    } catch (err) {
+      console.error("Failed to delete", err);
+    }
+  };
+
 
   const [dynamicInspectionSections, setDynamicInspectionSections] = useState([]);
   const [approvals, setApprovals] = useState([]);
@@ -378,6 +436,32 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
               )}
 
               
+
+              
+            {/* Project Photos */}
+            {project?.id && projectPhotos && projectPhotos.length > 0 && (
+              <Card className="bg-white border-slate-200 dark:bg-slate-900 dark:border-slate-800">
+                <CardContent className="p-4">
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3 flex items-center">
+                    <Camera className="w-4 h-4 mr-2" /> Project Photos
+                  </h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {projectPhotos.map(photo => (
+                      <div key={photo.id} className="relative group rounded-lg overflow-hidden border border-gray-200 cursor-pointer aspect-square bg-gray-100" onClick={() => setViewerPhoto(photo)}>
+                        {signedPhotoUrls[photo.id] ? (
+                          <img src={signedPhotoUrls[photo.id]} className="w-full h-full object-cover" alt="Project" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">...</div>
+                        )}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <Expand className="w-8 h-8 text-white" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
               {/* Inspection Results */}
               {( (project.inspection_results && Object.keys(getInspectionResultsObj()).length > 0) || (project.inspection_comments && Object.keys(getInspectionComments()).length > 0) ) && (
