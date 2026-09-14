@@ -162,6 +162,13 @@ Deno.serve(async (req) => {
       console.warn('Broadcast exception:', e);
     }
 
+    // Push notification - best-effort, never blocks the Twilio reply.
+    await notifySubscribedDevices(supabase, {
+      title: `New message from ${sender_name || normalized_from_phone}`,
+      body: body?.slice(0, 140) || 'Sent an attachment',
+      data: { phone: normalized_from_phone },
+    });
+
     // Twilio expects XML response ideally, but 200 OK is enough.
     return new Response("<Response></Response>", {
       headers: { "Content-Type": "text/xml" },
