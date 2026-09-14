@@ -9,7 +9,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Save, Clock, Gauge, Link as LinkIcon, PlusCircle, Droplet, CheckCircle2, ExternalLink, X, Pencil, Search, AlertTriangle } from 'lucide-react';\nimport { Camera, Upload, Expand } from "lucide-react";\nimport { uploadProjectPhoto, fetchProjectPhotos, getSignedProjectPhotoUrl, deleteProjectPhoto } from "@/lib/projectPhotos";\nimport heic2any from "heic2any";\nimport MediaViewerModal from "../sms/MediaViewerModal";
+import { Loader2, Save, Clock, Gauge, Link as LinkIcon, PlusCircle, Droplet, CheckCircle2, ExternalLink, X, Pencil, Search, AlertTriangle } from 'lucide-react';
+import { Camera, Upload, Expand } from "lucide-react";
+import { uploadProjectPhoto, fetchProjectPhotos, getSignedProjectPhotoUrl, deleteProjectPhoto } from "@/lib/projectPhotos";
+import heic2any from "heic2any";
+import MediaViewerModal from "../sms/MediaViewerModal";
 import { format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import TechTimeModal from './TechTimeModal';
@@ -392,7 +396,9 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
     if (!workOrderIdentifier) return;
 
     const confirmed = window.confirm(
-      `Connect this work order (${workOrderIdentifier}) to project "${selectedWorkPROProject.name}"?\n\nThis will update the project with customer, vehicle, and VIN information from the work order.`
+      `Connect this work order (${workOrderIdentifier}) to project "${selectedWorkPROProject.name}"?
+
+This will update the project with customer, vehicle, and VIN information from the work order.`
     );
     
     if (!confirmed) return;
@@ -1304,6 +1310,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
           onDelete={() => handleDeletePhoto(viewerPhoto)}
         />
       )}
-    </>\n    </>
+    </>
+    </>
       );
       }

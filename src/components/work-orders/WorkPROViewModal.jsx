@@ -492,7 +492,8 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
           
         />
       )}
-    </>\n    </>
+    </>
+    </>
           )}
         </div>
 
