@@ -479,7 +479,20 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
                   </CardContent>
                 </Card>
               )}
-            </>
+            
+      {viewerPhoto && (
+        <MediaViewerModal
+          isOpen={!!viewerPhoto}
+          onClose={() => setViewerPhoto(null)}
+          mediaUrl={signedPhotoUrls[viewerPhoto.id]}
+          mediaName={"Project Photo"}
+          mediaType="image/jpeg"
+          uploadedBy={viewerPhoto.uploaded_by}
+          uploadedAt={viewerPhoto.created_at}
+          
+        />
+      )}
+    </>\n    </>
           )}
         </div>
 

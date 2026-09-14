@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Save, Clock, Gauge, Link as LinkIcon, PlusCircle, Droplet, CheckCircle2, ExternalLink, X, Pencil, Search, AlertTriangle } from 'lucide-react';
+import { Loader2, Save, Clock, Gauge, Link as LinkIcon, PlusCircle, Droplet, CheckCircle2, ExternalLink, X, Pencil, Search, AlertTriangle } from 'lucide-react';\nimport { Camera, Upload, Expand } from "lucide-react";\nimport { uploadProjectPhoto, fetchProjectPhotos, getSignedProjectPhotoUrl, deleteProjectPhoto } from "@/lib/projectPhotos";\nimport heic2any from "heic2any";\nimport MediaViewerModal from "../sms/MediaViewerModal";
 import { format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 import TechTimeModal from './TechTimeModal';
@@ -1291,6 +1291,19 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
           }
         }}
       />
-      </>
+      
+      {viewerPhoto && (
+        <MediaViewerModal
+          isOpen={!!viewerPhoto}
+          onClose={() => setViewerPhoto(null)}
+          mediaUrl={signedPhotoUrls[viewerPhoto.id]}
+          mediaName={"Project Photo"}
+          mediaType="image/jpeg"
+          uploadedBy={viewerPhoto.uploaded_by}
+          uploadedAt={viewerPhoto.created_at}
+          onDelete={() => handleDeletePhoto(viewerPhoto)}
+        />
+      )}
+    </>\n    </>
       );
       }
