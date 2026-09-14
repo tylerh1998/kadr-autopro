@@ -38,6 +38,12 @@ const INSPECTION_SECTIONS = [
 
 export default function WorkPROViewModal({ open, onClose, workOrder }) {
   const [project, setProject] = useState(null);
+
+  const [projectPhotos, setProjectPhotos] = useState([]);
+  const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
+  const [signedPhotoUrls, setSignedPhotoUrls] = useState({});
+  const [viewerPhoto, setViewerPhoto] = useState(null);
+
   const [dynamicInspectionSections, setDynamicInspectionSections] = useState([]);
   const [approvals, setApprovals] = useState([]);
   const [loading, setLoading] = useState(false);

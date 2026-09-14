@@ -42,6 +42,12 @@ const INSPECTION_SECTIONS = [
 
 export default function WorkPROModal({ open, onClose, workOrder, customer, customers, vehicles, initialWorkPROProject, onConnectionChange, appointmentStartTime }) {
   const [project, setProject] = useState(null);
+
+  const [projectPhotos, setProjectPhotos] = useState([]);
+  const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
+  const [signedPhotoUrls, setSignedPhotoUrls] = useState({});
+  const [viewerPhoto, setViewerPhoto] = useState(null);
+
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
