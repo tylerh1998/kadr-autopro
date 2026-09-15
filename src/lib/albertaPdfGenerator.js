@@ -53,12 +53,142 @@ export const generateAlbertaInsurancePDF = (project, customer, vehicle, inspecti
   // horizontal lines
   doc.line(14, 55, 196, 55);
   doc.line(14, 65, 196, 65);
+  // vertical lines
+  doc.line(105, 45, 105, 55); // owner | company
+  doc.line(140, 55, 140, 65); // broker | policy
+  doc.line(50, 65, 50, 75); // year | make
+  doc.line(105, 65, 105, 75); // make | model
+  doc.line(140, 65, 140, 75); // model | VIN
+
+  // Info labels
+  doc.setFontSize(8);
+  doc.text("Vehicle Owner's Name", 15, 48);
+  doc.text("Insurance Company", 106, 48);
+  doc.text("Insurance Broker", 15, 58);
+  doc.text("Policy Number", 141, 58);
+  doc.text("Vehicle Year", 15, 68);
+  doc.text("Make", 51, 68);
+  doc.text("Model", 106, 68);
+  doc.text("VIN", 141, 68);
+
+  // Fill Info
+  const customerName = customer?.org_name && customer.org_name.trim() !== '' 
+      ? customer.org_name 
+      : (customer ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() : (project.customer || ''));
+  
+  doc.setFont("helvetica", "bold");
+  doc.text(customerName, 15, 53);
+  doc.text(vehicle?.year?.toString() || project.vehicle?.split(' ')[0] || '', 15, 73);
+  doc.text(vehicle?.make || project.vehicle?.split(' ')[1] || '', 51, 73);
+  doc.text(vehicle?.model || project.vehicle?.split(' ').slice(2).join(' ') || '', 106, 73);
+  doc.text(vehicle?.vin || project.vin || '', 141, 73);
+
+  doc.setFont("helvetica", "normal");
+  doc.text("This section is to be completed by a Certified Automotive Technician.", 14, 80);
+
+  // Main Inspection Table
+  doc.rect(14, 82, 182, 125);
+  // columns
+  doc.line(60, 82, 60, 207); // after section
+  doc.line(80, 82, 80, 207); // after roadworthy
+  doc.line(95, 82, 95, 207); // after reject
+
+  let currentY = 82;
+  const sections = [
+    { name: "Steering", items: ["Steering Box/Rack", "Struts/Shocks", "Front Suspension", "Tie Rod Ends"] },
+    { name: "Electrical System", items: ["Head Lamp/Tail Lamps", "Stop Lamps", "Signal Lamps", "Windshield Wipers"] },
+    { name: "Tires", items: ["Front", "Rear"] },
+    { name: "Brakes", items: ["Front Lining or Drums", "Rear Lining or Drums", "Park", "Brake Hoses", "Brake Lines"] },
+    { name: "General Conditions", items: ["Body Condition", "Muffler/Exhaust", "Motor", "Windshield", "Seat Belts"] }
+  ];
+
+  sections.forEach((sec, sIdx) => {
+    // Header for section
+    doc.setFont("helvetica", "bold");
+    doc.text(sec.name, 37, currentY + 3, { align: 'center' });
+    doc.setFont("helvetica", "normal");
+    doc.text("Roadworthy", 70, currentY + 3, { align: 'center' });
+    doc.text("Reject", 87.5, currentY + 3, { align: 'center' });
+    doc.text("Comments", 97, currentY + 3);
+
+    // Section comments
+    const secComment = comments[sec.name] || '';
+    if (secComment) {
+      doc.text(doc.splitTextToSize(secComment, 95), 97, currentY + 9);
+    }
+
+    currentY += 4.5;
+    sec.items.forEach((item, idx) => {
+      doc.text(item, 15, currentY + 2.5);
+      
+      // Draw checkboxes
+      doc.rect(68, currentY - 0.5, 3.5, 3.5);
+      doc.rect(85, currentY - 0.5, 3.5, 3.5);
+      
+      const res = getResult(sec.name, item);
+      if (res === 'roadworthy') {
+        doc.text("X", 69, currentY + 2.2);
+      } else if (res === 'reject') {
+        doc.text("X", 86, currentY + 2.2);
+      }
+
+      currentY += 4.2;
+    });
+
+    if (sIdx < sections.length - 1) {
+      doc.line(14, currentY, 196, currentY);
+    }
+  });
+
+  // Footer questions
+  currentY = 212;
+  doc.text("Is this vehicle roadworthy?", 14, currentY);
+  doc.rect(58, currentY - 3, 4, 4);
+  doc.text("Yes", 63, currentY);
+  doc.rect(73, currentY - 3, 4, 4);
+  doc.text("No", 78, currentY);
+
+  doc.text("Has the vehicle been altered for speed or performance?", 95, currentY);
+  doc.rect(175, currentY - 3, 4, 4);
+  doc.text("Yes", 180, currentY);
+  doc.rect(190, currentY - 3, 4, 4);
+  doc.text("No", 195, currentY);
+
+  // Mark footer questions if data exists
+  const roadworthyRes = getResult('Summary', 'Roadworthy');
+  if (roadworthyRes === 'yes') doc.text("X", 59, currentY);
+  else if (roadworthyRes === 'no') doc.text("X", 74, currentY);
+  
+  const alteredRes = getResult('Summary', 'Altered');
+  if (alteredRes === 'yes') doc.text("X", 176, currentY);
+  else if (alteredRes === 'no') doc.text("X", 191, currentY);
+
+  currentY += 8;
+  doc.text("Other Comments", 14, currentY);
+  const otherComments = comments['Summary'] || '';
+  if (otherComments) {
+    doc.text(doc.splitTextToSize(otherComments, 180), 14, currentY + 5);
+  }
+
+  currentY = 235;
+  doc.text("Certified Automotive Technician Statement:", 14, currentY);
+  currentY += 5;
+  doc.rect(14, currentY - 3, 4, 4);
+  doc.text("I certify that I have inspected and tested the motor vehicle described above and found it to be in the condition stated above.", 20, currentY);
+
+  // Shop Box
+  currentY += 4;
+  doc.rect(14, currentY, 182, 35);
+  // horiz
+  doc.line(14, currentY + 10, 196, currentY + 10);
+  doc.line(14, currentY + 20, 196, currentY + 20);
+  doc.line(14, currentY + 27, 196, currentY + 27);
   // vert
-    doc.line(95, currentY, 95, currentY + 20); // Address | City/Prov/Postal
-    doc.line(125, currentY + 10, 125, currentY + 20); // Prov | Postal
-    doc.line(160, currentY + 10, 160, currentY + 20); // Postal | Phone
-    doc.line(135, currentY + 20, 135, currentY + 27); // Name | Cert Number
-    doc.line(75, currentY + 27, 75, currentY + 35); // Date | Signature
+  doc.line(95, currentY, 95, currentY + 20); // Address | City/Prov/Postal
+  doc.line(125, currentY + 10, 125, currentY + 20); // Prov | Postal
+  doc.line(160, currentY + 10, 160, currentY + 20); // Postal | Phone
+  doc.line(135, currentY + 20, 135, currentY + 27); // Name | Cert Number
+  doc.line(75, currentY + 27, 75, currentY + 35); // Date | Signature
 
   // Labels
   doc.setFontSize(8);
