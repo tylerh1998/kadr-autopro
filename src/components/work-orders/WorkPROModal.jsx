@@ -105,12 +105,12 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
 
   const handleShare = async (photosToShare) => {
     const targetCustomer = localCustomer || customer;
-    if (!targetCustomer?.mobile_phone) {
-      alert("Customer does not have a mobile phone number.");
+    if (!targetCustomer?.phone) {
+      alert("Customer does not have a phone number.");
       return;
     }
     
-    const targetPhone = targetCustomer.mobile_phone;
+    const targetPhone = targetCustomer.phone;
     const customerName = targetCustomer?.org_name && targetCustomer.org_name.trim() !== '' 
           ? targetCustomer.org_name 
           : `${targetCustomer?.first_name || ''} ${targetCustomer?.last_name || ''}`.trim();
