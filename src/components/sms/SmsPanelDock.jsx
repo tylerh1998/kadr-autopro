@@ -115,7 +115,6 @@ export default function SmsPanelDock({ panels, setPanels }) {
     if (overflow.length === 0 && overflowOpen) setOverflowOpen(false);
   }, [overflow.length, overflowOpen]);
 
-  if (panels.length === 0) return null;
 
   const updatePanel = (phone, patch) => {
     setPanels((prev) => prev.map((p) => (p.phone === phone ? { ...p, ...patch } : p)));
@@ -155,6 +154,8 @@ export default function SmsPanelDock({ panels, setPanels }) {
     
     return () => document.body.style.setProperty('--sms-dock-offset', '0px');
   }, [visible, overflow, panels]);
+
+  if (panels.length === 0) return null;
 
   return (
     <DialogPrimitive.Root open modal={false}>
