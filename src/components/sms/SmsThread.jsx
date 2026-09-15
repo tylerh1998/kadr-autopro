@@ -145,8 +145,20 @@ export default function SmsThread({ phone, customerName }) {
       }
     };
 
+    const handleAddAttachment = (e) => {
+      const { phone: targetPhone, files } = e.detail;
+      const currentPhone = phoneRef.current;
+      if (targetPhone === currentPhone) {
+        setPendingFiles(prev => [...prev, ...files]);
+      }
+    };
+
     window.addEventListener('new-sms-received', handleNewSms);
-    return () => window.removeEventListener('new-sms-received', handleNewSms);
+    window.addEventListener('add-sms-attachment', handleAddAttachment);
+    return () => {
+      window.removeEventListener('new-sms-received', handleNewSms);
+      window.removeEventListener('add-sms-attachment', handleAddAttachment);
+    };
   }, []);
 
   const scrollToBottom = () => {
