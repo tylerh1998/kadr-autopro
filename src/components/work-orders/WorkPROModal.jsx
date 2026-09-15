@@ -1256,12 +1256,18 @@ This will update the project with customer, vehicle, and VIN information from th
           Inspection Results {project?.inspection_type ? `- ${formatInspectionType(project.inspection_type)}` : ''}
         </h3>
         <Button 
-          onClick={() => {
-            // Need customer and vehicle. In WorkPROModal it's localCustomer/localVehicle or passed in. 
-            // We can just pass the props available.
-            const cust = typeof localCustomer !== 'undefined' ? (localCustomer || customer) : (typeof customer !== 'undefined' ? customer : null);
-            const veh = typeof localVehicle !== 'undefined' ? (localVehicle || (vehicles ? vehicles.find(v => v.id === workOrder?.vehicle_id) : null)) : null;
-            generateInspectionPDF(project, cust, veh, dynamicInspectionSections);
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+              const cust = typeof localCustomer !== 'undefined' ? (localCustomer || customer) : (typeof customer !== 'undefined' ? customer : null);
+              const veh = typeof localVehicle !== 'undefined' ? (localVehicle || (typeof vehicles !== 'undefined' && vehicles ? vehicles.find(v => v.id === workOrder?.vehicle_id) : null)) : null;
+              generateInspectionPDF(project, cust, veh, dynamicInspectionSections);
+            } catch (err) {
+              console.error('PDF Generation Error:', err);
+              alert('Failed to generate PDF: ' + err.message);
+            }
           }} 
           size="sm" 
           variant="outline"

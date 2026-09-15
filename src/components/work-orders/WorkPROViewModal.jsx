@@ -475,10 +475,18 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
           Inspection Results {project?.inspection_type ? `- ${formatInspectionType(project.inspection_type)}` : ''}
         </h3>
         <Button 
-          onClick={() => {
-            const cust = null;
-            const veh = null;
-            generateInspectionPDF(project, cust, veh, dynamicInspectionSections);
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            try {
+              const cust = null;
+              const veh = null;
+              generateInspectionPDF(project, cust, veh, dynamicInspectionSections);
+            } catch (err) {
+              console.error('PDF Generation Error:', err);
+              alert('Failed to generate PDF: ' + err.message);
+            }
           }} 
           size="sm" 
           variant="outline"

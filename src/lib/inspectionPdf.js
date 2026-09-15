@@ -39,10 +39,15 @@ const getInspectionComments = (project) => {
 };
 
 export const generateInspectionPDF = (project, customer, vehicle, inspectionSections) => {
-  if (!project) return;
+  console.log("generateInspectionPDF called", { project, customer, vehicle, inspectionSections });
+  if (!project) {
+    console.warn("No project provided to generateInspectionPDF");
+    return;
+  }
   
-  const doc = new jsPDF();
-  let currentY = 20;
+  try {
+    const doc = new jsPDF();
+    let currentY = 20;
 
   // Title
   doc.setFontSize(20);
@@ -135,4 +140,9 @@ export const generateInspectionPDF = (project, customer, vehicle, inspectionSect
   // Save the PDF
   const filename = `${inspType.replace(/\s+/g, '_')}_${vehicleStr.replace(/\s+/g, '_')}.pdf`;
   doc.save(filename);
+  console.log("PDF saved successfully:", filename);
+  } catch (err) {
+    console.error("Error in generateInspectionPDF:", err);
+    throw err;
+  }
 };
