@@ -1266,7 +1266,10 @@ export default function WorkOrderForm({
         mode={mode} // Pass mode to LineItemsTable
       />
 
-      <div className="sticky bottom-0 z-10 py-2 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur border-t border-slate-200 dark:border-slate-800">
+      <div 
+        className="sticky z-10 py-2 bg-slate-50/95 dark:bg-slate-950/95 backdrop-blur border-t border-slate-200 dark:border-slate-800 transition-all duration-200"
+        style={{ bottom: 'var(--sms-dock-offset, 0px)' }}
+      >
         <FinancialSummary lineItems={displayLineItems} workOrder={initialWorkOrder} shopSupplyRate={shopSupplyRate} />
       </div>
       

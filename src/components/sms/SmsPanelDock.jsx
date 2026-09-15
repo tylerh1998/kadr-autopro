@@ -143,11 +143,24 @@ export default function SmsPanelDock({ panels, setPanels }) {
 
   const anyOverflowUnread = overflow.some((p) => unreadPhones.has(p.phone));
 
+  useEffect(() => {
+    const hasPanels = visible.length > 0 || overflow.length > 0;
+    const allMinimized = hasPanels && panels.every((p) => p.isMinimized);
+    
+    if (allMinimized) {
+      document.body.style.setProperty('--sms-dock-offset', '48px');
+    } else {
+      document.body.style.setProperty('--sms-dock-offset', '0px');
+    }
+    
+    return () => document.body.style.setProperty('--sms-dock-offset', '0px');
+  }, [visible, overflow, panels]);
+
   return (
     <DialogPrimitive.Root open modal={false}>
       <DialogPrimitive.Portal>
         <DialogPrimitive.Content
-          className="fixed bottom-0 right-4 flex items-end gap-3 z-[9999] pointer-events-none focus:outline-none"
+          className="sms-panel-dock fixed bottom-0 right-4 flex items-end gap-3 z-[9999] pointer-events-none focus:outline-none"
           onInteractOutside={(e) => e.preventDefault()}
           onEscapeKeyDown={(e) => e.preventDefault()}
         >

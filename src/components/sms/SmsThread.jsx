@@ -98,6 +98,7 @@ export default function SmsThread({ phone, customerName }) {
   
   // Viewer State
   const [viewerMedia, setViewerMedia] = useState(null);
+  const [firstUnreadId, setFirstUnreadId] = useState(null);
 
   const chatEndRef = useRef(null);
 
@@ -114,6 +115,7 @@ export default function SmsThread({ phone, customerName }) {
       
       const unreadInbound = data?.filter(m => m.direction === 'inbound' && !m.is_read);
       if (unreadInbound && unreadInbound.length > 0) {
+        setFirstUnreadId(unreadInbound[0].id);
         const unreadIds = unreadInbound.map(m => m.id);
         await supabase.from('SmsMessage').update({ is_read: true }).in('id', unreadIds);
         
@@ -354,7 +356,15 @@ export default function SmsThread({ phone, customerName }) {
             }
 
             return (
-              <div key={msg.id} className={`flex w-full ${isOutbound ? 'justify-end' : 'justify-start'}`}>
+              <React.Fragment key={msg.id}>
+                {msg.id === firstUnreadId && (
+                  <div className="flex w-full items-center gap-4 my-2">
+                    <div className="h-px bg-red-200 dark:bg-red-900/50 flex-1" />
+                    <span className="text-xs font-semibold text-red-500 uppercase tracking-wider">New Messages</span>
+                    <div className="h-px bg-red-200 dark:bg-red-900/50 flex-1" />
+                  </div>
+                )}
+                <div className={`flex w-full ${isOutbound ? 'justify-end' : 'justify-start'}`}>
                 <div className={`flex max-w-[85%] ${isOutbound ? 'flex-row-reverse' : 'flex-row'} gap-2 items-end`}>
                   {isOutbound && (
                     <Avatar className="w-6 h-6 shrink-0 mb-1">
@@ -399,6 +409,7 @@ export default function SmsThread({ phone, customerName }) {
                   </div>
                 </div>
               </div>
+              </React.Fragment>
             );
           })
         )}

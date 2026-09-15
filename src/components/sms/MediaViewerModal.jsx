@@ -224,15 +224,16 @@ export default function MediaViewerModal({ isOpen, onClose, mediaUrl, mediaType,
             {onShare && (
               <Button
                 variant="ghost"
-                size="icon"
-                className="text-white hover:bg-white/20 h-9 w-9 text-blue-400 hover:text-blue-300"
+                size="sm"
+                className="text-white hover:bg-white/20 h-9 text-blue-400 hover:text-blue-300"
                 onClick={() => {
                   onShare();
                   onClose();
                 }}
                 title="Share via SMS"
               >
-                <Share2 className="w-4 h-4" />
+                <Share2 className="w-4 h-4 mr-2" />
+                Share
               </Button>
             )}
 
