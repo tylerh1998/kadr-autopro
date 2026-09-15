@@ -1292,10 +1292,19 @@ This will update the project with customer, vehicle, and VIN information from th
                                     <thead>
                                       <tr className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
                                         <th className="text-left p-2 font-medium text-slate-700 dark:text-slate-300">Item</th>
-                                        <th className="text-center p-2 font-medium text-slate-700 dark:text-slate-300 w-16">Good</th>
-                                        <th className="text-center p-2 font-medium text-slate-700 dark:text-slate-300 w-16">Fair</th>
-                                        <th className="text-center p-2 font-medium text-slate-700 dark:text-slate-300 w-16">Poor</th>
-                                        <th className="text-center p-2 font-medium text-slate-700 dark:text-slate-300 w-16">N/A</th>
+                                        {project?.inspection_type === 'alberta_insurance' ? (
+                                          <>
+                                            <th className="text-center p-2 font-medium text-slate-700 dark:text-slate-300 w-24">Roadworthy</th>
+                                            <th className="text-center p-2 font-medium text-slate-700 dark:text-slate-300 w-24">Reject</th>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <th className="text-center p-2 font-medium text-slate-700 dark:text-slate-300 w-16">Good</th>
+                                            <th className="text-center p-2 font-medium text-slate-700 dark:text-slate-300 w-16">Fair</th>
+                                            <th className="text-center p-2 font-medium text-slate-700 dark:text-slate-300 w-16">Poor</th>
+                                            <th className="text-center p-2 font-medium text-slate-700 dark:text-slate-300 w-16">N/A</th>
+                                          </>
+                                        )}
                                       </tr>
                                     </thead>
                                     <tbody>
@@ -1304,18 +1313,31 @@ This will update the project with customer, vehicle, and VIN information from th
                                         return (
                                           <tr key={item} className="border-b border-slate-100 dark:border-slate-700/50 last:border-0">
                                             <td className="p-2 text-slate-900 dark:text-slate-100">{item}</td>
-                                            <td className="p-2 text-center">
-                                              {result === 'good' && <CheckCircle2 className="w-4 h-4 text-green-600 mx-auto" />}
-                                            </td>
-                                            <td className="p-2 text-center">
-                                              {result === 'fair' && <CheckCircle2 className="w-4 h-4 text-yellow-600 mx-auto" />}
-                                            </td>
-                                            <td className="p-2 text-center">
-                                              {result === 'poor' && <CheckCircle2 className="w-4 h-4 text-red-600 mx-auto" />}
-                                            </td>
-                                            <td className="p-2 text-center">
-                                              {result === 'n/a' && <CheckCircle2 className="w-4 h-4 text-slate-400 mx-auto" />}
-                                            </td>
+                                            {project?.inspection_type === 'alberta_insurance' ? (
+                                              <>
+                                                <td className="p-2 text-center">
+                                                  {result === 'roadworthy' && <CheckCircle2 className="w-4 h-4 text-green-600 mx-auto" />}
+                                                </td>
+                                                <td className="p-2 text-center">
+                                                  {result === 'reject' && <CheckCircle2 className="w-4 h-4 text-red-600 mx-auto" />}
+                                                </td>
+                                              </>
+                                            ) : (
+                                              <>
+                                                <td className="p-2 text-center">
+                                                  {result === 'good' && <CheckCircle2 className="w-4 h-4 text-green-600 mx-auto" />}
+                                                </td>
+                                                <td className="p-2 text-center">
+                                                  {result === 'fair' && <CheckCircle2 className="w-4 h-4 text-yellow-600 mx-auto" />}
+                                                </td>
+                                                <td className="p-2 text-center">
+                                                  {result === 'poor' && <CheckCircle2 className="w-4 h-4 text-red-600 mx-auto" />}
+                                                </td>
+                                                <td className="p-2 text-center">
+                                                  {result === 'n/a' && <CheckCircle2 className="w-4 h-4 text-slate-400 mx-auto" />}
+                                                </td>
+                                              </>
+                                            )}
                                           </tr>
                                         );
                                       })}
