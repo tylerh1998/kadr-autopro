@@ -10,7 +10,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Save, Clock, Gauge, Link as LinkIcon, PlusCircle, Droplet, CheckCircle2, ExternalLink, X, Pencil, Search, AlertTriangle } from 'lucide-react';
-import { Camera, Upload, Expand, Printer } from "lucide-react";
+import { Camera, Upload, Expand, Printer, Share2 } from "lucide-react";
 import { generateInspectionPDF, formatInspectionType } from "@/lib/inspectionPdf";
 import { uploadProjectPhoto, fetchProjectPhotos, getSignedProjectPhotoUrl, deleteProjectPhoto } from "@/lib/projectPhotos";
 import heic2any from "heic2any";
@@ -48,6 +48,7 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
   const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
   const [signedPhotoUrls, setSignedPhotoUrls] = useState({});
   const [viewerPhoto, setViewerPhoto] = useState(null);
+  const [selectedPhotos, setSelectedPhotos] = useState([]);
 
   useEffect(() => {
     if (project?.id) {
@@ -95,12 +96,51 @@ export default function WorkPROModal({ open, onClose, workOrder, customer, custo
     try {
       await deleteProjectPhoto(photo);
       setViewerPhoto(null);
+      setSelectedPhotos(prev => prev.filter(p => p.id !== photo.id));
       await loadPhotos(project.id);
     } catch (err) {
       console.error("Failed to delete", err);
     }
   };
 
+  const handleShare = async (photosToShare) => {
+    const targetCustomer = localCustomer || customer;
+    if (!targetCustomer?.mobile_phone) {
+      alert("Customer does not have a mobile phone number.");
+      return;
+    }
+    
+    const targetPhone = targetCustomer.mobile_phone;
+    const customerName = targetCustomer?.org_name && targetCustomer.org_name.trim() !== '' 
+          ? targetCustomer.org_name 
+          : `${targetCustomer?.first_name || ''} ${targetCustomer?.last_name || ''}`.trim();
+          
+    try {
+      const files = [];
+      for (const photo of photosToShare) {
+         const url = signedPhotoUrls[photo.id];
+         if (!url) continue;
+         const response = await fetch(url);
+         const blob = await response.blob();
+         files.push(new File([blob], photo.name || "image.jpg", { type: blob.type }));
+      }
+      
+      window.dispatchEvent(new CustomEvent('open-sms-panel', {
+        detail: { phone: targetPhone, customerName, customerId: targetCustomer.id }
+      }));
+      
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('add-sms-attachment', {
+          detail: { phone: targetPhone, files }
+        }));
+      }, 300);
+      
+      setSelectedPhotos([]);
+    } catch (err) {
+      console.error("Failed to prepare photos for sharing", err);
+      alert("Failed to prepare photos for sharing.");
+    }
+  };
 
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -1217,7 +1257,18 @@ This will update the project with customer, vehicle, and VIN information from th
                   <h3 className="text-lg font-semibold flex items-center">
                     <Camera className="w-5 h-5 mr-2 text-gray-700" /> Project Photos
                   </h3>
-                  <div>
+                  <div className="flex gap-2 items-center">
+                    {selectedPhotos.length > 0 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800"
+                        onClick={() => handleShare(selectedPhotos)}
+                      >
+                        <Share2 className="w-4 h-4 mr-2" />
+                        Share ({selectedPhotos.length})
+                      </Button>
+                    )}
                     <input type="file" id="photo-upload" multiple accept="image/*,.heic" className="hidden" onChange={handlePhotoUpload} disabled={isUploadingPhotos} />
                     <Label htmlFor="photo-upload" className={`cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 ${isUploadingPhotos ? 'opacity-50' : ''}`}>
                       <Upload className="w-4 h-4 mr-2" />
@@ -1234,7 +1285,21 @@ This will update the project with customer, vehicle, and VIN information from th
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">...</div>
                         )}
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div className="absolute top-2 left-2 z-10" onClick={e => e.stopPropagation()}>
+                          <Checkbox 
+                            checked={selectedPhotos.some(p => p.id === photo.id)}
+                            onCheckedChange={(checked) => {
+                               if (checked) {
+                                  if (selectedPhotos.length < 10) setSelectedPhotos([...selectedPhotos, photo]);
+                                  else alert("You can only select up to 10 photos.");
+                               } else {
+                                  setSelectedPhotos(selectedPhotos.filter(p => p.id !== photo.id));
+                               }
+                            }}
+                            className="bg-white/80 border-gray-300 data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                          />
+                        </div>
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
                           <Expand className="w-8 h-8 text-white" />
                         </div>
                       </div>
@@ -1504,6 +1569,7 @@ This will update the project with customer, vehicle, and VIN information from th
           uploadedBy={viewerPhoto.uploaded_by}
           uploadedAt={viewerPhoto.created_at}
           onDelete={() => handleDeletePhoto(viewerPhoto)}
+          onShare={() => handleShare([viewerPhoto])}
         />
       )}
     </>
