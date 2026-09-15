@@ -105,11 +105,11 @@ export const generateAlbertaInsurancePDF = (project, customer, vehicle, inspecti
   sections.forEach((sec, sIdx) => {
     // Header for section
     doc.setFont("helvetica", "bold");
-    doc.text(sec.name, 37, currentY + 4, { align: 'center' });
+    doc.text(sec.name, 37, currentY + 3, { align: 'center' });
     doc.setFont("helvetica", "normal");
-    doc.text("Roadworthy", 70, currentY + 4, { align: 'center' });
-    doc.text("Reject", 87.5, currentY + 4, { align: 'center' });
-    doc.text("Comments", 97, currentY + 4);
+    doc.text("Roadworthy", 70, currentY + 3, { align: 'center' });
+    doc.text("Reject", 87.5, currentY + 3, { align: 'center' });
+    doc.text("Comments", 97, currentY + 3);
 
     // Section comments
     const secComment = comments[sec.name] || '';
@@ -117,22 +117,22 @@ export const generateAlbertaInsurancePDF = (project, customer, vehicle, inspecti
       doc.text(doc.splitTextToSize(secComment, 95), 97, currentY + 9);
     }
 
-    currentY += 6;
+    currentY += 4.5;
     sec.items.forEach((item, idx) => {
-      doc.text(item, 15, currentY + 3);
+      doc.text(item, 15, currentY + 2.5);
       
       // Draw checkboxes
-      doc.rect(68, currentY, 4, 4);
-      doc.rect(85, currentY, 4, 4);
+      doc.rect(68, currentY - 0.5, 3.5, 3.5);
+      doc.rect(85, currentY - 0.5, 3.5, 3.5);
       
       const res = getResult(sec.name, item);
       if (res === 'roadworthy') {
-        doc.text("X", 69, currentY + 3);
+        doc.text("X", 69, currentY + 2.2);
       } else if (res === 'reject') {
-        doc.text("X", 86, currentY + 3);
+        doc.text("X", 86, currentY + 2.2);
       }
 
-      currentY += 5.5;
+      currentY += 4.2;
     });
 
     if (sIdx < sections.length - 1) {
@@ -212,8 +212,12 @@ export const generateAlbertaInsurancePDF = (project, customer, vehicle, inspecti
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.text("Ken's Auto & Diesel Repair", 15, currentY + 8);
+    doc.text("5002 49 Ave - PO Box 160", 96, currentY + 8);
+    doc.text("Dewberry", 15, currentY + 18);
+    doc.text("T0B 1G0", 116, currentY + 18);
+    doc.text("780-847-3002", 146, currentY + 18);
   const dateStr = project.created_date ? format(new Date(project.created_date), 'yyyy-MM-dd') : '';
-  doc.text(dateStr, 15, currentY + 34);
+  doc.text(dateStr, 136, currentY + 34);
 
   // Footer text
   doc.setFont("helvetica", "normal");
