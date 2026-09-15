@@ -10,7 +10,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Save, Clock, Gauge, Link as LinkIcon, PlusCircle, Droplet, CheckCircle2, ExternalLink, X, Pencil, Search, AlertTriangle } from 'lucide-react';
-import { Camera, Upload, Expand } from "lucide-react";
+import { Camera, Upload, Expand, Printer } from "lucide-react";
+import { generateInspectionPDF, formatInspectionType } from "@/lib/inspectionPdf";
 import { uploadProjectPhoto, fetchProjectPhotos, getSignedProjectPhotoUrl, deleteProjectPhoto } from "@/lib/projectPhotos";
 import heic2any from "heic2any";
 import MediaViewerModal from "../sms/MediaViewerModal";
@@ -1249,7 +1250,28 @@ This will update the project with customer, vehicle, and VIN information from th
                   {( (project.inspection_results && Object.keys(getInspectionResultsObj()).length > 0) || (project.inspection_comments && Object.keys(getInspectionComments()).length > 0) ) && (
                     <Card className="bg-slate-50 border-slate-200 dark:bg-slate-800/50 dark:border-slate-700">
                       <CardContent className="p-4">
-                        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">Inspection Results</h3>
+                        
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+          Inspection Results {project?.inspection_type ? `- ${formatInspectionType(project.inspection_type)}` : ''}
+        </h3>
+        <Button 
+          onClick={() => {
+            // Need customer and vehicle. In WorkPROModal it's localCustomer/localVehicle or passed in. 
+            // We can just pass the props available.
+            const cust = typeof localCustomer !== 'undefined' ? (localCustomer || customer) : (typeof customer !== 'undefined' ? customer : null);
+            const veh = typeof localVehicle !== 'undefined' ? (localVehicle || (vehicles ? vehicles.find(v => v.id === workOrder?.vehicle_id) : null)) : null;
+            generateInspectionPDF(project, cust, veh, dynamicInspectionSections);
+          }} 
+          size="sm" 
+          variant="outline"
+          className="bg-white"
+        >
+          <Printer className="w-4 h-4 mr-2" />
+          Print
+        </Button>
+      </div>
+    
                         
                         <div className="space-y-4">
                           {dynamicInspectionSections.sort((a, b) => a.display_order - b.display_order).map((section) => {

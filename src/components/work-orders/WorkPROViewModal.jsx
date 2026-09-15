@@ -14,6 +14,8 @@ import {
   Droplet,
   X
 , Camera, Expand} from 'lucide-react';
+import { Printer } from 'lucide-react';
+import { generateInspectionPDF, formatInspectionType } from '@/lib/inspectionPdf';
 import { format } from 'date-fns';
 import { supabase } from '@/lib/supabase';
 
@@ -467,7 +469,26 @@ export default function WorkPROViewModal({ open, onClose, workOrder }) {
               {( (project.inspection_results && Object.keys(getInspectionResultsObj()).length > 0) || (project.inspection_comments && Object.keys(getInspectionComments()).length > 0) ) && (
                 <Card className="bg-slate-50 border-slate-200 dark:bg-slate-800 dark:border-slate-700">
                   <CardContent className="p-4">
-                    <h3 className="text-sm font-semibold text-slate-900 mb-3 dark:text-slate-100">Inspection Results</h3>
+                    
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+          Inspection Results {project?.inspection_type ? `- ${formatInspectionType(project.inspection_type)}` : ''}
+        </h3>
+        <Button 
+          onClick={() => {
+            const cust = null;
+            const veh = null;
+            generateInspectionPDF(project, cust, veh, dynamicInspectionSections);
+          }} 
+          size="sm" 
+          variant="outline"
+          className="bg-white"
+        >
+          <Printer className="w-4 h-4 mr-2" />
+          Print
+        </Button>
+      </div>
+    
 
                     <div className="space-y-4">
                       {dynamicInspectionSections.sort((a, b) => a.display_order - b.display_order).map((section) => {
