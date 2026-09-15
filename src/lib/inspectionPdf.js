@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { generateAlbertaInsurancePDF } from './albertaPdfGenerator';
 import { format } from 'date-fns';
 
 export const formatInspectionType = (type) => {
@@ -43,6 +44,10 @@ export const generateInspectionPDF = (project, customer, vehicle, inspectionSect
   if (!project) {
     console.warn("No project provided to generateInspectionPDF");
     return;
+  }
+  
+  if (project.inspection_type === 'alberta_insurance') {
+    return generateAlbertaInsurancePDF(project, customer, vehicle, inspectionSections);
   }
   
   try {
