@@ -101,6 +101,31 @@ export default function SmsThread({ phone, customerName }) {
   const [firstUnreadId, setFirstUnreadId] = useState(null);
 
   const chatEndRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+
+  const scrollToInitialPosition = () => {
+    const scrollContainer = scrollContainerRef.current;
+    const newMessagesBar = document.getElementById(`new-messages-bar-${phone}`);
+    const chatEnd = chatEndRef.current;
+
+    if (firstUnreadId && newMessagesBar && chatEnd && scrollContainer) {
+      const barRect = newMessagesBar.getBoundingClientRect();
+      const endRect = chatEnd.getBoundingClientRect();
+      const containerHeight = scrollContainer.clientHeight;
+
+      // Height of everything from the top of the "New Messages" bar down to the bottom
+      const unreadHeight = endRect.bottom - barRect.top;
+
+      if (unreadHeight > containerHeight) {
+        // Unread messages don't fit on screen, jump to the new messages bar
+        newMessagesBar.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        return;
+      }
+    }
+
+    // Otherwise, jump to the bottom so you can see the latest message
+    chatEnd?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   const fetchHistory = async (targetPhone = phone) => {
     if (!targetPhone) {
@@ -125,7 +150,7 @@ export default function SmsThread({ phone, customerName }) {
       console.error('Error fetching chat history:', err);
     } finally {
       setIsLoadingHistory(false);
-      setTimeout(() => scrollToBottom(), 100);
+      setTimeout(() => scrollToInitialPosition(), 100);
     }
   };
 
@@ -340,7 +365,7 @@ export default function SmsThread({ phone, customerName }) {
         mediaName={viewerMedia?.name}
       />
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollContainerRef}>
         {isLoadingHistory ? (
           <div className="text-center text-slate-500 text-sm mt-4">Loading history...</div>
         ) : chatHistory.length === 0 ? (
@@ -358,7 +383,7 @@ export default function SmsThread({ phone, customerName }) {
             return (
               <React.Fragment key={msg.id}>
                 {msg.id === firstUnreadId && (
-                  <div className="flex w-full items-center gap-4 my-2">
+                  <div id={`new-messages-bar-${phone}`} className="flex w-full items-center gap-4 my-2">
                     <div className="h-px bg-red-200 dark:bg-red-900/50 flex-1" />
                     <span className="text-xs font-semibold text-red-500 uppercase tracking-wider">New Messages</span>
                     <div className="h-px bg-red-200 dark:bg-red-900/50 flex-1" />

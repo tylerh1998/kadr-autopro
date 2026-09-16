@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronUp, MessageSquare, X } from 'lucide-react';
+import { ChevronUp, MessageSquare, X, Plus } from 'lucide-react';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import {
   DropdownMenu,
@@ -9,6 +9,7 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import SmsPanel from './SmsPanel';
+import NewSmsDialog from './NewSmsDialog';
 
 // Hard ceiling on how many panels can sit in the visible row, regardless of
 // how much horizontal room is available. The responsive width-fit below can
@@ -59,6 +60,15 @@ export default function SmsPanelDock({ panels, setPanels }) {
   );
   const [overflowOpen, setOverflowOpen] = useState(false);
   const [unreadPhones, setUnreadPhones] = useState(() => new Set());
+  const [isNewSmsOpen, setIsNewSmsOpen] = useState(false);
+
+  const handleStartChat = (phone) => {
+    window.dispatchEvent(
+      new CustomEvent('open-sms-panel', {
+        detail: { phone, customerName: null, customerId: null },
+      })
+    );
+  };
 
   useEffect(() => {
     const onResize = () => setViewportWidth(window.innerWidth);
@@ -155,8 +165,7 @@ export default function SmsPanelDock({ panels, setPanels }) {
     return () => document.body.style.setProperty('--sms-dock-offset', '0px');
   }, [visible, overflow, panels]);
 
-  if (panels.length === 0) return null;
-
+  // Always return the Root because it contains our global floating "New Message" button
   return (
     <DialogPrimitive.Root open modal={false}>
       <DialogPrimitive.Portal>
@@ -234,7 +243,7 @@ export default function SmsPanelDock({ panels, setPanels }) {
             return (
               <div
                 key={panel.phone}
-                className={isVisible ? 'pointer-events-auto' : 'hidden'}
+                className={isVisible ? 'pointer-events-auto relative' : 'hidden'}
               >
                 <SmsPanel
                   phone={panel.phone}
@@ -254,11 +263,43 @@ export default function SmsPanelDock({ panels, setPanels }) {
                   onClose={() => closePanel(panel.phone)}
                   onMaximize={() => maximizePanel(panel.phone)}
                 />
+                
+                {/* Floating button on the most recent (right-most) visible panel */}
+                {isVisible && panel.phone === visible[visible.length - 1]?.phone && (
+                  <button
+                    onClick={() => setIsNewSmsOpen(true)}
+                    className="absolute -top-16 right-0 w-12 h-12 bg-blue-600 rounded-full text-white shadow-lg flex items-center justify-center pointer-events-auto hover:bg-blue-700 transition-colors z-[10001]"
+                    title="New Message"
+                  >
+                    <Plus className="w-6 h-6" />
+                  </button>
+                )}
               </div>
             );
           })}
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
+      
+      {/* If there are NO panels open, we still want to show the floating button at the bottom right */}
+      {panels.length === 0 && (
+        <DialogPrimitive.Portal>
+          <div className="fixed bottom-4 right-4 z-[9999] pointer-events-auto">
+            <button
+              onClick={() => setIsNewSmsOpen(true)}
+              className="w-14 h-14 bg-blue-600 rounded-full text-white shadow-xl flex items-center justify-center hover:bg-blue-700 transition-colors"
+              title="New Message"
+            >
+              <Plus className="w-8 h-8" />
+            </button>
+          </div>
+        </DialogPrimitive.Portal>
+      )}
+
+      <NewSmsDialog 
+        isOpen={isNewSmsOpen} 
+        onClose={() => setIsNewSmsOpen(false)} 
+        onStartChat={handleStartChat} 
+      />
     </DialogPrimitive.Root>
   );
 }
