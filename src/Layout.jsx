@@ -1064,6 +1064,12 @@ function LayoutContent({ children, currentPageName }) {
                     )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem 
+                      onClick={() => window.dispatchEvent(new CustomEvent('open-new-sms-dialog'))}
+                      className="text-blue-600 font-semibold justify-center cursor-pointer"
+                    >
+                      New Message
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
                       onClick={() => setShowSmsModal(true)}
                       className="text-blue-600 font-semibold justify-center cursor-pointer"
                     >

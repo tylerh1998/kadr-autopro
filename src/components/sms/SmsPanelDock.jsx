@@ -165,7 +165,14 @@ export default function SmsPanelDock({ panels, setPanels }) {
     return () => document.body.style.setProperty('--sms-dock-offset', '0px');
   }, [visible, overflow, panels]);
 
-  // Always return the Root because it contains our global floating "New Message" button
+  useEffect(() => {
+    const handleOpenNew = () => setIsNewSmsOpen(true);
+    window.addEventListener('open-new-sms-dialog', handleOpenNew);
+    return () => window.removeEventListener('open-new-sms-dialog', handleOpenNew);
+  }, []);
+
+  if (panels.length === 0 && !isNewSmsOpen) return null;
+
   return (
     <DialogPrimitive.Root open modal={false}>
       <DialogPrimitive.Portal>
@@ -280,21 +287,6 @@ export default function SmsPanelDock({ panels, setPanels }) {
         </DialogPrimitive.Content>
       </DialogPrimitive.Portal>
       
-      {/* If there are NO panels open, we still want to show the floating button at the bottom right */}
-      {panels.length === 0 && (
-        <DialogPrimitive.Portal>
-          <div className="fixed bottom-4 right-4 z-[9999] pointer-events-auto">
-            <button
-              onClick={() => setIsNewSmsOpen(true)}
-              className="w-14 h-14 bg-blue-600 rounded-full text-white shadow-xl flex items-center justify-center hover:bg-blue-700 transition-colors"
-              title="New Message"
-            >
-              <Plus className="w-8 h-8" />
-            </button>
-          </div>
-        </DialogPrimitive.Portal>
-      )}
-
       <NewSmsDialog 
         isOpen={isNewSmsOpen} 
         onClose={() => setIsNewSmsOpen(false)} 
